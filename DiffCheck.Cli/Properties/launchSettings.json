@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "DiffCheck.Cli": {
+      "commandName": "Project",
+      "commandLineArgs": "./files/left.xlsx ./files/right.xlsx"
+    }
+  }
+}

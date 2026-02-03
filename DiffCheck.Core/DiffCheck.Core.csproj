@@ -1,0 +1,38 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net10.0</TargetFramework>
+		<Authors>Milan Vasić using Cursor</Authors>
+		<Description>A .NET library for comparing CSV and XLSX files with HTML output.</Description>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+		<RootNamespace>DiffCheck</RootNamespace>
+		<AssemblyName>DiffCheck.Core</AssemblyName>
+		<PackageId>DiffCheck.Core</PackageId>
+		<Version>1.0.0</Version>
+		<PackageTags>diff;csv;xlsx;excel;comparison</PackageTags>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<NoWarn>$(NoWarn);1591</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="ClosedXML" Version="0.105.0" />
+		<PackageReference Include="CsvHelper" Version="33.0.1" />
+	</ItemGroup>
+
+	<Target Name="Husky" BeforeTargets="Restore;CollectPackageReferences" Condition="'$(HUSKY)' != 0">
+		<Exec
+			Condition="'$(HUSKY)' == 1"
+			Command="dotnet tool restore"
+			StandardOutputImportance="Low"
+			StandardErrorImportance="High"
+		/>
+		<Exec
+			Condition="'$(HUSKY)' == 1"
+			Command="dotnet husky install"
+			StandardOutputImportance="Low"
+			StandardErrorImportance="High"
+			WorkingDirectory=".."
+		/>
+	</Target>
+</Project>

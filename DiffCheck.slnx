@@ -1,0 +1,4 @@
+<Solution>
+	<Project Path="DiffCheck.Core/DiffCheck.Core.csproj" />
+	<Project Path="DiffCheck.Cli/DiffCheck.Cli.csproj" />
+</Solution>

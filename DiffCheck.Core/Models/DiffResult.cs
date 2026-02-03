@@ -1,0 +1,167 @@
+namespace DiffCheck.Models;
+
+/// <summary>
+/// Result of comparing two data tables.
+/// </summary>
+public sealed class DiffResult
+{
+	/// <summary>
+	/// Merged headers from both files (union of all columns).
+	/// </summary>
+	public IReadOnlyList<string> Headers { get; }
+
+	/// <summary>
+	/// All diff rows with their status and cell-level differences.
+	/// </summary>
+	public IReadOnlyList<DiffRow> Rows { get; }
+
+	/// <summary>
+	/// Summary statistics.
+	/// </summary>
+	public DiffSummary Summary { get; }
+
+	public DiffResult(
+		IReadOnlyList<string> headers,
+		IReadOnlyList<DiffRow> rows,
+		DiffSummary summary
+	)
+	{
+		Headers = headers ?? throw new ArgumentNullException(nameof(headers));
+		Rows = rows ?? throw new ArgumentNullException(nameof(rows));
+		Summary = summary ?? throw new ArgumentNullException(nameof(summary));
+	}
+}
+
+/// <summary>
+/// Status of a row in the diff.
+/// </summary>
+public enum DiffRowStatus
+{
+	/// <summary>
+	/// Row exists in both files with identical values.
+	/// </summary>
+	Unchanged,
+
+	/// <summary>
+	/// Row was added (exists only in the second file).
+	/// </summary>
+	Added,
+
+	/// <summary>
+	/// Row was removed (exists only in the first file).
+	/// </summary>
+	Removed,
+
+	/// <summary>
+	/// Row exists in both but has modified cells.
+	/// </summary>
+	Modified,
+}
+
+/// <summary>
+/// A single row in the diff result.
+/// </summary>
+public sealed class DiffRow
+{
+	/// <summary>
+	/// 1-based row index for display.
+	/// </summary>
+	public int RowIndex { get; }
+
+	/// <summary>
+	/// Status of this row.
+	/// </summary>
+	public DiffRowStatus Status { get; }
+
+	/// <summary>
+	/// Cell values and their diff status.
+	/// </summary>
+	public IReadOnlyList<DiffCell> Cells { get; }
+
+	public DiffRow(int rowIndex, DiffRowStatus status, IReadOnlyList<DiffCell> cells)
+	{
+		RowIndex = rowIndex;
+		Status = status;
+		Cells = cells ?? throw new ArgumentNullException(nameof(cells));
+	}
+}
+
+/// <summary>
+/// Status of a cell in the diff.
+/// </summary>
+public enum DiffCellStatus
+{
+	Unchanged,
+	Added,
+	Removed,
+	Modified,
+}
+
+/// <summary>
+/// A single cell in the diff result.
+/// </summary>
+public sealed class DiffCell
+{
+	/// <summary>
+	/// Column header.
+	/// </summary>
+	public string Header { get; }
+
+	/// <summary>
+	/// Value from the first (left) file.
+	/// </summary>
+	public string? LeftValue { get; }
+
+	/// <summary>
+	/// Value from the second (right) file.
+	/// </summary>
+	public string? RightValue { get; }
+
+	/// <summary>
+	/// Display value (for unchanged: either value; for modified: both shown).
+	/// </summary>
+	public string DisplayValue { get; }
+
+	/// <summary>
+	/// Status of this cell.
+	/// </summary>
+	public DiffCellStatus Status { get; }
+
+	public DiffCell(
+		string header,
+		string? leftValue,
+		string? rightValue,
+		string displayValue,
+		DiffCellStatus status
+	)
+	{
+		Header = header ?? throw new ArgumentNullException(nameof(header));
+		LeftValue = leftValue;
+		RightValue = rightValue;
+		DisplayValue = displayValue ?? throw new ArgumentNullException(nameof(displayValue));
+		Status = status;
+	}
+}
+
+/// <summary>
+/// Summary of the diff.
+/// </summary>
+public sealed class DiffSummary
+{
+	public int AddedRows { get; }
+	public int RemovedRows { get; }
+	public int ModifiedRows { get; }
+	public int UnchangedRows { get; }
+	public int TotalRows { get; }
+	public bool HasDifferences { get; }
+
+	public DiffSummary(int addedRows, int removedRows, int modifiedRows, int unchangedRows)
+	{
+		AddedRows = addedRows;
+		RemovedRows = removedRows;
+		ModifiedRows = modifiedRows;
+		UnchangedRows = unchangedRows;
+		TotalRows = addedRows + removedRows + modifiedRows + unchangedRows;
+		HasDifferences = addedRows > 0 || removedRows > 0 || modifiedRows > 0;
+	}
+}

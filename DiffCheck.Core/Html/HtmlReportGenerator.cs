@@ -1,0 +1,197 @@
+using System.Text;
+using DiffCheck.Models;
+
+namespace DiffCheck.Html;
+
+/// <summary>
+/// Generates HTML reports from diff results with color-coded differences.
+/// </summary>
+public sealed class HtmlReportGenerator
+{
+	private readonly HtmlReportOptions _options;
+
+	public HtmlReportGenerator(HtmlReportOptions? options = null)
+	{
+		_options = options ?? new HtmlReportOptions();
+	}
+
+	/// <summary>
+	/// Generates an HTML report from a diff result.
+	/// </summary>
+	/// <param name="result">The diff result.</param>
+	/// <param name="leftFilePath">Path of the first file (for display).</param>
+	/// <param name="rightFilePath">Path of the second file (for display).</param>
+	/// <returns>HTML string.</returns>
+	public string Generate(
+		DiffResult result,
+		string? leftFilePath = null,
+		string? rightFilePath = null
+	)
+	{
+		ArgumentNullException.ThrowIfNull(result);
+
+		var sb = new StringBuilder();
+		sb.AppendLine("<!DOCTYPE html>");
+		sb.AppendLine("<html lang=\"en\">");
+		sb.AppendLine("<head>");
+		sb.AppendLine("  <meta charset=\"UTF-8\">");
+		sb.AppendLine(
+			"  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+		);
+		sb.AppendLine(
+			$"  <title>Diff Report - {EscapeHtml(leftFilePath ?? "File 1")} vs {EscapeHtml(rightFilePath ?? "File 2")}</title>"
+		);
+		sb.AppendLine("  <style>");
+		sb.AppendLine(GetStyles());
+		sb.AppendLine("  </style>");
+		sb.AppendLine("</head>");
+		sb.AppendLine("<body>");
+		sb.AppendLine("  <div class=\"container\">");
+		sb.AppendLine("    <h1>Diff Report</h1>");
+
+		if (!string.IsNullOrEmpty(leftFilePath) || !string.IsNullOrEmpty(rightFilePath))
+		{
+			sb.AppendLine("    <div class=\"file-info\">");
+			sb.AppendLine(
+				$"      <div><strong>Left:</strong> {EscapeHtml(leftFilePath ?? "-")}</div>"
+			);
+			sb.AppendLine(
+				$"      <div><strong>Right:</strong> {EscapeHtml(rightFilePath ?? "-")}</div>"
+			);
+			sb.AppendLine("    </div>");
+		}
+
+		sb.AppendLine("    <div class=\"summary\">");
+		sb.AppendLine(
+			$"      <span class=\"badge added\">Added: {result.Summary.AddedRows}</span>"
+		);
+		sb.AppendLine(
+			$"      <span class=\"badge removed\">Removed: {result.Summary.RemovedRows}</span>"
+		);
+		sb.AppendLine(
+			$"      <span class=\"badge modified\">Modified: {result.Summary.ModifiedRows}</span>"
+		);
+		sb.AppendLine(
+			$"      <span class=\"badge unchanged\">Unchanged: {result.Summary.UnchangedRows}</span>"
+		);
+		sb.AppendLine("    </div>");
+
+		sb.AppendLine("    <div class=\"table-wrapper\">");
+		sb.AppendLine("      <table class=\"diff-table\">");
+		sb.AppendLine("        <thead><tr>");
+		sb.AppendLine("          <th class=\"row-num\">#</th>");
+		sb.AppendLine("          <th class=\"row-status\">Status</th>");
+		foreach (var header in result.Headers)
+			sb.AppendLine($"          <th>{EscapeHtml(header)}</th>");
+		sb.AppendLine("        </tr></thead>");
+		sb.AppendLine("        <tbody>");
+
+		foreach (var row in result.Rows)
+		{
+			var rowClass = row.Status switch
+			{
+				DiffRowStatus.Added => "row-added",
+				DiffRowStatus.Removed => "row-removed",
+				DiffRowStatus.Modified => "row-modified",
+				_ => "row-unchanged",
+			};
+			var statusText = row.Status.ToString().ToLowerInvariant();
+
+			sb.AppendLine($"        <tr class=\"{rowClass}\">");
+			sb.AppendLine($"          <td class=\"row-num\">{row.RowIndex}</td>");
+			sb.AppendLine(
+				$"          <td class=\"row-status\"><span class=\"status-badge {statusText}\">{statusText}</span></td>"
+			);
+
+			foreach (var cell in row.Cells)
+			{
+				var cellClass = cell.Status switch
+				{
+					DiffCellStatus.Added => "cell-added",
+					DiffCellStatus.Removed => "cell-removed",
+					DiffCellStatus.Modified => "cell-modified",
+					_ => "cell-unchanged",
+				};
+				sb.AppendLine(
+					$"          <td class=\"{cellClass}\">{EscapeHtml(cell.DisplayValue)}</td>"
+				);
+			}
+			sb.AppendLine("        </tr>");
+		}
+
+		sb.AppendLine("        </tbody>");
+		sb.AppendLine("      </table>");
+		sb.AppendLine("    </div>");
+		sb.AppendLine("  </div>");
+		sb.AppendLine("</body>");
+		sb.AppendLine("</html>");
+
+		return sb.ToString();
+	}
+
+	/// <summary>
+	/// Writes the HTML report to a file.
+	/// </summary>
+	public async Task WriteToFileAsync(
+		DiffResult result,
+		string outputPath,
+		string? leftFilePath = null,
+		string? rightFilePath = null,
+		CancellationToken cancellationToken = default
+	)
+	{
+		var html = Generate(result, leftFilePath, rightFilePath);
+		await File.WriteAllTextAsync(outputPath, html, cancellationToken);
+	}
+
+	private string GetStyles()
+	{
+		var add = _options.AddedColor;
+		var rem = _options.RemovedColor;
+		var mod = _options.ModifiedColor;
+		var font = _options.FontFamily;
+		return $@"
+* {{ box-sizing: border-box; }}
+body {{ font-family: {font}; margin: 0; padding: 20px; background: #f5f5f5; }}
+.container {{ max-width: 100%; overflow-x: auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+h1 {{ margin-top: 0; color: #333; }}
+.file-info {{ margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 14px; }}
+.file-info div {{ margin: 4px 0; }}
+.summary {{ margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 8px; }}
+.badge {{ padding: 6px 12px; border-radius: 4px; font-size: 14px; font-weight: 500; }}
+.badge.added {{ background: {add}; color: white; }}
+.badge.removed {{ background: {rem}; color: white; }}
+.badge.modified {{ background: {mod}; color: white; }}
+.badge.unchanged {{ background: #e0e0e0; color: #555; }}
+.table-wrapper {{ overflow-x: auto; }}
+.diff-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
+.diff-table th, .diff-table td {{ padding: 10px 12px; text-align: left; border: 1px solid #ddd; }}
+.diff-table th {{ background: #f0f0f0; font-weight: 600; position: sticky; top: 0; }}
+.diff-table .row-num {{ width: 50px; text-align: right; color: #666; }}
+.diff-table .row-status {{ width: 90px; }}
+.status-badge {{ padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }}
+.status-badge.added {{ background: {add}; color: white; }}
+.status-badge.removed {{ background: {rem}; color: white; }}
+.status-badge.modified {{ background: {mod}; color: white; }}
+.status-badge.unchanged {{ background: #e0e0e0; color: #555; }}
+.row-added {{ background: {add}22 !important; }}
+.row-removed {{ background: {rem}22 !important; }}
+.row-modified {{ background: {mod}22 !important; }}
+.row-unchanged {{ }}
+.cell-added {{ background: {add}44 !important; }}
+.cell-removed {{ background: {rem}44 !important; }}
+.cell-modified {{ background: {mod}44 !important; }}
+.cell-unchanged {{ }}
+tr:hover {{ background: #fafafa !important; }}
+";
+	}
+
+	private static string EscapeHtml(string text)
+	{
+		return text.Replace("&", "&amp;")
+			.Replace("<", "&lt;")
+			.Replace(">", "&gt;")
+			.Replace("\"", "&quot;")
+			.Replace("'", "&#39;");
+	}
+}
