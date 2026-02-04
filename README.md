@@ -52,9 +52,10 @@ var service = new DiffCheckService();
 
 // Compare and save HTML report
 await service.CompareAndSaveHtmlAsync(
-    leftFilePath: "file1.csv",
-    rightFilePath: "file2.csv",
-    outputPath: "diff-report.html");
+	leftFilePath: "file1.csv",
+	rightFilePath: "file2.csv",
+	outputPath: "diff-report.html"
+);
 ```
 
 ### Step-by-step (for custom workflows)
@@ -67,8 +68,14 @@ var result = await service.CompareAsync("old.xlsx", "new.xlsx");
 Console.WriteLine($"Added: {result.Summary.AddedRows}, Removed: {result.Summary.RemovedRows}");
 
 // 3. Generate HTML (with optional file sizes and theme)
-var html = service.GenerateHtml(result, "old.xlsx", "new.xlsx",
-    leftFileSize: 1024, rightFileSize: 2048, theme: "dark");
+var html = service.GenerateHtml(
+	result,
+	"old.xlsx",
+	"new.xlsx",
+	leftFileSize: 1024,
+	rightFileSize: 2048,
+	theme: "dark"
+);
 
 // Or write to file
 await service.WriteHtmlToFileAsync(result, "report.html", "old.xlsx", "new.xlsx");
@@ -79,10 +86,10 @@ await service.WriteHtmlToFileAsync(result, "report.html", "old.xlsx", "new.xlsx"
 ```csharp
 var options = new HtmlReportOptions
 {
-    AddedColor = "#22c55e",    // green
-    RemovedColor = "#ef4444",  // red
-    ModifiedColor = "#f59e0b", // amber
-    ReorderedColor = "#3b82f6"  // blue
+	AddedColor = "#22c55e", // green
+	RemovedColor = "#ef4444", // red
+	ModifiedColor = "#f59e0b", // amber
+	ReorderedColor = "#3b82f6", // blue
 };
 var service = new DiffCheckService(options);
 ```
