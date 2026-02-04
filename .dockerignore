@@ -1,0 +1,13 @@
+.git
+.gitignore
+.vs
+.vscode
+.idea
+**/bin
+**/obj
+**/node_modules
+**/*.md
+**/TestData
+**/*.Tests
+DiffCheck.Cli
+DiffCheck.Core.Tests
