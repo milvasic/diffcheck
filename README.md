@@ -1,21 +1,49 @@
 # DiffCheck
 
-A .NET 10 library for comparing CSV and XLSX files. Produces HTML reports with color-coded differences.
+A .NET 10 tool for comparing CSV and XLSX files. Produces HTML reports with color-coded differences.
 
 ## Features
 
 - **CSV support** – Compare comma-separated and tab-delimited files
 - **XLSX support** – Compare Excel workbooks (first sheet by default)
-- **HTML output** – Color-coded table: green (added), red (removed), amber (modified)
-- **Reusable library** – Use in CLI tools, web APIs, or other .NET projects
+- **HTML output** – Color-coded table: green (added), red (removed), amber (modified), blue (reordered)
+- **Content-based matching** – Detects reordered rows via column similarity (50% threshold)
+- **File stats** – Report header shows file size, row count, column count, and total cells per file
+- **Dark theme** – HTML reports support light and dark themes
+- **CLI, Web, and library** – Use via command line, web UI, or embed in your .NET projects
 
-## Installation
+## Quick start
 
-Add the project reference to your solution, or publish as a NuGet package.
+### CLI
 
-## Usage
+```bash
+# Run from repo
+dotnet run --project DiffCheck.Cli -- left.csv right.csv
 
-### Basic comparison (auto-detect format)
+# Or with custom output
+dotnet run --project DiffCheck.Cli -- left.xlsx right.xlsx -o report.html
+```
+
+### Web app
+
+```bash
+dotnet run --project DiffCheck.Web
+```
+
+Open http://localhost:5000, upload two files, and view the diff report. Supports drag-and-drop and dark theme.
+
+## Project structure
+
+| Project | Description |
+|---------|--------------|
+| `DiffCheck.Core` | Library: readers, diff engine, HTML report generator |
+| `DiffCheck.Cli` | Command-line tool |
+| `DiffCheck.Web` | Razor Pages web app with file upload |
+| `DiffCheck.Core.Tests` | Unit tests (MSTest) |
+
+## Library usage
+
+### Basic comparison
 
 ```csharp
 using DiffCheck;
@@ -38,8 +66,9 @@ var result = await service.CompareAsync("old.xlsx", "new.xlsx");
 // 2. Check summary
 Console.WriteLine($"Added: {result.Summary.AddedRows}, Removed: {result.Summary.RemovedRows}");
 
-// 3. Generate HTML
-var html = service.GenerateHtml(result, "old.xlsx", "new.xlsx");
+// 3. Generate HTML (with optional file sizes and theme)
+var html = service.GenerateHtml(result, "old.xlsx", "new.xlsx",
+    leftFileSize: 1024, rightFileSize: 2048, theme: "dark");
 
 // Or write to file
 await service.WriteHtmlToFileAsync(result, "report.html", "old.xlsx", "new.xlsx");
@@ -52,7 +81,8 @@ var options = new HtmlReportOptions
 {
     AddedColor = "#22c55e",    // green
     RemovedColor = "#ef4444",  // red
-    ModifiedColor = "#f59e0b"   // amber
+    ModifiedColor = "#f59e0b", // amber
+    ReorderedColor = "#3b82f6"  // blue
 };
 var service = new DiffCheckService(options);
 ```
@@ -74,24 +104,29 @@ var result = await service.CompareAsync("a.xlsx", "b.xlsx");
 | `.xlsx`   | Excel 2007+   |
 | `.xlsm`   | Excel macro   |
 
-## Formatting
+## Development
+
+### Run tests
+
+```bash
+dotnet test DiffCheck.Core.Tests
+```
+
+### Formatting
 
 This project uses [CSharpier](https://csharpier.com/) for code formatting.
 
 ```bash
-# Format all C# files
 dotnet csharpier format .
 ```
 
-Format-on-save is configured in `.vscode/settings.json` when using the CSharpier extension.
+Format-on-save is configured in `.vscode/settings.json` when using the CSharpier extension. CSharpier runs automatically on pre-commit via [Husky.NET](https://alirezanet.github.io/Husky.Net/). Git hooks are installed on `dotnet restore`.
 
-CSharpier runs automatically on pre-commit via [Husky.NET](https://alirezanet.github.io/Husky.Net/). Git hooks are installed automatically on `dotnet restore`.
-
-## Requirements
+### Requirements
 
 - .NET 10.0 (or change `TargetFramework` to `net8.0` if needed)
 
-## Dependencies
+### Dependencies
 
 - [ClosedXML](https://github.com/ClosedXML/ClosedXML) – XLSX reading
 - [CsvHelper](https://github.com/JoshClose/CsvHelper) – CSV parsing
