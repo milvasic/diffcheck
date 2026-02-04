@@ -119,7 +119,7 @@ public sealed class HtmlReportGenerator
 				DiffRowStatus.Added => "row-added",
 				DiffRowStatus.Removed => "row-removed",
 				DiffRowStatus.Modified => "row-modified",
-				DiffRowStatus.Reordered => "row-reordered",
+				DiffRowStatus.Reordered => "row-unchanged", // not highlighted
 				_ => "row-unchanged",
 			};
 			var statusText = row.Status.ToString().ToLowerInvariant();
@@ -144,12 +144,14 @@ public sealed class HtmlReportGenerator
 					DiffCellStatus.Added => "cell-added",
 					DiffCellStatus.Removed => "cell-removed",
 					DiffCellStatus.Modified => "cell-modified",
-					DiffCellStatus.Reordered => "cell-reordered",
+					DiffCellStatus.Reordered => "cell-unchanged", // not highlighted
 					_ => "cell-unchanged",
 				};
-				sb.AppendLine(
-					$"          <td class=\"{cellClass}\">{EscapeHtml(cell.DisplayValue)}</td>"
-				);
+				var cellContent =
+					cell.Status == DiffCellStatus.Modified
+						? $"<span class=\"diff-old\">{EscapeHtml(cell.LeftValue ?? "")}</span> → <span class=\"diff-new\">{EscapeHtml(cell.RightValue ?? "")}</span>"
+						: EscapeHtml(cell.DisplayValue);
+				sb.AppendLine($"          <td class=\"{cellClass}\">{cellContent}</td>");
 			}
 			sb.AppendLine("        </tr>");
 		}
@@ -228,13 +230,13 @@ h1 {{ margin-top: 0; color: #333; }}
 .row-added {{ background: {add}22 !important; }}
 .row-removed {{ background: {rem}22 !important; }}
 .row-modified {{ background: {mod}22 !important; }}
-.row-reordered {{ background: {reord}22 !important; }}
 .row-unchanged {{ }}
 .cell-added {{ background: {add}44 !important; }}
 .cell-removed {{ background: {rem}44 !important; }}
 .cell-modified {{ background: {mod}44 !important; }}
-.cell-reordered {{ background: {reord}44 !important; }}
 .cell-unchanged {{ }}
+.diff-old {{ background: {add}59; border-radius: 4px; padding: 2px 6px; margin-right: 4px; }}
+.diff-new {{ background: {rem}59; border-radius: 4px; padding: 2px 6px; }}
 tr:hover {{ background: #fafafa !important; }}
 
 [data-theme=""dark""] body {{ background: #1a1a1a; color: #e9ecef; }}
