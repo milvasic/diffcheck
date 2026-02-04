@@ -20,15 +20,43 @@ public sealed class DiffResult
 	/// </summary>
 	public DiffSummary Summary { get; }
 
+	/// <summary>
+	/// Row count in the left file.
+	/// </summary>
+	public int LeftRowCount { get; }
+
+	/// <summary>
+	/// Column count in the left file.
+	/// </summary>
+	public int LeftColumnCount { get; }
+
+	/// <summary>
+	/// Row count in the right file.
+	/// </summary>
+	public int RightRowCount { get; }
+
+	/// <summary>
+	/// Column count in the right file.
+	/// </summary>
+	public int RightColumnCount { get; }
+
 	public DiffResult(
 		IReadOnlyList<string> headers,
 		IReadOnlyList<DiffRow> rows,
-		DiffSummary summary
+		DiffSummary summary,
+		int leftRowCount = 0,
+		int leftColumnCount = 0,
+		int rightRowCount = 0,
+		int rightColumnCount = 0
 	)
 	{
 		Headers = headers ?? throw new ArgumentNullException(nameof(headers));
 		Rows = rows ?? throw new ArgumentNullException(nameof(rows));
 		Summary = summary ?? throw new ArgumentNullException(nameof(summary));
+		LeftRowCount = leftRowCount;
+		LeftColumnCount = leftColumnCount;
+		RightRowCount = rightRowCount;
+		RightColumnCount = rightColumnCount;
 	}
 }
 
@@ -56,6 +84,11 @@ public enum DiffRowStatus
 	/// Row exists in both but has modified cells.
 	/// </summary>
 	Modified,
+
+	/// <summary>
+	/// Row exists in both files with same content but at a different position.
+	/// </summary>
+	Reordered,
 }
 
 /// <summary>
@@ -78,11 +111,29 @@ public sealed class DiffRow
 	/// </summary>
 	public IReadOnlyList<DiffCell> Cells { get; }
 
-	public DiffRow(int rowIndex, DiffRowStatus status, IReadOnlyList<DiffCell> cells)
+	/// <summary>
+	/// 1-based original row index in the left file. Null for added rows.
+	/// </summary>
+	public int? LeftRowIndex { get; }
+
+	/// <summary>
+	/// 1-based original row index in the right file. Null for removed rows.
+	/// </summary>
+	public int? RightRowIndex { get; }
+
+	public DiffRow(
+		int rowIndex,
+		DiffRowStatus status,
+		IReadOnlyList<DiffCell> cells,
+		int? leftRowIndex = null,
+		int? rightRowIndex = null
+	)
 	{
 		RowIndex = rowIndex;
 		Status = status;
 		Cells = cells ?? throw new ArgumentNullException(nameof(cells));
+		LeftRowIndex = leftRowIndex;
+		RightRowIndex = rightRowIndex;
 	}
 }
 
@@ -95,6 +146,7 @@ public enum DiffCellStatus
 	Added,
 	Removed,
 	Modified,
+	Reordered,
 }
 
 /// <summary>
@@ -152,16 +204,24 @@ public sealed class DiffSummary
 	public int RemovedRows { get; }
 	public int ModifiedRows { get; }
 	public int UnchangedRows { get; }
+	public int ReorderedRows { get; }
 	public int TotalRows { get; }
 	public bool HasDifferences { get; }
 
-	public DiffSummary(int addedRows, int removedRows, int modifiedRows, int unchangedRows)
+	public DiffSummary(
+		int addedRows,
+		int removedRows,
+		int modifiedRows,
+		int unchangedRows,
+		int reorderedRows = 0
+	)
 	{
 		AddedRows = addedRows;
 		RemovedRows = removedRows;
 		ModifiedRows = modifiedRows;
 		UnchangedRows = unchangedRows;
-		TotalRows = addedRows + removedRows + modifiedRows + unchangedRows;
-		HasDifferences = addedRows > 0 || removedRows > 0 || modifiedRows > 0;
+		ReorderedRows = reorderedRows;
+		TotalRows = addedRows + removedRows + modifiedRows + unchangedRows + reorderedRows;
+		HasDifferences = addedRows > 0 || removedRows > 0 || modifiedRows > 0 || reorderedRows > 0;
 	}
 }

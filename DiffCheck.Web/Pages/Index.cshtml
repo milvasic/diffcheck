@@ -1,0 +1,147 @@
+@page
+@model IndexModel
+@{
+	ViewData["Title"] = "Compare CSV & XLSX";
+}
+
+<div class="row mb-4">
+	<div class="col">
+		<h1 class="display-6">Compare CSV & XLSX Files</h1>
+		<p class="text-muted">Drop or select two files to compare. Supported: .csv, .txt, .xlsx, .xlsm</p>
+	</div>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="compareForm" class="position-relative" style="min-height: 120px;">
+	<div class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center rounded" id="loadingOverlay" style="z-index: 10; min-height: 120px;">
+		<div class="spinner-border text-primary" role="status">
+			<span class="visually-hidden">Comparing...</span>
+		</div>
+	</div>
+	<div class="row g-3 mb-4">
+		<div class="col-md-6">
+			<div class="drop-zone border rounded p-4 text-center" data-target="leftFile">
+				<input type="file" name="leftFile" id="leftFile" class="d-none" accept=".csv,.txt,.xlsx,.xlsm" />
+				<div class="drop-content">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-file-earmark-text text-muted mb-2" viewBox="0 0 16 16">
+						<path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+						<path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+					</svg>
+					<p class="mb-1 fw-medium">Left file</p>
+					<p class="small text-muted mb-0" id="leftFileName">Drop file here or click to browse</p>
+				</div>
+			</div>
+		</div>
+		<div class="col-md-6">
+			<div class="drop-zone border rounded p-4 text-center" data-target="rightFile">
+				<input type="file" name="rightFile" id="rightFile" class="d-none" accept=".csv,.txt,.xlsx,.xlsm" />
+				<div class="drop-content">
+					<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor" class="bi bi-file-earmark-text text-muted mb-2" viewBox="0 0 16 16">
+						<path d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+						<path d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+					</svg>
+					<p class="mb-1 fw-medium">Right file</p>
+					<p class="small text-muted mb-0" id="rightFileName">Drop file here or click to browse</p>
+				</div>
+			</div>
+		</div>
+	</div>
+
+	@if (!string.IsNullOrEmpty(Model.ErrorMessage))
+	{
+		<div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
+	}
+</form>
+
+@if (!string.IsNullOrEmpty(Model.DiffReportHtml))
+{
+	<div class="mt-4">
+		<h5 class="mb-3">Diff Result</h5>
+		<div class="border rounded overflow-hidden bg-white">
+			<iframe id="diffReportFrame" srcdoc="@Model.DiffReportHtml" class="w-100 border-0" style="min-height: 600px;" title="Diff report"></iframe>
+		</div>
+	</div>
+}
+
+@section Scripts {
+	<script>
+		(function () {
+			const form = document.getElementById('compareForm');
+			const leftInput = document.getElementById('leftFile');
+			const rightInput = document.getElementById('rightFile');
+			const leftName = document.getElementById('leftFileName');
+			const rightName = document.getElementById('rightFileName');
+
+			form.addEventListener('submit', function (e) {
+				e.preventDefault();
+			});
+
+			function updateFileName(input, displayEl) {
+				displayEl.textContent = input.files?.length ? input.files[0].name : 'Drop file here or click to browse';
+			}
+
+			function checkAndSubmit() {
+				if (leftInput.files?.length && rightInput.files?.length) {
+					document.getElementById('loadingOverlay').classList.remove('d-none');
+					document.getElementById('loadingOverlay').classList.add('d-flex');
+
+					var formData = new FormData(form);
+					var theme = document.documentElement.getAttribute('data-theme') || 'light';
+
+					fetch(form.action, {
+						method: 'POST',
+						body: formData,
+						headers: {
+							'X-Theme': theme
+						}
+					})
+					.then(function (r) { return r.text(); })
+					.then(function (html) {
+						document.open();
+						document.write(html);
+						document.close();
+					})
+					.catch(function (err) {
+						document.getElementById('loadingOverlay').classList.add('d-none');
+						document.getElementById('loadingOverlay').classList.remove('d-flex');
+						alert('Error: ' + (err.message || 'Comparison failed'));
+					});
+				}
+			}
+
+			document.querySelectorAll('.drop-zone').forEach(zone => {
+				const targetId = zone.dataset.target;
+				const input = document.getElementById(targetId);
+				const displayEl = document.getElementById(targetId + 'Name');
+
+				zone.addEventListener('click', () => input.click());
+
+				zone.addEventListener('dragover', (e) => {
+					e.preventDefault();
+					zone.classList.add('drop-zone-active');
+				});
+
+				zone.addEventListener('dragleave', () => {
+					zone.classList.remove('drop-zone-active');
+				});
+
+				zone.addEventListener('drop', (e) => {
+					e.preventDefault();
+					zone.classList.remove('drop-zone-active');
+					if (e.dataTransfer.files.length) {
+						input.files = e.dataTransfer.files;
+						updateFileName(input, displayEl);
+						checkAndSubmit();
+					}
+				});
+
+				input.addEventListener('change', () => {
+					updateFileName(input, displayEl);
+					checkAndSubmit();
+				});
+			});
+
+			// Report is generated with theme from X-Theme header, so it renders correctly from the start.
+			// When user toggles theme, theme.js applies it to the iframe.
+		})();
+	</script>
+}

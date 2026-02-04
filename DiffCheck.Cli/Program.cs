@@ -7,7 +7,7 @@ var rightArg = new Argument<FileInfo>("right") { Description = "Path to the righ
 var outputOption = new Option<FileInfo>("--output", ["-o"])
 {
 	Description = "Path for the output HTML report.",
-	DefaultValueFactory = x => new FileInfo("./files/diff-report.html"),
+	DefaultValueFactory = x => new FileInfo("diff-report.html"),
 };
 
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")

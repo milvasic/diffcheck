@@ -1,0 +1,122 @@
+/* Light theme (default) */
+:root,
+[data-theme="light"] {
+	--bg-body: #fff;
+	--bg-surface: #f8f9fa;
+	--bg-surface-hover: #e9ecef;
+	--bg-drop-active: #e7f3ff;
+	--text-primary: #212529;
+	--text-secondary: #6c757d;
+	--border-color: #dee2e6;
+	--navbar-bg: #fff;
+	--footer-border: #e5e5e5;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+	--bg-body: #1a1a1a;
+	--bg-surface: #2d2d2d;
+	--bg-surface-hover: #3d3d3d;
+	--bg-drop-active: #1e3a5f;
+	--text-primary: #e9ecef;
+	--text-secondary: #adb5bd;
+	--border-color: #495057;
+	--navbar-bg: #212529;
+	--footer-border: #495057;
+}
+
+[data-theme="dark"] body {
+	background-color: var(--bg-body);
+	color: var(--text-primary);
+}
+
+[data-theme="dark"] .navbar.theme-aware {
+	background-color: var(--navbar-bg) !important;
+	border-color: var(--border-color) !important;
+	box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .navbar .nav-link {
+	color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .navbar .navbar-toggler {
+	background-color: var(--bg-surface);
+	border-color: var(--border-color);
+}
+
+[data-theme="dark"] .navbar .navbar-toggler-icon {
+	filter: invert(1);
+}
+
+[data-theme="dark"] .footer {
+	border-color: var(--footer-border) !important;
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .footer a {
+	color: #6ea8fe !important;
+}
+
+[data-theme="dark"] .text-muted {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .drop-zone {
+	background-color: var(--bg-surface);
+	border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .drop-zone:hover {
+	background-color: var(--bg-surface-hover);
+}
+
+[data-theme="dark"] .drop-zone.drop-zone-active {
+	background-color: var(--bg-drop-active);
+	border-color: #0d6efd !important;
+}
+
+[data-theme="dark"] .drop-zone .text-muted {
+	color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .border {
+	border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .border.rounded {
+	border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .alert-danger {
+	background-color: #5c2a2a;
+	border-color: #8b3a3a;
+	color: #f8d7da;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+	border-color: var(--border-color);
+	color: var(--text-primary);
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+	background-color: var(--bg-surface-hover);
+	border-color: var(--border-color);
+	color: var(--text-primary);
+}
+
+[data-theme="dark"] #loadingOverlay {
+	background-color: rgba(26, 26, 26, 0.9) !important;
+}
+
+[data-theme="dark"] .display-6 {
+	color: var(--text-primary);
+}
+
+[data-theme="dark"] main {
+	background-color: var(--bg-body);
+}
+
+[data-theme="dark"] .bg-white {
+	background-color: var(--bg-surface) !important;
+}

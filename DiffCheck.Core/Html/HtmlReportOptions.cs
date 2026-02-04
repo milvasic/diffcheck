@@ -25,4 +25,9 @@ public sealed class HtmlReportOptions
 	/// Background color for modified rows/cells. Default: amber/yellow.
 	/// </summary>
 	public string ModifiedColor { get; set; } = "#f59e0b";
+
+	/// <summary>
+	/// Background color for reordered rows/cells. Default: blue.
+	/// </summary>
+	public string ReorderedColor { get; set; } = "#3b82f6";
 }

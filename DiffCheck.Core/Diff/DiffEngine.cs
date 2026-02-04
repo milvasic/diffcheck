@@ -4,10 +4,12 @@ namespace DiffCheck.Diff;
 
 /// <summary>
 /// Compares two data tables and produces a diff result.
-/// Uses row-by-row comparison (same row index = same logical row).
+/// Uses content-based row matching to detect reordered rows.
 /// </summary>
 public sealed class DiffEngine
 {
+	private const double MatchThreshold = 0.5;
+
 	/// <summary>
 	/// Compares two data tables.
 	/// </summary>
@@ -20,7 +22,6 @@ public sealed class DiffEngine
 		ArgumentNullException.ThrowIfNull(right);
 
 		var headers = MergeHeaders(left.Headers, right.Headers);
-		var headerSet = headers.ToHashSet();
 		var leftColIndex = left
 			.Headers.Select((h, i) => (h, i))
 			.ToDictionary(x => x.h, x => x.i, StringComparer.OrdinalIgnoreCase);
@@ -28,19 +29,79 @@ public sealed class DiffEngine
 			.Headers.Select((h, i) => (h, i))
 			.ToDictionary(x => x.h, x => x.i, StringComparer.OrdinalIgnoreCase);
 
+		// Build indexed rows: (row, originalIndex)
+		var leftIndexed = left.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
+		var rightIndexed = right.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
+
 		var diffRows = new List<DiffRow>();
-		var maxRows = Math.Max(left.RowCount, right.RowCount);
+		var leftMatched = new HashSet<int>();
+		var rightMatched = new HashSet<int>();
 		var added = 0;
 		var removed = 0;
 		var modified = 0;
 		var unchanged = 0;
+		var reordered = 0;
+		var displayIndex = 1;
 
-		for (var i = 0; i < maxRows; i++)
+		// Process right rows in original order to preserve output sequence
+		for (var rightIdx = 0; rightIdx < rightIndexed.Count; rightIdx++)
 		{
-			var leftRow = i < left.RowCount ? left.Rows[i] : null;
-			var rightRow = i < right.RowCount ? right.Rows[i] : null;
+			var (rightRow, rightOrigIdx) = rightIndexed[rightIdx];
 
-			if (leftRow == null && rightRow != null)
+			// Find best matching left row (>= 50% columns match)
+			var bestLeft = FindBestMatch(
+				rightRow,
+				leftIndexed,
+				leftMatched,
+				headers,
+				leftColIndex,
+				rightColIndex
+			);
+
+			if (bestLeft.HasValue)
+			{
+				var (leftRow, leftOrigIdx) = leftIndexed[bestLeft.Value];
+				leftMatched.Add(bestLeft.Value);
+				rightMatched.Add(rightIdx);
+
+				var cells = CompareCells(headers, leftRow, rightRow, leftColIndex, rightColIndex);
+				var cellStatus = GetRowCellStatus(cells);
+				var isReordered = leftOrigIdx != rightOrigIdx;
+
+				DiffRowStatus status;
+				if (cellStatus == DiffCellStatus.Unchanged && isReordered)
+				{
+					status = DiffRowStatus.Reordered;
+					reordered++;
+				}
+				else if (cellStatus == DiffCellStatus.Modified)
+				{
+					status = DiffRowStatus.Modified;
+					modified++;
+				}
+				else
+				{
+					status = DiffRowStatus.Unchanged;
+					unchanged++;
+				}
+
+				// For reordered rows, mark cells as Reordered for display
+				if (status == DiffRowStatus.Reordered)
+				{
+					cells = cells
+						.Select(c => new DiffCell(
+							c.Header,
+							c.LeftValue,
+							c.RightValue,
+							c.DisplayValue,
+							DiffCellStatus.Reordered
+						))
+						.ToList();
+				}
+
+				diffRows.Add(new DiffRow(displayIndex++, status, cells, leftOrigIdx, rightOrigIdx));
+			}
+			else
 			{
 				var cells = BuildCells(
 					headers,
@@ -49,41 +110,116 @@ public sealed class DiffEngine
 					rightColIndex,
 					DiffCellStatus.Added
 				);
-				diffRows.Add(new DiffRow(i + 1, DiffRowStatus.Added, cells));
-				added++;
-			}
-			else if (leftRow != null && rightRow == null)
-			{
-				var cells = BuildCells(
-					headers,
-					leftRow,
-					null,
-					leftColIndex,
-					DiffCellStatus.Removed
+				diffRows.Add(
+					new DiffRow(displayIndex++, DiffRowStatus.Added, cells, null, rightOrigIdx)
 				);
-				diffRows.Add(new DiffRow(i + 1, DiffRowStatus.Removed, cells));
-				removed++;
-			}
-			else
-			{
-				var cells = CompareCells(headers, leftRow!, rightRow!, leftColIndex, rightColIndex);
-				var status = GetRowStatus(cells);
-				diffRows.Add(new DiffRow(i + 1, status, cells));
-
-				switch (status)
-				{
-					case DiffRowStatus.Modified:
-						modified++;
-						break;
-					case DiffRowStatus.Unchanged:
-						unchanged++;
-						break;
-				}
+				added++;
 			}
 		}
 
-		var summary = new DiffSummary(added, removed, modified, unchanged);
-		return new DiffResult(headers, diffRows, summary);
+		// Remaining unmatched left rows -> Removed
+		for (var leftIdx = 0; leftIdx < leftIndexed.Count; leftIdx++)
+		{
+			if (leftMatched.Contains(leftIdx))
+				continue;
+
+			var (leftRow, leftOrigIdx) = leftIndexed[leftIdx];
+			var cells = BuildCells(headers, leftRow, null, leftColIndex, DiffCellStatus.Removed);
+			diffRows.Add(
+				new DiffRow(displayIndex++, DiffRowStatus.Removed, cells, leftOrigIdx, null)
+			);
+			removed++;
+		}
+
+		// Order so added rows appear at their right index, removed at their left index
+		// At same position: removed first, then matched, then added
+		var orderedRows = diffRows
+			.OrderBy(r => GetSortPosition(r))
+			.ThenBy(r => GetSortType(r))
+			.Select(
+				(r, i) => new DiffRow(i + 1, r.Status, r.Cells, r.LeftRowIndex, r.RightRowIndex)
+			)
+			.ToList();
+
+		var summary = new DiffSummary(added, removed, modified, unchanged, reordered);
+		return new DiffResult(
+			headers,
+			orderedRows,
+			summary,
+			leftRowCount: left.Rows.Count,
+			leftColumnCount: left.Headers.Count,
+			rightRowCount: right.Rows.Count,
+			rightColumnCount: right.Headers.Count
+		);
+	}
+
+	private static int GetSortPosition(DiffRow r)
+	{
+		return r.Status == DiffRowStatus.Removed
+			? r.LeftRowIndex ?? int.MaxValue
+			: r.RightRowIndex ?? int.MaxValue;
+	}
+
+	private static int GetSortType(DiffRow r)
+	{
+		return r.Status switch
+		{
+			DiffRowStatus.Removed => 0,
+			DiffRowStatus.Added => 2,
+			_ => 1, // Unchanged, Modified, Reordered
+		};
+	}
+
+	private static int? FindBestMatch(
+		IReadOnlyList<string> rightRow,
+		IReadOnlyList<(IReadOnlyList<string> Row, int OriginalIndex)> leftIndexed,
+		HashSet<int> leftMatched,
+		IReadOnlyList<string> headers,
+		IReadOnlyDictionary<string, int> leftColIndex,
+		IReadOnlyDictionary<string, int> rightColIndex
+	)
+	{
+		double bestScore = 0;
+		int? bestIdx = null;
+
+		for (var i = 0; i < leftIndexed.Count; i++)
+		{
+			if (leftMatched.Contains(i))
+				continue;
+
+			var leftRow = leftIndexed[i].Row;
+			var score = GetMatchScore(leftRow, rightRow, headers, leftColIndex, rightColIndex);
+
+			if (score >= MatchThreshold && score > bestScore)
+			{
+				bestScore = score;
+				bestIdx = i;
+			}
+		}
+
+		return bestIdx;
+	}
+
+	private static double GetMatchScore(
+		IReadOnlyList<string> leftRow,
+		IReadOnlyList<string> rightRow,
+		IReadOnlyList<string> headers,
+		IReadOnlyDictionary<string, int> leftColIndex,
+		IReadOnlyDictionary<string, int> rightColIndex
+	)
+	{
+		if (headers.Count == 0)
+			return 1.0;
+
+		var matches = 0;
+		foreach (var header in headers)
+		{
+			var leftVal = GetValue(leftRow, leftColIndex, header) ?? string.Empty;
+			var rightVal = GetValue(rightRow, rightColIndex, header) ?? string.Empty;
+			if (string.Equals(leftVal, rightVal, StringComparison.Ordinal))
+				matches++;
+		}
+		return (double)matches / headers.Count;
 	}
 
 	private static IReadOnlyList<string> MergeHeaders(
@@ -170,6 +306,12 @@ public sealed class DiffEngine
 		return cells;
 	}
 
+	private static DiffCellStatus GetRowCellStatus(IReadOnlyList<DiffCell> cells)
+	{
+		var hasModified = cells.Any(c => c.Status == DiffCellStatus.Modified);
+		return hasModified ? DiffCellStatus.Modified : DiffCellStatus.Unchanged;
+	}
+
 	private static string? GetValue(
 		IReadOnlyList<string> row,
 		IReadOnlyDictionary<string, int> colIndex,
@@ -179,11 +321,5 @@ public sealed class DiffEngine
 		if (!colIndex.TryGetValue(header, out var idx) || idx >= row.Count)
 			return null;
 		return row[idx];
-	}
-
-	private static DiffRowStatus GetRowStatus(IReadOnlyList<DiffCell> cells)
-	{
-		var hasModified = cells.Any(c => c.Status == DiffCellStatus.Modified);
-		return hasModified ? DiffRowStatus.Modified : DiffRowStatus.Unchanged;
 	}
 }

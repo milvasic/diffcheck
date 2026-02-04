@@ -102,11 +102,16 @@ public sealed class DiffCheckService
 	)
 	{
 		var result = await CompareAsync(leftFilePath, rightFilePath, cancellationToken);
+		var leftSize = new FileInfo(leftFilePath).Length;
+		var rightSize = new FileInfo(rightFilePath).Length;
 		await _htmlGenerator.WriteToFileAsync(
 			result,
 			outputPath,
 			leftFilePath,
 			rightFilePath,
+			leftSize,
+			rightSize,
+			theme: null,
 			cancellationToken
 		);
 		return result;
@@ -118,14 +123,27 @@ public sealed class DiffCheckService
 	/// <param name="result">The diff result.</param>
 	/// <param name="leftFilePath">Optional path of the first file (for display).</param>
 	/// <param name="rightFilePath">Optional path of the second file (for display).</param>
+	/// <param name="leftFileSize">Optional file size in bytes of the first file.</param>
+	/// <param name="rightFileSize">Optional file size in bytes of the second file.</param>
+	/// <param name="theme">Theme for the report: "light" or "dark". Default: "light".</param>
 	/// <returns>HTML string.</returns>
 	public string GenerateHtml(
 		DiffResult result,
 		string? leftFilePath = null,
-		string? rightFilePath = null
+		string? rightFilePath = null,
+		long? leftFileSize = null,
+		long? rightFileSize = null,
+		string? theme = null
 	)
 	{
-		return _htmlGenerator.Generate(result, leftFilePath, rightFilePath);
+		return _htmlGenerator.Generate(
+			result,
+			leftFilePath,
+			rightFilePath,
+			leftFileSize,
+			rightFileSize,
+			theme
+		);
 	}
 
 	/// <summary>
@@ -136,6 +154,9 @@ public sealed class DiffCheckService
 		string outputPath,
 		string? leftFilePath = null,
 		string? rightFilePath = null,
+		long? leftFileSize = null,
+		long? rightFileSize = null,
+		string? theme = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -144,6 +165,9 @@ public sealed class DiffCheckService
 			outputPath,
 			leftFilePath,
 			rightFilePath,
+			leftFileSize,
+			rightFileSize,
+			theme,
 			cancellationToken
 		);
 	}
