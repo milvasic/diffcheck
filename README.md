@@ -2,6 +2,8 @@
 
 A .NET 10 tool for comparing CSV and XLSX files. Produces HTML reports with color-coded differences.
 
+![DiffCheck demo](demo.png)
+
 ## Features
 
 - **CSV support** – Compare comma-separated and tab-delimited files
