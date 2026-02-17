@@ -34,12 +34,14 @@
 	}
 
 	function applyThemeToReport() {
-		const frame = document.getElementById('diffReportFrame');
-		if (frame && frame.contentDocument) {
-			frame.contentDocument.documentElement.setAttribute(
-				'data-theme',
-				getTheme()
-			);
+		const theme = getTheme();
+		const diffFrame = document.getElementById('diffReportFrame');
+		if (diffFrame && diffFrame.contentDocument) {
+			diffFrame.contentDocument.documentElement.setAttribute('data-theme', theme);
+		}
+		const historyFrame = document.getElementById('history-report-frame');
+		if (historyFrame && historyFrame.contentDocument) {
+			historyFrame.contentDocument.documentElement.setAttribute('data-theme', theme);
 		}
 	}
 

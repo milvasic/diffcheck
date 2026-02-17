@@ -14,6 +14,8 @@ public class IndexModel : PageModel
 	}
 
 	public string? DiffReportHtml { get; set; }
+	public string? LeftFileName { get; set; }
+	public string? RightFileName { get; set; }
 	public string? ErrorMessage { get; set; }
 
 	public void OnGet() { }
@@ -53,6 +55,8 @@ public class IndexModel : PageModel
 			var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
 
 			var result = await _diffCheckService.CompareAsync(leftPath, rightPath);
+			LeftFileName = leftFile.FileName;
+			RightFileName = rightFile.FileName;
 			DiffReportHtml = _diffCheckService.GenerateHtml(
 				result,
 				leftFile.FileName,

@@ -1,58 +1,7 @@
-# DiffCheck.Web behind Traefik reverse proxy
-# Run: docker compose up -d
-# App: http://diffcheck.localhost  (Traefik dashboard: http://traefik.localhost/dashboard/)
-# Uncomment HTTPS sections when certificate is ready, then set your domain in the Host() rules
-
 services:
-	traefik:
-		image: traefik:latest
-		command:
-			# API and dashboard (optional, for debugging)
-			- --api.dashboard=true
-			# Docker provider
-			- --providers.docker=true
-			- --providers.docker.exposedbydefault=false
-			# Entrypoints
-			- --entrypoints.web.address=:80
-			# HTTPS entrypoint - uncomment when certificate is ready
-			# - --entrypoints.websecure.address=:443
-			# Let's Encrypt (example) - uncomment and configure when ready
-			# - --certificatesresolvers.letsencrypt.acme.email=your-email@example.com
-			# - --certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json
-			# - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
-		ports:
-			- "80:80"
-			# HTTPS - uncomment when certificate is ready
-			# - "443:443"
-		volumes:
-			# For Docker socket
-			- /var/run/docker.sock:/var/run/docker.sock:ro
-			# For Let's Encrypt persistence - uncomment when using ACME
-			# - letsencrypt:/letsencrypt
-		labels:
-			- "traefik.enable=true"
-			# Dashboard at http://traefik.localhost/dashboard/ (optional, no auth in dev)
-			- "traefik.http.routers.traefik.rule=Host(`traefik.localhost`)"
-			- "traefik.http.routers.traefik.service=api@internal"
-
-	diffcheck-web:
-		build:
-			context: .
-			dockerfile: DiffCheck.Web/Dockerfile
-		labels:
-			- "traefik.enable=true"
-			# HTTP router
-			- "traefik.http.routers.diffcheck.rule=Host(`diffcheck.localhost`)"
-			- "traefik.http.routers.diffcheck.entrypoints=web"
-			- "traefik.http.services.diffcheck.loadbalancer.server.port=8080"
-			# HTTPS router - uncomment when certificate is ready
-			# - "traefik.http.routers.diffcheck-secure.rule=Host(`diffcheck.localhost`)"
-			# - "traefik.http.routers.diffcheck-secure.entrypoints=websecure"
-			# - "traefik.http.routers.diffcheck-secure.tls=true"
-			# With Let's Encrypt:
-			# - "traefik.http.routers.diffcheck-secure.tls.certresolver=letsencrypt"
-		depends_on:
-			- traefik
-
-# volumes:
-# 	letsencrypt:
+  diffcheck:
+    build:
+      context: .
+      dockerfile: DiffCheck.Web/Dockerfile
+    ports:
+      - "8080:8080"

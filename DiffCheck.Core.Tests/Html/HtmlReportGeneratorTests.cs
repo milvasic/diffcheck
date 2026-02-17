@@ -65,6 +65,62 @@ public class HtmlReportGeneratorTests
 		Assert.IsTrue(html.Contains("data-theme=\"dark\""));
 	}
 
+	[TestMethod]
+	public void Generate_ContainsToolsCurtainAndOptions()
+	{
+		var result = CreateSimpleDiffResult();
+		var generator = new HtmlReportGenerator();
+
+		var html = generator.Generate(result);
+
+		Assert.IsTrue(html.Contains("tools-curtain"));
+		Assert.IsTrue(html.Contains("tools-toggle"));
+		Assert.IsTrue(html.Contains("Hide unchanged rows"));
+		Assert.IsTrue(html.Contains("Hide unchanged columns"));
+		Assert.IsTrue(html.Contains("hide-unchanged-rows"));
+		Assert.IsTrue(html.Contains("hide-unchanged-cols"));
+	}
+
+	[TestMethod]
+	public void Generate_ContainsViewSwitcherAndTextViewModel()
+	{
+		var result = CreateSimpleDiffResult();
+		var generator = new HtmlReportGenerator();
+
+		var html = generator.Generate(result);
+
+		Assert.IsTrue(html.Contains("view-btn"));
+		Assert.IsTrue(html.Contains("data-view=\"table\""));
+		Assert.IsTrue(html.Contains("data-view=\"text\""));
+		Assert.IsTrue(html.Contains("id=\"view-table\""));
+		Assert.IsTrue(html.Contains("id=\"view-text\""));
+		Assert.IsTrue(html.Contains("text-diff"));
+	}
+
+	[TestMethod]
+	public void Generate_TableHasColumnMetadataAndRowClasses()
+	{
+		var result = CreateSimpleDiffResult();
+		var generator = new HtmlReportGenerator();
+
+		var html = generator.Generate(result);
+
+		Assert.IsTrue(html.Contains("data-col-has-changes"));
+		Assert.IsTrue(html.Contains("data-col-index"));
+		Assert.IsTrue(html.Contains("row-unchanged"));
+	}
+
+	[TestMethod]
+	public void Generate_TextViewContainsUnifiedDiffLines()
+	{
+		var result = CreateSimpleDiffResult();
+		var generator = new HtmlReportGenerator();
+
+		var html = generator.Generate(result);
+
+		Assert.IsTrue(html.Contains("text-line-unchanged") || html.Contains("text-line-added") || html.Contains("text-line-removed") || html.Contains("text-line-modified"));
+	}
+
 	private static DiffResult CreateSimpleDiffResult()
 	{
 		var headers = new List<string> { "A", "B" };
