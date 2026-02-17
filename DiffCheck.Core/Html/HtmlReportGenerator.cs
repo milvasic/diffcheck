@@ -184,7 +184,7 @@ public sealed class HtmlReportGenerator
 				};
 				var cellContent =
 					cell.Status == DiffCellStatus.Modified
-						? $"<span class=\"diff-old\">{EscapeHtml(cell.LeftValue ?? "")}</span> → <span class=\"diff-new\">{EscapeHtml(cell.RightValue ?? "")}</span>"
+						? CharacterDiffCellHtml(cell.LeftValue ?? "", cell.RightValue ?? "")
 						: EscapeHtml(cell.DisplayValue);
 				sb.AppendLine($"                <td class=\"{cellClass}\" data-col-index=\"{i}\" data-col-has-changes=\"{(hasChanges ? "true" : "false")}\">{cellContent}</td>");
 			}
@@ -250,8 +250,9 @@ public sealed class HtmlReportGenerator
 			{
 				var leftLine = string.Join("\t", row.Cells.Select(c => c.LeftValue ?? ""));
 				var rightLine = string.Join("\t", row.Cells.Select(c => c.RightValue ?? ""));
-				sb.AppendLine($"<span class=\"text-line-removed\">- {EscapeHtml(leftLine)}</span>");
-				sb.AppendLine($"<span class=\"text-line-added\">+ {EscapeHtml(rightLine)}</span>");
+				var (removedHtml, addedHtml) = CharacterDiffHtml(leftLine, rightLine);
+				sb.AppendLine($"<span class=\"text-line-removed\">- {removedHtml}</span>");
+				sb.AppendLine($"<span class=\"text-line-added\">+ {addedHtml}</span>");
 			}
 			else
 			{
@@ -497,5 +498,89 @@ tr:hover {{ background: #fafafa !important; }}
 			.Replace(">", "&gt;")
 			.Replace("\"", "&quot;")
 			.Replace("'", "&#39;");
+	}
+
+	/// <summary>
+	/// Character-level diff (git-diff style). Returns HTML for the "removed" line (left with removals in diff-old) and "added" line (right with additions in diff-new).
+	/// </summary>
+	private static (string RemovedLineHtml, string AddedLineHtml) CharacterDiffHtml(string left, string right)
+	{
+		if (string.IsNullOrEmpty(left) && string.IsNullOrEmpty(right))
+			return ("", "");
+		if (string.IsNullOrEmpty(left))
+			return ("", $"<span class=\"diff-new\">{EscapeHtml(right)}</span>");
+		if (string.IsNullOrEmpty(right))
+			return ($"<span class=\"diff-old\">{EscapeHtml(left)}</span>", "");
+
+		var n = left.Length;
+		var m = right.Length;
+		var dp = new int[n + 1, m + 1];
+		for (var i = 1; i <= n; i++)
+		{
+			for (var j = 1; j <= m; j++)
+			{
+				if (left[i - 1] == right[j - 1])
+					dp[i, j] = dp[i - 1, j - 1] + 1;
+				else
+					dp[i, j] = Math.Max(dp[i - 1, j], dp[i, j - 1]);
+			}
+		}
+
+		var leftMatched = new bool[n];
+		var rightMatched = new bool[m];
+		var i0 = n;
+		var j0 = m;
+		while (i0 > 0 && j0 > 0)
+		{
+			if (left[i0 - 1] == right[j0 - 1])
+			{
+				leftMatched[i0 - 1] = true;
+				rightMatched[j0 - 1] = true;
+				i0--;
+				j0--;
+			}
+			else if (dp[i0 - 1, j0] >= dp[i0, j0 - 1])
+				i0--;
+			else
+				j0--;
+		}
+
+		var removedHtml = BuildLineWithHighlights(left, leftMatched, "diff-old");
+		var addedHtml = BuildLineWithHighlights(right, rightMatched, "diff-new");
+		return (removedHtml, addedHtml);
+	}
+
+	private static string CharacterDiffCellHtml(string left, string right)
+	{
+		var (removedHtml, addedHtml) = CharacterDiffHtml(left, right);
+		if (string.IsNullOrEmpty(removedHtml) && string.IsNullOrEmpty(addedHtml))
+			return "";
+		if (string.IsNullOrEmpty(removedHtml))
+			return addedHtml;
+		if (string.IsNullOrEmpty(addedHtml))
+			return removedHtml;
+		return $"{removedHtml} → {addedHtml}";
+	}
+
+	private static string BuildLineWithHighlights(string text, bool[] matched, string spanClass)
+	{
+		var sb = new StringBuilder();
+		var i = 0;
+		while (i < text.Length)
+		{
+			if (matched[i])
+			{
+				sb.Append(EscapeHtml(text[i].ToString()));
+				i++;
+			}
+			else
+			{
+				var start = i;
+				while (i < text.Length && !matched[i])
+					i++;
+				sb.Append($"<span class=\"{spanClass}\">{EscapeHtml(text.Substring(start, i - start))}</span>");
+			}
+		}
+		return sb.ToString();
 	}
 }
