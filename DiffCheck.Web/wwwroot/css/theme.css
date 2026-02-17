@@ -163,7 +163,8 @@
 }
 
 /* History page */
-[data-theme="dark"] #history-empty.alert-secondary {
+[data-theme="dark"] #history-empty.alert-secondary,
+[data-theme="dark"] #history-no-matches.alert-secondary {
 	background-color: var(--bg-surface);
 	border-color: var(--border-color);
 	color: var(--text-primary);
