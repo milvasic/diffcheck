@@ -9,9 +9,12 @@ A .NET 10 tool for comparing CSV and XLSX files. Produces HTML reports with colo
 - **CSV support** – Compare comma-separated and tab-delimited files
 - **XLSX support** – Compare Excel workbooks (first sheet by default)
 - **HTML output** – Color-coded table: green (added), red (removed), amber (modified), blue (reordered)
+- **Character-level diff** – Git-style literal diff: changes highlighted per character (round red/green boxes) in both table and text views, not just per line
 - **Content-based matching** – Detects reordered rows via column similarity (50% threshold)
 - **File stats** – Report header shows file size, row count, column count, and total cells per file
-- **Dark theme** – HTML reports support light and dark themes
+- **Report tools** – Table vs text view, hide unchanged rows/columns, light/dark theme
+- **Diff history** – Save runs to browser (IndexedDB), tag runs, search by file names or tags, open fullscreen or download report with details
+- **Dark theme** – HTML reports and web UI (navbar, History) support light and dark themes
 - **CLI, Web, and library** – Use via command line, web UI, or embed in your .NET projects
 
 ## Quick start
@@ -32,7 +35,7 @@ dotnet run --project DiffCheck.Cli -- left.xlsx right.xlsx -o report.html
 dotnet run --project DiffCheck.Web
 ```
 
-Open http://localhost:5000, upload two files, and view the diff report. Supports drag-and-drop and dark theme.
+Open http://localhost:5000, upload two files, and view the diff report. Supports drag-and-drop and dark theme. You can add the current report to **History** (client-side only), tag runs, and search by file names or tags. The Privacy page describes file handling and browser storage (localStorage for theme, IndexedDB for history).
 
 ## Project structure
 
