@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using DiffCheck.Models;
 
 namespace DiffCheck.Html;
@@ -68,6 +69,8 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("        <span class=\"view-switcher-label\">Options</span>");
 		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-rows\"> Hide unchanged rows</label>");
 		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>");
+		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-added-rows\"> Hide added rows</label>");
+		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-removed-rows\"> Hide removed rows</label>");
 		sb.AppendLine("        <div class=\"view-switcher\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">View</span>");
 		sb.AppendLine("          <button type=\"button\" class=\"view-btn active\" data-view=\"table\" id=\"view-btn-table\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z\"/></svg></span>Table</button>");
@@ -131,68 +134,27 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("        </div>");
 
 		sb.AppendLine("        <div id=\"view-table\" class=\"diff-view\">");
-		sb.AppendLine("          <div class=\"table-wrapper\">");
-		sb.AppendLine("            <table class=\"diff-table\">");
-		sb.AppendLine("              <thead><tr>");
-		sb.AppendLine("                <th class=\"row-num\" data-col-has-changes=\"true\">#</th>");
-		sb.AppendLine("                <th class=\"row-indices\" data-col-has-changes=\"true\">Left → Right</th>");
-		sb.AppendLine("                <th class=\"row-status\" data-col-has-changes=\"true\">Status</th>");
+		sb.AppendLine("          <script type=\"application/json\" id=\"diff-table-data\">");
+		sb.Append(BuildTableDataJson(result, columnHasChanges));
+		sb.AppendLine("</script>");
+		sb.AppendLine("          <div class=\"table-wrapper\" id=\"diff-table-scroll\">");
+		sb.AppendLine("            <div id=\"diff-table-content\" class=\"diff-table-content\">");
+		sb.AppendLine("              <div id=\"diff-table-spacer\" class=\"diff-table-spacer\"></div>");
+		sb.AppendLine("              <table class=\"diff-table\">");
+		sb.AppendLine("                <thead><tr>");
+		sb.AppendLine("                  <th class=\"row-num\" data-col-has-changes=\"true\">#</th>");
+		sb.AppendLine("                  <th class=\"row-indices\" data-col-has-changes=\"true\">Left → Right</th>");
+		sb.AppendLine("                  <th class=\"row-status\" data-col-has-changes=\"true\">Status</th>");
 		for (var i = 0; i < result.Headers.Count; i++)
 		{
 			var hasChanges = columnHasChanges[i];
-			sb.AppendLine($"                <th data-col-index=\"{i}\" data-col-has-changes=\"{(hasChanges ? "true" : "false")}\">{EscapeHtml(result.Headers[i])}</th>");
+			sb.AppendLine($"                  <th data-col-index=\"{i}\" data-col-has-changes=\"{(hasChanges ? "true" : "false")}\">{EscapeHtml(result.Headers[i])}</th>");
 		}
-		sb.AppendLine("              </tr></thead>");
-		sb.AppendLine("              <tbody>");
-
-		foreach (var row in result.Rows)
-		{
-			var rowClass = row.Status switch
-			{
-				DiffRowStatus.Added => "row-added",
-				DiffRowStatus.Removed => "row-removed",
-				DiffRowStatus.Modified => "row-modified",
-				DiffRowStatus.Reordered => "row-unchanged",
-				_ => "row-unchanged",
-			};
-			var statusText = row.Status.ToString().ToLowerInvariant();
-			var indicesDisplay =
-				row.LeftRowIndex.HasValue && row.RightRowIndex.HasValue
-					? $"{row.LeftRowIndex} → {row.RightRowIndex}"
-				: row.LeftRowIndex.HasValue ? $"{row.LeftRowIndex} → —"
-				: row.RightRowIndex.HasValue ? "— → " + row.RightRowIndex
-				: "—";
-
-			sb.AppendLine($"              <tr class=\"{rowClass}\">");
-			sb.AppendLine($"                <td class=\"row-num\" data-col-has-changes=\"true\">{row.RowIndex}</td>");
-			sb.AppendLine($"                <td class=\"row-indices\" data-col-has-changes=\"true\">{indicesDisplay}</td>");
-			sb.AppendLine(
-				$"                <td class=\"row-status\" data-col-has-changes=\"true\"><span class=\"status-badge {statusText}\">{statusText}</span></td>"
-			);
-
-			for (var i = 0; i < row.Cells.Count; i++)
-			{
-				var cell = row.Cells[i];
-				var hasChanges = columnHasChanges[i];
-				var cellClass = cell.Status switch
-				{
-					DiffCellStatus.Added => "cell-added",
-					DiffCellStatus.Removed => "cell-removed",
-					DiffCellStatus.Modified => "cell-modified",
-					DiffCellStatus.Reordered => "cell-unchanged",
-					_ => "cell-unchanged",
-				};
-				var cellContent =
-					cell.Status == DiffCellStatus.Modified
-						? CharacterDiffCellHtml(cell.LeftValue ?? "", cell.RightValue ?? "")
-						: EscapeHtml(cell.DisplayValue);
-				sb.AppendLine($"                <td class=\"{cellClass}\" data-col-index=\"{i}\" data-col-has-changes=\"{(hasChanges ? "true" : "false")}\">{cellContent}</td>");
-			}
-			sb.AppendLine("              </tr>");
-		}
-
-		sb.AppendLine("              </tbody>");
-		sb.AppendLine("            </table>");
+		sb.AppendLine("                </tr></thead>");
+		sb.AppendLine("                <tbody id=\"diff-tbody\">");
+		sb.AppendLine("                </tbody>");
+		sb.AppendLine("              </table>");
+		sb.AppendLine("            </div>");
 		sb.AppendLine("          </div>");
 		sb.AppendLine("        </div>");
 
@@ -226,6 +188,44 @@ public sealed class HtmlReportGenerator
 			}
 		}
 		return hasChanges;
+	}
+
+	private static string BuildTableDataJson(DiffResult result, bool[] columnHasChanges)
+	{
+		const int rowHeight = 41;
+		var rows = new List<object>(result.Rows.Count);
+		foreach (var row in result.Rows)
+		{
+			var cells = new List<object>(row.Cells.Count);
+			for (var i = 0; i < row.Cells.Count && i < columnHasChanges.Length; i++)
+			{
+				var cell = row.Cells[i];
+				var html = cell.Status == DiffCellStatus.Modified
+					? CharacterDiffCellHtml(cell.LeftValue ?? "", cell.RightValue ?? "")
+					: EscapeHtml(cell.DisplayValue);
+				cells.Add(new Dictionary<string, object?>
+				{
+					["status"] = cell.Status.ToString().ToLowerInvariant(),
+					["html"] = html,
+				});
+			}
+			rows.Add(new Dictionary<string, object?>
+			{
+				["rowIndex"] = row.RowIndex,
+				["status"] = row.Status.ToString().ToLowerInvariant(),
+				["leftRowIndex"] = row.LeftRowIndex,
+				["rightRowIndex"] = row.RightRowIndex,
+				["cells"] = cells,
+			});
+		}
+		var root = new Dictionary<string, object>
+		{
+			["headers"] = result.Headers.ToList(),
+			["columnHasChanges"] = columnHasChanges,
+			["rowHeight"] = rowHeight,
+			["rows"] = rows,
+		};
+		return JsonSerializer.Serialize(root);
 	}
 
 	private static string BuildTextView(DiffResult result)
@@ -268,12 +268,14 @@ public sealed class HtmlReportGenerator
 		return """
 			<script>
 			(function() {
-				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_VIEW = 'diffcheck-view';
+				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_HIDE_ADDED = 'diffcheck-hide-added-rows', STORAGE_HIDE_REMOVED = 'diffcheck-hide-removed-rows', STORAGE_VIEW = 'diffcheck-view';
 				var curtain = document.getElementById('tools-curtain');
 				var panel = document.getElementById('tools-panel');
 				var toggleBtn = document.getElementById('tools-toggle');
 				var hideRowsCb = document.getElementById('hide-unchanged-rows');
 				var hideColsCb = document.getElementById('hide-unchanged-cols');
+				var hideAddedCb = document.getElementById('hide-added-rows');
+				var hideRemovedCb = document.getElementById('hide-removed-rows');
 				var layout = document.getElementById(LAYOUT);
 
 				var STORAGE_TOOLS_EXPANDED = 'diffcheck-tools-expanded';
@@ -286,18 +288,120 @@ public sealed class HtmlReportGenerator
 					if (savedExpanded === '0') curtain.classList.remove('expanded');
 				} catch (e) {}
 
+				function rowStatusToClass(s) {
+					if (s === 'added') return 'row-added';
+					if (s === 'removed') return 'row-removed';
+					if (s === 'modified') return 'row-modified';
+					return 'row-unchanged';
+				}
+
+				function computeVisibleIndices(rows, hideUnchanged, hideAdded, hideRemoved) {
+					var vis = [];
+					for (var i = 0; i < rows.length; i++) {
+						var r = rows[i];
+						if (hideUnchanged && r.status === 'unchanged') continue;
+						if (hideAdded && r.status === 'added') continue;
+						if (hideRemoved && r.status === 'removed') continue;
+						vis.push(i);
+					}
+					return vis;
+				}
+
+				function buildTr(row, columnHasChanges) {
+					var tr = document.createElement('tr');
+					tr.className = rowStatusToClass(row.status);
+					var indicesDisplay = (row.leftRowIndex != null && row.rightRowIndex != null) ? (row.leftRowIndex + ' → ' + row.rightRowIndex) : (row.leftRowIndex != null ? (row.leftRowIndex + ' → —') : (row.rightRowIndex != null ? ('— → ' + row.rightRowIndex) : '—'));
+					tr.innerHTML = '<td class="row-num" data-col-has-changes="true">' + row.rowIndex + '</td><td class="row-indices" data-col-has-changes="true">' + indicesDisplay + '</td><td class="row-status" data-col-has-changes="true"><span class="status-badge ' + row.status + '">' + row.status + '</span></td>';
+					for (var c = 0; c < row.cells.length; c++) {
+						var cell = row.cells[c];
+						var hasCh = c < columnHasChanges.length && columnHasChanges[c];
+						var td = document.createElement('td');
+						td.className = 'cell-' + cell.status;
+						td.setAttribute('data-col-index', c);
+						td.setAttribute('data-col-has-changes', hasCh ? 'true' : 'false');
+						td.innerHTML = cell.html || '';
+						tr.appendChild(td);
+					}
+					return tr;
+				}
+
+				var tableData = null;
+				var visibleIndices = [];
+				var scrollEl = document.getElementById('diff-table-scroll');
+				var contentEl = document.getElementById('diff-table-content');
+				var spacerEl = document.getElementById('diff-table-spacer');
+				var tbodyEl = document.getElementById('diff-tbody');
+				var OVERSCAN = 25;
+
+				function refreshVisibleIndices() {
+					if (!tableData || !tableData.rows) { visibleIndices = []; return; }
+					visibleIndices = computeVisibleIndices(tableData.rows, hideRowsCb && hideRowsCb.checked, hideAddedCb && hideAddedCb.checked, hideRemovedCb && hideRemovedCb.checked);
+				}
+
+				function renderWindow() {
+					if (!tableData || !scrollEl || !contentEl || !spacerEl || !tbodyEl) return;
+					var rowHeight = tableData.rowHeight || 41;
+					var total = visibleIndices.length;
+					contentEl.style.height = (total * rowHeight) + 'px';
+					if (total === 0) { spacerEl.style.height = '0'; tbodyEl.innerHTML = ''; return; }
+					var scrollTop = scrollEl.scrollTop;
+					var clientHeight = scrollEl.clientHeight;
+					var maxScroll = Math.max(0, (total * rowHeight) - clientHeight);
+					if (scrollTop > maxScroll) scrollTop = maxScroll;
+					var startIndex = Math.floor(scrollTop / rowHeight);
+					var visibleCount = Math.ceil(clientHeight / rowHeight) + OVERSCAN;
+					var endIndex = Math.min(startIndex + visibleCount, total);
+					startIndex = Math.max(0, startIndex);
+					spacerEl.style.height = (startIndex * rowHeight) + 'px';
+					var fragment = document.createDocumentFragment();
+					for (var i = startIndex; i < endIndex; i++) {
+						var rowIndex = visibleIndices[i];
+						var row = tableData.rows[rowIndex];
+						fragment.appendChild(buildTr(row, tableData.columnHasChanges || []));
+					}
+					tbodyEl.innerHTML = '';
+					tbodyEl.appendChild(fragment);
+					scrollEl.scrollTop = scrollTop;
+				}
+
+				function initVirtualizer() {
+					var dataEl = document.getElementById('diff-table-data');
+					if (!dataEl || !scrollEl) return;
+					try {
+						tableData = JSON.parse(dataEl.textContent || '{}');
+					} catch (e) { return; }
+					refreshVisibleIndices();
+					renderWindow();
+					scrollEl.addEventListener('scroll', function() { renderWindow(); });
+				}
+
 				function updateHideRows() {
 					var hide = hideRowsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_ROWS, hide ? '1' : '0'); } catch (e) {}
 					layout.classList.toggle('hide-unchanged-rows', hide);
+					refreshVisibleIndices(); renderWindow();
 				}
 				function updateHideCols() {
 					var hide = hideColsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch (e) {}
 					layout.classList.toggle('hide-unchanged-cols', hide);
 				}
+				function updateHideAdded() {
+					var hide = hideAddedCb.checked;
+					try { localStorage.setItem(STORAGE_HIDE_ADDED, hide ? '1' : '0'); } catch (e) {}
+					layout.classList.toggle('hide-added-rows', hide);
+					refreshVisibleIndices(); renderWindow();
+				}
+				function updateHideRemoved() {
+					var hide = hideRemovedCb.checked;
+					try { localStorage.setItem(STORAGE_HIDE_REMOVED, hide ? '1' : '0'); } catch (e) {}
+					layout.classList.toggle('hide-removed-rows', hide);
+					refreshVisibleIndices(); renderWindow();
+				}
 				hideRowsCb.addEventListener('change', updateHideRows);
 				hideColsCb.addEventListener('change', updateHideCols);
+				hideAddedCb.addEventListener('change', updateHideAdded);
+				hideRemovedCb.addEventListener('change', updateHideRemoved);
 
 				function setView(view) {
 					var tableEl = document.getElementById('view-table');
@@ -314,6 +418,7 @@ public sealed class HtmlReportGenerator
 						textEl.hidden = true;
 						btnTable.classList.add('active');
 						btnText.classList.remove('active');
+						renderWindow();
 					}
 					try { localStorage.setItem(STORAGE_VIEW, view); } catch (e) {}
 				}
@@ -324,9 +429,12 @@ public sealed class HtmlReportGenerator
 				try {
 					if (localStorage.getItem(STORAGE_HIDE_ROWS) === '1') { hideRowsCb.checked = true; layout.classList.add('hide-unchanged-rows'); }
 					if (localStorage.getItem(STORAGE_HIDE_COLS) === '1') { hideColsCb.checked = true; layout.classList.add('hide-unchanged-cols'); }
+					if (localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; layout.classList.add('hide-added-rows'); }
+					if (localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; layout.classList.add('hide-removed-rows'); }
 					var savedView = localStorage.getItem(STORAGE_VIEW);
 					if (savedView === 'text') setView('text');
 				} catch (e) {}
+				initVirtualizer();
 			})();
 			</script>
 			""";
@@ -394,7 +502,7 @@ body {{ font-family: {font}; margin: 0; padding: 0; background: #f5f5f5; }}
 .view-switcher-label {{ display: block; font-size: 12px; color: #666; margin-bottom: 6px; }}
 .view-btn {{ padding: 6px 12px; margin-right: 4px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }}
 .view-btn.active {{ background: #333; color: #fff; border-color: #333; }}
-.container {{ max-width: 100%; overflow-x: auto; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.container {{ max-width: 100%; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
 h1 {{ margin-top: 0; color: #333; }}
 .file-info {{ margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 16px; }}
 .file-info-block {{ flex: 1; min-width: 200px; }}
@@ -409,12 +517,16 @@ h1 {{ margin-top: 0; color: #333; }}
 .badge.unchanged {{ background: #e0e0e0; color: #555; }}
 .hide-unchanged-rows tr.row-unchanged {{ display: none !important; }}
 .hide-unchanged-cols th[data-col-has-changes=""false""], .hide-unchanged-cols td[data-col-has-changes=""false""] {{ display: none !important; }}
-.table-wrapper {{ overflow-x: auto; }}
+.hide-added-rows tr.row-added {{ display: none !important; }}
+.hide-removed-rows tr.row-removed {{ display: none !important; }}
+.table-wrapper {{ overflow: auto; max-height: calc(100vh - 280px); overflow-anchor: none; }}
+.diff-table-content {{ margin: 0; padding: 0; }}
+.diff-table-spacer {{ margin: 0; padding: 0; display: block; }}
 .diff-table {{ width: 100%; border-collapse: collapse; font-size: 14px; }}
 .diff-table th, .diff-table td {{ padding: 10px 12px; text-align: left; border: 1px solid #ddd; }}
-.diff-table th {{ background: #f0f0f0; font-weight: 600; position: sticky; top: 0; }}
+.diff-table th {{ background: #f0f0f0; font-weight: 600; position: sticky; top: 0; z-index: 1; box-shadow: 0 2px 4px rgba(0,0,0,0.08); }}
 .diff-table .row-num {{ width: 50px; text-align: right; color: #666; }}
-.diff-table .row-indices {{ width: 90px; text-align: center; color: #666; font-size: 12px; }}
+.diff-table .row-indices {{ width: 120px; min-width: 120px; max-width: 120px; text-align: center; color: #666; font-size: 12px; }}
 .diff-table .row-status {{ width: 90px; }}
 .status-badge {{ padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }}
 .status-badge.added {{ background: {add}; color: white; }}
@@ -452,7 +564,7 @@ tr:hover {{ background: #fafafa !important; }}
 [data-theme=""dark""] .file-info {{ background: #3d3d3d; color: #e9ecef; }}
 [data-theme=""dark""] .file-info .file-stats {{ color: #adb5bd; }}
 [data-theme=""dark""] .diff-table th, [data-theme=""dark""] .diff-table td {{ border-color: #495057; color: #e9ecef; }}
-[data-theme=""dark""] .diff-table th {{ background: #3d3d3d; }}
+[data-theme=""dark""] .diff-table th {{ background: #3d3d3d; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }}
 [data-theme=""dark""] .diff-table .row-num, [data-theme=""dark""] .diff-table .row-indices {{ color: #adb5bd; }}
 [data-theme=""dark""] .badge.unchanged {{ background: #495057; color: #adb5bd; }}
 [data-theme=""dark""] tr:hover {{ background: #3d3d3d !important; }}
