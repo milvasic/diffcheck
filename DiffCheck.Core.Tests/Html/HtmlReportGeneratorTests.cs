@@ -105,8 +105,9 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("data-col-has-changes"));
-		Assert.IsTrue(html.Contains("data-col-index"));
+		Assert.IsTrue(html.Contains("diff-grid"));
+		Assert.IsTrue(html.Contains("diffGridRowData"));
+		Assert.IsTrue(html.Contains("diffGridColumnHasChanges"));
 		Assert.IsTrue(html.Contains("row-unchanged"));
 	}
 
