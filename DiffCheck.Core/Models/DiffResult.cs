@@ -40,6 +40,13 @@ public sealed class DiffResult
 	/// </summary>
 	public int RightColumnCount { get; }
 
+	/// <summary>
+	/// For each header index, the right-side column name when the column was mapped (renamed).
+	/// Same length as <see cref="Headers"/>; null or empty entries mean the column is not a rename.
+	/// Used to display "LeftName → RightName" and to highlight the header as modified.
+	/// </summary>
+	public IReadOnlyList<string?>? ColumnHeaderRenames { get; }
+
 	public DiffResult(
 		IReadOnlyList<string> headers,
 		IReadOnlyList<DiffRow> rows,
@@ -47,7 +54,8 @@ public sealed class DiffResult
 		int leftRowCount = 0,
 		int leftColumnCount = 0,
 		int rightRowCount = 0,
-		int rightColumnCount = 0
+		int rightColumnCount = 0,
+		IReadOnlyList<string?>? columnHeaderRenames = null
 	)
 	{
 		Headers = headers ?? throw new ArgumentNullException(nameof(headers));
@@ -57,6 +65,7 @@ public sealed class DiffResult
 		LeftColumnCount = leftColumnCount;
 		RightRowCount = rightRowCount;
 		RightColumnCount = rightColumnCount;
+		ColumnHeaderRenames = columnHeaderRenames?.Count == headers.Count ? columnHeaderRenames : null;
 	}
 }
 

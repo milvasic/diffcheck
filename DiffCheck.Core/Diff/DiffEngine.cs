@@ -15,27 +15,37 @@ public sealed class DiffEngine
 	/// </summary>
 	/// <param name="left">The first (original) table.</param>
 	/// <param name="right">The second (modified) table.</param>
+	/// <param name="columnMappings">Optional pairs (left header, right header) to treat as the same column (e.g. renames).</param>
+	/// <param name="keyColumns">Optional list of column names to match rows by (faster than content-based matching).</param>
 	/// <returns>The diff result.</returns>
-	public DiffResult Compare(DataTable left, DataTable right)
+	public DiffResult Compare(
+		DataTable left,
+		DataTable right,
+		IReadOnlyList<ColumnMapping>? columnMappings = null,
+		IReadOnlyList<string>? keyColumns = null
+	)
 	{
 		ArgumentNullException.ThrowIfNull(left);
 		ArgumentNullException.ThrowIfNull(right);
 
-		var headers = MergeHeaders(left.Headers, right.Headers);
-		var leftColIndex = left
-			.Headers.Select((h, i) => (h, i))
-			.ToDictionary(x => x.h, x => x.i, StringComparer.OrdinalIgnoreCase);
-		var rightColIndex = right
-			.Headers.Select((h, i) => (h, i))
-			.ToDictionary(x => x.h, x => x.i, StringComparer.OrdinalIgnoreCase);
+		var (headers, leftColIndex, rightColIndex, headerRenames) = BuildColumnIndices(
+			left.Headers,
+			right.Headers,
+			columnMappings
+		);
 
 		// Build indexed rows: (row, originalIndex)
 		var leftIndexed = left.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
 		var rightIndexed = right.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
 
+		// When key columns are specified, match by key (O(1) lookup per row) instead of content-based (O(n) per row)
+		var keyColumnsFiltered = FilterKeyColumns(keyColumns, headers, leftColIndex, rightColIndex);
+		Dictionary<string, Queue<int>>? leftKeyToIndices = keyColumnsFiltered.Count > 0
+			? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex)
+			: null;
+
 		var diffRows = new List<DiffRow>();
 		var leftMatched = new HashSet<int>();
-		var rightMatched = new HashSet<int>();
 		var added = 0;
 		var removed = 0;
 		var modified = 0;
@@ -48,21 +58,34 @@ public sealed class DiffEngine
 		{
 			var (rightRow, rightOrigIdx) = rightIndexed[rightIdx];
 
-			// Find best matching left row (>= 50% columns match)
-			var bestLeft = FindBestMatch(
-				rightRow,
-				leftIndexed,
-				leftMatched,
-				headers,
-				leftColIndex,
-				rightColIndex
-			);
+			int? bestLeft = null;
+			if (leftKeyToIndices != null)
+			{
+				var rightKey = GetRowKey(rightRow, keyColumnsFiltered, rightColIndex);
+				if (leftKeyToIndices.TryGetValue(rightKey, out var queue) && queue.Count > 0)
+				{
+					bestLeft = queue.Dequeue();
+					if (queue.Count == 0)
+						leftKeyToIndices.Remove(rightKey);
+				}
+			}
+			else
+			{
+				// Find best matching left row (>= 50% columns match)
+				bestLeft = FindBestMatch(
+					rightRow,
+					leftIndexed,
+					leftMatched,
+					headers,
+					leftColIndex,
+					rightColIndex
+				);
+			}
 
 			if (bestLeft.HasValue)
 			{
 				var (leftRow, leftOrigIdx) = leftIndexed[bestLeft.Value];
 				leftMatched.Add(bestLeft.Value);
-				rightMatched.Add(rightIdx);
 
 				var cells = CompareCells(headers, leftRow, rightRow, leftColIndex, rightColIndex);
 				var cellStatus = GetRowCellStatus(cells);
@@ -149,7 +172,8 @@ public sealed class DiffEngine
 			leftRowCount: left.Rows.Count,
 			leftColumnCount: left.Headers.Count,
 			rightRowCount: right.Rows.Count,
-			rightColumnCount: right.Headers.Count
+			rightColumnCount: right.Headers.Count,
+			columnHeaderRenames: headerRenames
 		);
 	}
 
@@ -168,6 +192,66 @@ public sealed class DiffEngine
 			DiffRowStatus.Added => 2,
 			_ => 1, // Unchanged, Modified, Reordered
 		};
+	}
+
+	private const char KeySeparator = '\u0001';
+
+	/// <summary>Returns key column names that exist in both left and right and in headers.</summary>
+	private static IReadOnlyList<string> FilterKeyColumns(
+		IReadOnlyList<string>? keyColumns,
+		IReadOnlyList<string> headers,
+		IReadOnlyDictionary<string, int> leftColIndex,
+		IReadOnlyDictionary<string, int> rightColIndex
+	)
+	{
+		if (keyColumns == null || keyColumns.Count == 0)
+			return Array.Empty<string>();
+		var headerSet = new HashSet<string>(headers, StringComparer.OrdinalIgnoreCase);
+		var result = new List<string>();
+		foreach (var col in keyColumns)
+		{
+			if (string.IsNullOrWhiteSpace(col))
+				continue;
+			var name = col.Trim();
+			if (headerSet.Contains(name) && leftColIndex.ContainsKey(name) && rightColIndex.ContainsKey(name))
+				result.Add(name);
+		}
+		return result;
+	}
+
+	private static Dictionary<string, Queue<int>> BuildLeftKeyMultimap(
+		IReadOnlyList<(IReadOnlyList<string> Row, int OriginalIndex)> leftIndexed,
+		IReadOnlyList<string> keyColumns,
+		IReadOnlyDictionary<string, int> leftColIndex
+	)
+	{
+		var map = new Dictionary<string, Queue<int>>(StringComparer.Ordinal);
+		for (var i = 0; i < leftIndexed.Count; i++)
+		{
+			var key = GetRowKey(leftIndexed[i].Row, keyColumns, leftColIndex);
+			if (!map.TryGetValue(key, out var queue))
+			{
+				queue = new Queue<int>();
+				map[key] = queue;
+			}
+			queue.Enqueue(i);
+		}
+		return map;
+	}
+
+	private static string GetRowKey(
+		IReadOnlyList<string> row,
+		IReadOnlyList<string> keyColumns,
+		IReadOnlyDictionary<string, int> colIndex
+	)
+	{
+		var parts = new string[keyColumns.Count];
+		for (var i = 0; i < keyColumns.Count; i++)
+		{
+			var val = GetValue(row, colIndex, keyColumns[i]);
+			parts[i] = val ?? string.Empty;
+		}
+		return string.Join(KeySeparator, parts);
 	}
 
 	private static int? FindBestMatch(
@@ -222,23 +306,72 @@ public sealed class DiffEngine
 		return (double)matches / headers.Count;
 	}
 
-	private static IReadOnlyList<string> MergeHeaders(
-		IReadOnlyList<string> left,
-		IReadOnlyList<string> right
+	/// <summary>
+	/// Builds merged headers and column indices, applying column mappings so that
+	/// left/right columns designated as pairs are treated as one column.
+	/// Also returns headerRenames: for each header index, the right-side name when mapped (for display "Left → Right").
+	/// </summary>
+	private static (IReadOnlyList<string> Headers, IReadOnlyDictionary<string, int> LeftColIndex, IReadOnlyDictionary<string, int> RightColIndex, IReadOnlyList<string?> HeaderRenames) BuildColumnIndices(
+		IReadOnlyList<string> leftHeaders,
+		IReadOnlyList<string> rightHeaders,
+		IReadOnlyList<ColumnMapping>? columnMappings
 	)
 	{
-		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-		var result = new List<string>();
+		var leftColIndex = leftHeaders
+			.Select((h, i) => (h, i))
+			.Where(x => !string.IsNullOrEmpty(x.h))
+			.ToDictionary(x => x.h, x => x.i, StringComparer.OrdinalIgnoreCase);
 
-		foreach (var h in left.Concat(right))
+		// Right header -> canonical (left) header when mapped
+		var rightToCanonical = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		// Left (canonical) header -> right header name for display
+		var leftToRightName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+		if (columnMappings != null)
 		{
-			if (string.IsNullOrEmpty(h))
-				continue;
-			if (seen.Add(h))
-				result.Add(h);
+			foreach (var m in columnMappings)
+			{
+				if (string.IsNullOrEmpty(m.LeftHeader) || string.IsNullOrEmpty(m.RightHeader))
+					continue;
+				rightToCanonical[m.RightHeader] = m.LeftHeader;
+				leftToRightName[m.LeftHeader] = m.RightHeader;
+			}
 		}
 
-		return result;
+		// Canonical header -> right column index (for right table lookups)
+		var rightColIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+		for (var i = 0; i < rightHeaders.Count; i++)
+		{
+			var r = rightHeaders[i];
+			if (string.IsNullOrEmpty(r))
+				continue;
+			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			rightColIndex[canonical] = i;
+		}
+
+		// Merged headers: left headers first, then right-only (not mapped to any left)
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		var headers = new List<string>();
+		var headerRenames = new List<string?>();
+		foreach (var h in leftHeaders)
+		{
+			if (string.IsNullOrEmpty(h) || !seen.Add(h))
+				continue;
+			headers.Add(h);
+			headerRenames.Add(leftToRightName.TryGetValue(h, out var rightName) ? rightName : null);
+		}
+		foreach (var r in rightHeaders)
+		{
+			if (string.IsNullOrEmpty(r))
+				continue;
+			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			if (seen.Add(canonical))
+			{
+				headers.Add(canonical);
+				headerRenames.Add(null);
+			}
+		}
+
+		return (headers, leftColIndex, rightColIndex, headerRenames);
 	}
 
 	private static IReadOnlyList<DiffCell> BuildCells(

@@ -48,6 +48,25 @@
 		</div>
 	</div>
 
+	<div class="m-1">
+		<button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#keyColumnsSection" aria-expanded="false" aria-controls="keyColumnsSection">
+			Key columns (optional)
+		</button>
+		<div class="collapse mt-2" id="keyColumnsSection">
+			<label for="keyColumnsRaw" class="form-label small text-muted">Match rows by these columns (faster). Comma or newline separated. E.g. <code>ID</code> or <code>ID, Name</code></label>
+			<textarea name="keyColumnsRaw" id="keyColumnsRaw" class="form-control form-control-sm font-monospace" rows="2" placeholder="ID&#10;ID, Name">@(Model.KeyColumnsRaw)</textarea>
+		</div>
+	</div>
+	<div class="m-1">
+		<button type="button" class="btn btn-link btn-sm p-0 text-muted" data-bs-toggle="collapse" data-bs-target="#columnMappingsSection" aria-expanded="false" aria-controls="columnMappingsSection">
+			Column mappings (optional)
+		</button>
+		<div class="collapse mt-2" id="columnMappingsSection">
+			<label for="columnMappingsRaw" class="form-label small text-muted">Treat these columns as the same (e.g. renames). One per line: <code>LeftHeader:RightHeader</code> or <code>LeftHeader,RightHeader</code></label>
+			<textarea name="columnMappingsRaw" id="columnMappingsRaw" class="form-control form-control-sm font-monospace" rows="3" placeholder="Name:FullName&#10;ID:Identifier">@(Model.ColumnMappingsRaw)</textarea>
+		</div>
+	</div>
+
 	@if (!string.IsNullOrEmpty(Model.ErrorMessage))
 	{
 		<div class="alert alert-danger" role="alert">@Model.ErrorMessage</div>
@@ -125,6 +144,34 @@
 			const rightInput = document.getElementById('rightFile');
 			const leftName = document.getElementById('leftFileName');
 			const rightName = document.getElementById('rightFileName');
+			const STORAGE_KEY_COLUMNS = 'diffcheck-key-columns';
+			const STORAGE_COLUMN_MAPPINGS = 'diffcheck-column-mappings';
+
+			function saveOptionsToStorage() {
+				try {
+					var keyEl = document.getElementById('keyColumnsRaw');
+					var mapEl = document.getElementById('columnMappingsRaw');
+					if (keyEl) localStorage.setItem(STORAGE_KEY_COLUMNS, keyEl.value || '');
+					if (mapEl) localStorage.setItem(STORAGE_COLUMN_MAPPINGS, mapEl.value || '');
+				} catch (e) {}
+			}
+
+			function restoreOptionsFromStorage() {
+				try {
+					var keyEl = document.getElementById('keyColumnsRaw');
+					var mapEl = document.getElementById('columnMappingsRaw');
+					if (keyEl) {
+						var v = localStorage.getItem(STORAGE_KEY_COLUMNS);
+						if (v !== null) keyEl.value = v;
+					}
+					if (mapEl) {
+						var v = localStorage.getItem(STORAGE_COLUMN_MAPPINGS);
+						if (v !== null) mapEl.value = v;
+					}
+				} catch (e) {}
+			}
+
+			restoreOptionsFromStorage();
 
 			form.addEventListener('submit', function (e) {
 				e.preventDefault();
@@ -136,6 +183,7 @@
 
 			function checkAndSubmit() {
 				if (leftInput.files?.length && rightInput.files?.length) {
+					saveOptionsToStorage();
 					document.getElementById('loadingOverlay').classList.remove('d-none');
 					document.getElementById('loadingOverlay').classList.add('d-flex');
 

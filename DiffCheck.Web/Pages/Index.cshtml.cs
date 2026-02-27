@@ -1,4 +1,5 @@
 using DiffCheck;
+using DiffCheck.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -17,10 +18,18 @@ public class IndexModel : PageModel
 	public string? LeftFileName { get; set; }
 	public string? RightFileName { get; set; }
 	public string? ErrorMessage { get; set; }
+	/// <summary>Raw column mappings text (left:right per line) for repopulating the form.</summary>
+	public string? ColumnMappingsRaw { get; set; }
+	/// <summary>Raw key columns text (comma or newline separated) for repopulating the form.</summary>
+	public string? KeyColumnsRaw { get; set; }
 
 	public void OnGet() { }
 
-	public async Task<IActionResult> OnPostAsync(IFormFile? leftFile, IFormFile? rightFile)
+	public async Task<IActionResult> OnPostAsync(
+		IFormFile? leftFile,
+		IFormFile? rightFile,
+		string? columnMappingsRaw,
+		string? keyColumnsRaw)
 	{
 		if (leftFile == null || rightFile == null)
 		{
@@ -55,7 +64,9 @@ public class IndexModel : PageModel
 			var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
 			var viewPref = Request.Headers["X-View"].FirstOrDefault() ?? "table";
 
-			var result = await _diffCheckService.CompareAsync(leftPath, rightPath);
+			IReadOnlyList<ColumnMapping>? columnMappings = ParseColumnMappings(columnMappingsRaw);
+			IReadOnlyList<string>? keyColumns = ParseKeyColumns(keyColumnsRaw);
+			var result = await _diffCheckService.CompareAsync(leftPath, rightPath, columnMappings, keyColumns);
 			LeftFileName = leftFile.FileName;
 			RightFileName = rightFile.FileName;
 			DiffReportHtml = _diffCheckService.GenerateHtml(
@@ -80,6 +91,43 @@ public class IndexModel : PageModel
 				System.IO.File.Delete(rightPath);
 		}
 
+		ColumnMappingsRaw = columnMappingsRaw;
+		KeyColumnsRaw = keyColumnsRaw;
 		return Page();
+	}
+
+	private static IReadOnlyList<string>? ParseKeyColumns(string? raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+			return null;
+		var list = new List<string>();
+		foreach (var token in raw.Split(new[] { ',', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+		{
+			if (token.Length > 0)
+				list.Add(token);
+		}
+		return list.Count == 0 ? null : list;
+	}
+
+	private static IReadOnlyList<ColumnMapping>? ParseColumnMappings(string? raw)
+	{
+		if (string.IsNullOrWhiteSpace(raw))
+			return null;
+		var list = new List<ColumnMapping>();
+		foreach (var line in raw.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+		{
+			var trimmed = line.Trim();
+			if (trimmed.Length == 0)
+				continue;
+			var sep = trimmed.IndexOf(':') >= 0 ? ':' : ',';
+			var idx = trimmed.IndexOf(sep);
+			if (idx < 0)
+				continue;
+			var left = trimmed[..idx].Trim();
+			var right = trimmed[(idx + 1)..].Trim();
+			if (left.Length > 0 && right.Length > 0)
+				list.Add(new ColumnMapping(left, right));
+		}
+		return list.Count == 0 ? null : list;
 	}
 }

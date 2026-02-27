@@ -47,12 +47,16 @@ public sealed class DiffCheckService
 	/// </summary>
 	/// <param name="leftFilePath">Path to the first file.</param>
 	/// <param name="rightFilePath">Path to the second file.</param>
+	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
+	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result.</returns>
 	/// <exception cref="ArgumentException">Thrown when file format is not supported.</exception>
 	public async Task<DiffResult> CompareAsync(
 		string leftFilePath,
 		string rightFilePath,
+		IReadOnlyList<ColumnMapping>? columnMappings = null,
+		IReadOnlyList<string>? keyColumns = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -75,15 +79,24 @@ public sealed class DiffCheckService
 		var left = await leftReader.ReadAsync(leftFilePath, cancellationToken);
 		var right = await rightReader.ReadAsync(rightFilePath, cancellationToken);
 
-		return _diffEngine.Compare(left, right);
+		return _diffEngine.Compare(left, right, columnMappings, keyColumns);
 	}
 
 	/// <summary>
 	/// Compares two data tables and returns the diff result.
 	/// </summary>
-	public DiffResult Compare(DataTable left, DataTable right)
+	/// <param name="left">The first (original) table.</param>
+	/// <param name="right">The second (modified) table.</param>
+	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
+	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
+	public DiffResult Compare(
+		DataTable left,
+		DataTable right,
+		IReadOnlyList<ColumnMapping>? columnMappings = null,
+		IReadOnlyList<string>? keyColumns = null
+	)
 	{
-		return _diffEngine.Compare(left, right);
+		return _diffEngine.Compare(left, right, columnMappings, keyColumns);
 	}
 
 	/// <summary>
@@ -92,16 +105,20 @@ public sealed class DiffCheckService
 	/// <param name="leftFilePath">Path to the first file.</param>
 	/// <param name="rightFilePath">Path to the second file.</param>
 	/// <param name="outputPath">Path for the output HTML file.</param>
+	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
+	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result (for further use if needed).</returns>
 	public async Task<DiffResult> CompareAndSaveHtmlAsync(
 		string leftFilePath,
 		string rightFilePath,
 		string outputPath,
+		IReadOnlyList<ColumnMapping>? columnMappings = null,
+		IReadOnlyList<string>? keyColumns = null,
 		CancellationToken cancellationToken = default
 	)
 	{
-		var result = await CompareAsync(leftFilePath, rightFilePath, cancellationToken);
+		var result = await CompareAsync(leftFilePath, rightFilePath, columnMappings, keyColumns, cancellationToken);
 		var leftSize = new FileInfo(leftFilePath).Length;
 		var rightSize = new FileInfo(rightFilePath).Length;
 		await _htmlGenerator.WriteToFileAsync(

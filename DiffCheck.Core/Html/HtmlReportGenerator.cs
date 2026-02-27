@@ -229,6 +229,10 @@ public sealed class HtmlReportGenerator
 			["c"] = columnHasChanges,
 			["r"] = rows,
 		};
+		if (result.ColumnHeaderRenames != null && result.ColumnHeaderRenames.Count == result.Headers.Count)
+		{
+			root["hr"] = new List<string?>(result.ColumnHeaderRenames);
+		}
 
 		var json = JsonSerializer.Serialize(root);
 		// Avoid closing script tag when embedding in HTML
@@ -352,6 +356,7 @@ public sealed class HtmlReportGenerator
 				var diffData = window.diffData || null;
 				var headers = diffData && diffData.h ? diffData.h : [];
 				var columnHasChanges = diffData && diffData.c ? diffData.c : [];
+				var headerRenames = diffData && diffData.hr ? diffData.hr : [];
 
 				var ROW_STATUS_CLASS = ['row-unchanged', 'row-added', 'row-removed', 'row-modified', 'row-unchanged'];
 				var ROW_STATUS_TEXT = ['unchanged', 'added', 'removed', 'modified', 'reordered'];
@@ -435,9 +440,12 @@ public sealed class HtmlReportGenerator
 				];
 				for (var i = 0; i < headers.length; i++) {
 					(function(idx) {
+						var rightName = headerRenames[idx];
+						var isRenamed = (rightName != null && rightName !== '');
 						columnDefs.push({
 							field: 'col' + idx,
-							headerName: headers[idx],
+							headerName: isRenamed ? (headers[idx] + ' \u2192 ' + rightName) : headers[idx],
+							headerClass: isRenamed ? 'column-header-modified' : '',
 							colId: 'col' + idx,
 							filter: 'agTextColumnFilter',
 							cellClass: function(params) { return (params.data && params.data['_col' + idx + '_class']) || ''; },
@@ -494,7 +502,6 @@ public sealed class HtmlReportGenerator
 						columnDefs: columnDefs,
 						defaultColDef: {
 							filter: true,
-							floatingFilter: true,
 						},
 						getRowClass: function(params) { return params.data ? params.data.rowStatus || '' : ''; },
 						domLayout: 'normal',
@@ -734,6 +741,7 @@ h1 {{ margin-top: 0; color: #333; }}
 .layout.highlight-cells .ag-cell.cell-modified {{ background: {mod}44 !important; }}
 .ag-cell.cell-unchanged {{ }}
 .ag-cell.cell-format-only {{ box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }}
+.ag-header-cell.column-header-modified {{ background: {mod}44 !important; }}
 .diff-old {{ background: {rem}59; border-radius: 4px; padding: 2px 6px; margin-right: 4px; }}
 .diff-new {{ background: {add}59; border-radius: 4px; padding: 2px 6px; }}
 .ag-row:hover .ag-cell {{ background: #fafafa !important; }}
@@ -776,6 +784,7 @@ h1 {{ margin-top: 0; color: #333; }}
 [data-theme=""dark""] .layout.highlight-rows .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
 [data-theme=""dark""] .layout.highlight-rows .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
 [data-theme=""dark""] .layout.highlight-rows .ag-row.row-modified:hover .ag-cell {{ background: {mod}33 !important; }}
+[data-theme=""dark""] .ag-header-cell.column-header-modified {{ background: {mod}44 !important; }}
 [data-theme=""dark""] .text-diff {{ background: #252525; border-color: #495057; color: #e9ecef; }}
 ";
 	}
