@@ -68,17 +68,12 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("</head>");
 		sb.AppendLine("<body>");
 		sb.AppendLine($"  <div class=\"layout\" id=\"report-layout\" data-initial-view=\"{effectiveView}\">");
-		sb.AppendLine("    <aside class=\"tools-curtain expanded\" id=\"tools-curtain\" aria-label=\"Tools\">");
+		sb.AppendLine("    <aside class=\"tools-curtain\" id=\"tools-curtain\" aria-label=\"Tools\">");
 		sb.AppendLine("      <div class=\"tools-header\">");
 		sb.AppendLine("        <span class=\"tools-label\"><span class=\"tools-icon\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M.102 2.223A3.004 3.004 0 0 0 3.78 5.897l6.341 6.252A3.003 3.003 0 0 0 13 16a3 3 0 1 0-.851-5.878L5.897 3.781A3.004 3.004 0 0 0 2.223.1l2.141 2.142L4 4l-1.757.364zm13.37 9.019.528.026.287.445.445.287.026.529L15 13l-.242.471-.026.529-.445.287-.287.445-.529.026L13 15l-.471-.242-.529-.026-.287-.445-.445-.287-.026-.529L11 13l.242-.471.026-.529.445-.287.287-.445.529-.026L13 11z\"/></svg></span>Tools</span>");
 		sb.AppendLine("        <button type=\"button\" class=\"tools-toggle\" id=\"tools-toggle\" title=\"Toggle tools\"><span class=\"tools-caret\" aria-hidden=\"true\">&#9654;</span></button>");
 		sb.AppendLine("      </div>");
 		sb.AppendLine("      <div class=\"tools-panel\" id=\"tools-panel\">");
-		sb.AppendLine("        <span class=\"view-switcher-label\">Options</span>");
-		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-rows\"> Hide unchanged rows</label>");
-		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>");
-		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-added-rows\"> Hide added rows</label>");
-		sb.AppendLine("        <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-removed-rows\"> Hide removed rows</label>");
 		sb.AppendLine("        <div class=\"view-switcher\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">View</span>");
 		sb.AppendLine("          <button type=\"button\" class=\"view-btn active\" data-view=\"table\" id=\"view-btn-table\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z\"/></svg></span>Table</button>");
@@ -87,6 +82,13 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("        <div class=\"view-switcher\" id=\"tools-grid-section\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">Grid</span>");
 		sb.AppendLine("          <button type=\"button\" class=\"view-btn\" id=\"autosize-columns-btn\" title=\"Size columns to fit content\">Autosize columns</button>");
+		sb.AppendLine("        </div>");
+		sb.AppendLine("        <div class=\"view-switcher\" id=\"tools-options-section\">");
+		sb.AppendLine("          <span class=\"view-switcher-label\">Options</span>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-rows\"> Hide unchanged rows</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-added-rows\"> Hide added rows</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-removed-rows\"> Hide removed rows</label>");
 		sb.AppendLine("        </div>");
 		sb.AppendLine("      </div>");
 		sb.AppendLine("    </aside>");
@@ -336,8 +338,8 @@ public sealed class HtmlReportGenerator
 				toggleBtn.addEventListener('click', function() { isExpanded() ? collapse() : expand(); });
 				try {
 					var savedExpanded = localStorage.getItem(STORAGE_TOOLS_EXPANDED);
-					if (savedExpanded === '0') curtain.classList.remove('expanded');
-				} catch (e) {}
+					if (savedExpanded === '0') collapse(); else expand();
+				} catch (e) { expand(); }
 
 				var gridApi = null;
 				var headers = window.diffGridHeaders || [];
@@ -378,6 +380,19 @@ public sealed class HtmlReportGenerator
 					})(i);
 				}
 
+				function isRowFilterActive() {
+					return (hideRowsCb && hideRowsCb.checked) || (hideAddedCb && hideAddedCb.checked) || (hideRemovedCb && hideRemovedCb.checked);
+				}
+				function externalFilterPass(node) {
+					var data = node.data;
+					if (!data || !data.status) return true;
+					var status = data.status;
+					if (hideRowsCb && hideRowsCb.checked && status === 'unchanged') return false;
+					if (hideAddedCb && hideAddedCb.checked && status === 'added') return false;
+					if (hideRemovedCb && hideRemovedCb.checked && status === 'removed') return false;
+					return true;
+				}
+
 				var gridEl = document.getElementById('diff-grid');
 				if (gridEl && typeof agGrid !== 'undefined' && window.diffGridRowData) {
 					var gridOptions = {
@@ -386,11 +401,16 @@ public sealed class HtmlReportGenerator
 						getRowClass: function(params) { return params.data ? params.data.rowStatus || '' : ''; },
 						domLayout: 'normal',
 						suppressCellFocus: true,
+						isExternalFilterPresent: function() { return isRowFilterActive(); },
+						doesExternalFilterPass: function(node) { return externalFilterPass(node); },
 						onGridReady: function(params) {
 							gridApi = params.api;
 							updateHideRows();
 							updateHideCols();
-							setTimeout(() => gridApi.autoSizeAllColumns(), 1000);
+							updateHideAdded();
+							updateHideRemoved();
+							gridApi.onFilterChanged();
+							setTimeout(function() { gridApi.autoSizeAllColumns(); }, 1000);
 						},
 						suppressColumnVirtualisation: true,
 					};
@@ -400,19 +420,13 @@ public sealed class HtmlReportGenerator
 				function updateHideRows() {
 					var hide = !!hideRowsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_ROWS, hide ? '1' : '0'); } catch (e) {}
-					if (gridApi) {
-						if (hide) {
-							gridApi.setFilterModel({ status: { filterType: 'text', type: 'notEqual', filter: 'unchanged' } });
-						} else {
-							gridApi.setFilterModel(null);
-						}
-					}
+					if (gridApi) gridApi.onFilterChanged();
 				}
 				function updateHideCols() {
 					var hide = !!hideColsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch (e) {}
 					if (gridApi) {
-						columnDefs.forEach(function(col, i) {
+						columnDefs.forEach(function(col) {
 							if (col.colId && col.colId.indexOf('col') === 0) {
 								var idx = parseInt(col.colId.replace('col', ''), 10);
 								gridApi.setColumnVisible(col.colId, !hide || (columnHasChanges[idx] === true));
@@ -423,12 +437,12 @@ public sealed class HtmlReportGenerator
 				function updateHideAdded() {
 					var hide = !!hideAddedCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_ADDED, hide ? '1' : '0'); } catch (e) {}
-					if (layout) layout.classList.toggle('hide-added-rows', hide);
+					if (gridApi) gridApi.onFilterChanged();
 				}
 				function updateHideRemoved() {
 					var hide = !!hideRemovedCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_REMOVED, hide ? '1' : '0'); } catch (e) {}
-					if (layout) layout.classList.toggle('hide-removed-rows', hide);
+					if (gridApi) gridApi.onFilterChanged();
 				}
 				var autosizeBtn = document.getElementById('autosize-columns-btn');
 				if (autosizeBtn) {
@@ -450,18 +464,21 @@ public sealed class HtmlReportGenerator
 					var btnTable = document.getElementById('view-btn-table');
 					var btnText = document.getElementById('view-btn-text');
 					var gridSection = document.getElementById('tools-grid-section');
+					var optionsSection = document.getElementById('tools-options-section');
 					if (v === 'text') {
 						tableEl.hidden = true;
 						textEl.hidden = false;
 						btnTable.classList.remove('active');
 						btnText.classList.add('active');
 						if (gridSection) gridSection.hidden = true;
+						if (optionsSection) optionsSection.hidden = true;
 					} else {
 						tableEl.hidden = false;
 						textEl.hidden = true;
 						btnTable.classList.add('active');
 						btnText.classList.remove('active');
 						if (gridSection) gridSection.hidden = false;
+						if (optionsSection) optionsSection.hidden = false;
 					}
 				}
 				document.querySelectorAll('.view-btn[data-view]').forEach(function(btn) {
@@ -474,8 +491,8 @@ public sealed class HtmlReportGenerator
 					var initialView = layout ? layout.getAttribute('data-initial-view') : null;
 					if (initialView !== 'text' && initialView !== 'table') initialView = 'table';
 					setView(initialView);
-					if (localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; if (layout) layout.classList.add('hide-added-rows'); }
-					if (localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; if (layout) layout.classList.add('hide-removed-rows'); }
+					if (localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; }
+					if (localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; }
 				} catch (e) {}
 			})();
 			</script>
@@ -516,8 +533,8 @@ public sealed class HtmlReportGenerator
 		var font = _options.FontFamily;
 		return $@"
 * {{ box-sizing: border-box; }}
-body {{ font-family: {font}; margin: 0; padding: 0; background: #f5f5f5; }}
-.layout {{ width: 100%; min-height: 100vh; }}
+html, body {{ height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: {font}; background: #f5f5f5; display: flex; flex-direction: column; }}
+.layout {{ display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }}
 .tools-curtain {{ position: fixed; left: 0; top: 0; bottom: 0; width: 36px; z-index: 10; background: #e8e8e8; border-right: 1px solid #ddd; transition: width 0.2s ease; overflow: hidden; }}
 .tools-curtain.expanded {{ width: 220px; }}
 .tools-curtain:not(.expanded) .tools-panel {{ display: none; }}
@@ -531,20 +548,22 @@ body {{ font-family: {font}; margin: 0; padding: 0; background: #f5f5f5; }}
 .tools-toggle {{ width: 36px; height: 36px; padding: 0; border: none; background: transparent; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }}
 .view-btn {{ display: inline-flex; align-items: center; gap: 5px; }}
 .view-btn-icon {{ display: inline-flex; flex-shrink: 0; }}
-.tools-curtain.expanded .tools-toggle {{ width: auto; padding: 0 0 0 8px; }}
-.tools-caret {{ display: inline-block; transition: transform 0.2s ease, background 0.15s ease, border-radius 0.15s ease; font-size: 10px; padding: 6px; border-radius: 6px; }}
+.tools-caret {{ display: inline-block; font-size: 10px; padding: 6px; border-radius: 999px; transition: transform 0.2s ease, background-color 0.15s ease; }}
 .tools-toggle:hover .tools-caret {{ background: rgba(0,0,0,0.08); }}
+.tools-curtain.expanded .tools-toggle {{ width: auto; padding: 0 0 0 8px; }}
 .tools-curtain.expanded .tools-caret {{ transform: rotate(180deg); }}
-.tools-panel {{ padding: 12px; min-width: 220px; }}
-.main-content {{ margin-left: 36px; min-width: 0; transition: margin-left 0.2s ease; flex: 1; }}
+.tools-panel {{ padding: 12px; padding-top: 0; min-width: 220px; }}
+.main-content {{ margin-left: 36px; min-width: 0; transition: margin-left 0.2s ease; flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }}
 .tools-curtain.expanded + .main-content {{ margin-left: 220px; }}
 .tools-option {{ display: block; margin-bottom: 10px; font-size: 13px; cursor: pointer; }}
-.tools-option input {{ margin-right: 8px; }}
+.tools-option input {{ margin-right: 8px; accent-color: #0d6efd; }}
 .view-switcher {{ margin-top: 14px; }}
 .view-switcher-label {{ display: block; font-size: 12px; color: #666; margin-bottom: 6px; }}
-.view-btn {{ padding: 6px 12px; margin-right: 4px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }}
-.view-btn.active {{ background: #333; color: #fff; border-color: #333; }}
-.container {{ max-width: 100%; background: white; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.view-btn {{ padding: 6px 12px; margin-right: 4px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease; }}
+.view-btn:hover:not(.active) {{ background: #e9ecef; border-color: #adb5bd; }}
+.view-btn.active {{ background: #0d6efd; color: #fff; border-color: #0d6efd; }}
+.view-btn.active:hover {{ background: #0b5ed7; border-color: #0a58ca; color: #fff; }}
+.container {{ max-width: 100%; background: white; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }}
 h1 {{ margin-top: 0; color: #333; }}
 .file-info {{ margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 16px; }}
 .file-info-block {{ flex: 1; min-width: 200px; }}
@@ -557,7 +576,9 @@ h1 {{ margin-top: 0; color: #333; }}
 .badge.modified {{ background: {mod}; color: white; }}
 .badge.reordered {{ background: {reord}; color: white; }}
 .badge.unchanged {{ background: #e0e0e0; color: #555; }}
-.diff-grid-container {{ height: 70vh; min-height: 400px; width: 100%; }}
+.diff-view:not([hidden]) {{ flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }}
+.diff-view[hidden] {{ display: none !important; }}
+.diff-grid-container {{ flex: 1; min-height: 0; width: 100%; }}
 .status-badge {{ padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }}
 .status-badge.added {{ background: {add}; color: white; }}
 .status-badge.removed {{ background: {rem}; color: white; }}
@@ -588,9 +609,12 @@ h1 {{ margin-top: 0; color: #333; }}
 [data-theme=""dark""] .tools-curtain {{ background: #2d2d2d; border-color: #495057; }}
 [data-theme=""dark""] .tools-label {{ color: #e9ecef; }}
 [data-theme=""dark""] .tools-toggle {{ color: #e9ecef; }}
-[data-theme=""dark""] .tools-toggle:hover .tools-caret {{ background: rgba(255,255,255,0.12); }}
+[data-theme=""dark""] .tools-toggle:hover .tools-caret {{ background: rgba(255,255,255,0.16); }}
 [data-theme=""dark""] .view-btn {{ background: #3d3d3d; border-color: #495057; color: #e9ecef; }}
+[data-theme=""dark""] .view-btn:hover:not(.active) {{ background: #4d4d4d; border-color: #6c757d; }}
 [data-theme=""dark""] .view-btn.active {{ background: #0d6efd; color: #fff; border-color: #0d6efd; }}
+[data-theme=""dark""] .view-btn.active:hover {{ background: #0b5ed7; border-color: #0a58ca; color: #fff; }}
+[data-theme=""dark""] .tools-option input {{ accent-color: #0d6efd; }}
 [data-theme=""dark""] .view-switcher-label {{ color: #adb5bd; }}
 [data-theme=""dark""] .container {{ background: #2d2d2d; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }}
 [data-theme=""dark""] h1 {{ color: #e9ecef; }}
