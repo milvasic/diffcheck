@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using DiffCheck.Models;
@@ -89,13 +90,16 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>");
 		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-added-rows\"> Hide added rows</label>");
 		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-removed-rows\"> Hide removed rows</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-rows\" checked> Highlight changed rows</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-cells\" checked> Highlight changed cells</label>");
+		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"whole-value-diff\"> Whole value cell diff</label>");
 		sb.AppendLine("        </div>");
 		sb.AppendLine("      </div>");
 		sb.AppendLine("    </aside>");
 		sb.AppendLine("    <div class=\"main-content\">");
 		sb.AppendLine("      <div class=\"container\">");
 		var generatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-		sb.AppendLine("        <h1>Diff Report</h1>");
+		// sb.AppendLine("        <h1>Diff Report</h1>");
 
 		{
 			var leftCells = result.LeftRowCount * result.LeftColumnCount;
@@ -149,11 +153,9 @@ public sealed class HtmlReportGenerator
 
 		sb.AppendLine("        <div id=\"view-table\" class=\"diff-view\">");
 		sb.AppendLine("          <div id=\"diff-grid\" class=\"diff-grid-container ag-theme-alpine\"></div>");
-		var gridDataJson = BuildGridDataJson(result, columnHasChanges);
+		var diffDataJson = BuildGridDataJson(result, columnHasChanges);
 		sb.AppendLine("          <script>");
-		sb.AppendLine("            window.diffGridRowData = " + gridDataJson + ";");
-		sb.AppendLine("            window.diffGridHeaders = " + JsonSerializer.Serialize(result.Headers) + ";");
-		sb.AppendLine("            window.diffGridColumnHasChanges = " + JsonSerializer.Serialize(columnHasChanges) + ";");
+		sb.AppendLine("            window.diffData = " + diffDataJson + ";");
 		sb.AppendLine("          </script>");
 		sb.AppendLine("        </div>");
 
@@ -174,59 +176,84 @@ public sealed class HtmlReportGenerator
 		return sb.ToString();
 	}
 
-	/// <summary>
-	/// Builds JSON array of row data for AG Grid. Each row has rowIndex, indicesDisplay, status, rowStatus, and col0..colN with optional _colN_html and _colN_class.
-	/// </summary>
 	private static string BuildGridDataJson(DiffResult result, bool[] columnHasChanges)
 	{
-		var rows = new List<Dictionary<string, object>>();
+		// Compact JSON structure to minimize report size.
+		// Root object: { h: headers[], c: columnHasChanges[], r: rows[] }
+		// Each row: [rowIndex, leftRowIndex, rightRowIndex, rowStatusCode, cells[]]
+		// Each cell: [displayValue, cellStatusCode, htmlOrNull, isFormatOnly, leftValue, rightValue]
+		var rows = new List<object?>(result.Rows.Count);
 		foreach (var row in result.Rows)
 		{
-			var rowClass = row.Status switch
-			{
-				DiffRowStatus.Added => "row-added",
-				DiffRowStatus.Removed => "row-removed",
-				DiffRowStatus.Modified => "row-modified",
-				DiffRowStatus.Reordered => "row-unchanged",
-				_ => "row-unchanged",
-			};
-			var statusText = row.Status.ToString().ToLowerInvariant();
-			var indicesDisplay =
-				row.LeftRowIndex.HasValue && row.RightRowIndex.HasValue
-					? $"{row.LeftRowIndex} → {row.RightRowIndex}"
-				: row.LeftRowIndex.HasValue ? $"{row.LeftRowIndex} → —"
-				: row.RightRowIndex.HasValue ? "— → " + row.RightRowIndex
-				: "—";
-
-			var dict = new Dictionary<string, object>
-			{
-				["rowIndex"] = row.RowIndex,
-				["indicesDisplay"] = indicesDisplay,
-				["status"] = statusText,
-				["rowStatus"] = rowClass,
-			};
-			for (var i = 0; i < row.Cells.Count; i++)
+			var cells = new List<object?>(row.Cells.Count);
+			for (var i = 0; i < row.Cells.Count && i < columnHasChanges.Length; i++)
 			{
 				var cell = row.Cells[i];
-				var cellClass = cell.Status switch
-				{
-					DiffCellStatus.Added => "cell-added",
-					DiffCellStatus.Removed => "cell-removed",
-					DiffCellStatus.Modified => "cell-modified",
-					DiffCellStatus.Reordered => "cell-unchanged",
-					_ => "cell-unchanged",
-				};
-				dict["col" + i] = cell.DisplayValue;
-				dict["_col" + i + "_class"] = cellClass;
+				var left = cell.LeftValue ?? "";
+				var right = cell.RightValue ?? "";
+				string? html = null;
+				var isFormatOnly = false;
 				if (cell.Status == DiffCellStatus.Modified)
-					dict["_col" + i + "_html"] = CharacterDiffCellHtml(cell.LeftValue ?? "", cell.RightValue ?? "");
+				{
+					if (!string.Equals(left, right, StringComparison.Ordinal) && AreSemanticallyEqual(left, right))
+						isFormatOnly = true;
+					html = CharacterDiffCellHtml(left, right);
+				}
+
+				var cellEntry = new object?[]
+				{
+					cell.DisplayValue,
+					MapCellStatus(cell.Status),
+					html,
+					isFormatOnly,
+					left,
+					right,
+				};
+				cells.Add(cellEntry);
 			}
-			rows.Add(dict);
+
+			var rowEntry = new object?[]
+			{
+				row.RowIndex,
+				row.LeftRowIndex,
+				row.RightRowIndex,
+				MapRowStatus(row.Status),
+				cells,
+			};
+			rows.Add(rowEntry);
 		}
-		var json = JsonSerializer.Serialize(rows);
+
+		var root = new Dictionary<string, object?>
+		{
+			["h"] = result.Headers.ToList(),
+			["c"] = columnHasChanges,
+			["r"] = rows,
+		};
+
+		var json = JsonSerializer.Serialize(root);
 		// Avoid closing script tag when embedding in HTML
 		return json.Replace("</script>", "<\\/script>", StringComparison.OrdinalIgnoreCase);
 	}
+
+	private static int MapRowStatus(DiffRowStatus status) =>
+		status switch
+		{
+			DiffRowStatus.Added => 1,
+			DiffRowStatus.Removed => 2,
+			DiffRowStatus.Modified => 3,
+			DiffRowStatus.Reordered => 4,
+			_ => 0,
+		};
+
+	private static int MapCellStatus(DiffCellStatus status) =>
+		status switch
+		{
+			DiffCellStatus.Added => 1,
+			DiffCellStatus.Removed => 2,
+			DiffCellStatus.Modified => 3,
+			DiffCellStatus.Reordered => 4,
+			_ => 0,
+		};
 
 	private static bool[] BuildColumnHasChanges(DiffResult result)
 	{
@@ -244,43 +271,6 @@ public sealed class HtmlReportGenerator
 		return hasChanges;
 	}
 
-	private static string BuildTableDataJson(DiffResult result, bool[] columnHasChanges)
-	{
-		const int rowHeight = 41;
-		var rows = new List<object>(result.Rows.Count);
-		foreach (var row in result.Rows)
-		{
-			var cells = new List<object>(row.Cells.Count);
-			for (var i = 0; i < row.Cells.Count && i < columnHasChanges.Length; i++)
-			{
-				var cell = row.Cells[i];
-				var html = cell.Status == DiffCellStatus.Modified
-					? CharacterDiffCellHtml(cell.LeftValue ?? "", cell.RightValue ?? "")
-					: EscapeHtml(cell.DisplayValue);
-				cells.Add(new Dictionary<string, object?>
-				{
-					["status"] = cell.Status.ToString().ToLowerInvariant(),
-					["html"] = html,
-				});
-			}
-			rows.Add(new Dictionary<string, object?>
-			{
-				["rowIndex"] = row.RowIndex,
-				["status"] = row.Status.ToString().ToLowerInvariant(),
-				["leftRowIndex"] = row.LeftRowIndex,
-				["rightRowIndex"] = row.RightRowIndex,
-				["cells"] = cells,
-			});
-		}
-		var root = new Dictionary<string, object>
-		{
-			["headers"] = result.Headers.ToList(),
-			["columnHasChanges"] = columnHasChanges,
-			["rowHeight"] = rowHeight,
-			["rows"] = rows,
-		};
-		return JsonSerializer.Serialize(root);
-	}
 
 	private static string BuildTextView(DiffResult result)
 	{
@@ -322,6 +312,16 @@ public sealed class HtmlReportGenerator
 		return """
 			<script>
 			(function() {
+				function escapeHtml(s) {
+					if (s == null) return '';
+					return String(s)
+						.replace(/&/g, '&amp;')
+						.replace(/</g, '&lt;')
+						.replace(/>/g, '&gt;')
+						.replace(/"/g, '&quot;')
+						.replace(/'/g, '&#39;');
+				}
+
 				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_HIDE_ADDED = 'diffcheck-hide-added-rows', STORAGE_HIDE_REMOVED = 'diffcheck-hide-removed-rows', STORAGE_VIEW_KEY = 'diffcheck-view';
 				var curtain = document.getElementById('tools-curtain');
 				var toggleBtn = document.getElementById('tools-toggle');
@@ -329,9 +329,15 @@ public sealed class HtmlReportGenerator
 				var hideColsCb = document.getElementById('hide-unchanged-cols');
 				var hideAddedCb = document.getElementById('hide-added-rows');
 				var hideRemovedCb = document.getElementById('hide-removed-rows');
+				var highlightRowsCb = document.getElementById('highlight-rows');
+				var highlightCellsCb = document.getElementById('highlight-cells');
+				var wholeDiffCb = document.getElementById('whole-value-diff');
 				var layout = document.getElementById(LAYOUT);
 
 				var STORAGE_TOOLS_EXPANDED = 'diffcheck-tools-expanded';
+				var STORAGE_HIGHLIGHT_ROWS = 'diffcheck-highlight-rows';
+				var STORAGE_HIGHLIGHT_CELLS = 'diffcheck-highlight-cells';
+				var STORAGE_WHOLE_DIFF = 'diffcheck-whole-diff';
 				function expand() { curtain.classList.add('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '1'); } catch (e) {} }
 				function collapse() { curtain.classList.remove('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '0'); } catch (e) {} }
 				function isExpanded() { return curtain.classList.contains('expanded'); }
@@ -342,13 +348,82 @@ public sealed class HtmlReportGenerator
 				} catch (e) { expand(); }
 
 				var gridApi = null;
-				var headers = window.diffGridHeaders || [];
-				var columnHasChanges = window.diffGridColumnHasChanges || [];
+				var useWholeValueDiff = false;
+				var diffData = window.diffData || null;
+				var headers = diffData && diffData.h ? diffData.h : [];
+				var columnHasChanges = diffData && diffData.c ? diffData.c : [];
+
+				var ROW_STATUS_CLASS = ['row-unchanged', 'row-added', 'row-removed', 'row-modified', 'row-unchanged'];
+				var ROW_STATUS_TEXT = ['unchanged', 'added', 'removed', 'modified', 'reordered'];
+				var CELL_STATUS_CLASS = ['cell-unchanged', 'cell-added', 'cell-removed', 'cell-modified', 'cell-unchanged'];
+
+				function buildRowData(data) {
+					if (!data || !data.r) return [];
+					var rowsPacked = data.r;
+					var result = new Array(rowsPacked.length);
+					for (var i = 0; i < rowsPacked.length; i++) {
+						var rp = rowsPacked[i] || [];
+						var rowIndex = rp[0];
+						var leftRowIndex = rp[1];
+						var rightRowIndex = rp[2];
+						var rowStatusCode = rp[3] || 0;
+						var cellsPacked = rp[4] || [];
+
+						var statusText = ROW_STATUS_TEXT[rowStatusCode] || 'unchanged';
+						var rowClass = ROW_STATUS_CLASS[rowStatusCode] || 'row-unchanged';
+
+						var indicesDisplay;
+						var hasLeft = leftRowIndex !== null && leftRowIndex !== undefined;
+						var hasRight = rightRowIndex !== null && rightRowIndex !== undefined;
+						if (hasLeft && hasRight) {
+							indicesDisplay = leftRowIndex + ' \u2192 ' + rightRowIndex;
+						} else if (hasLeft) {
+							indicesDisplay = leftRowIndex + ' \u2192 \u2014';
+						} else if (hasRight) {
+							indicesDisplay = '\u2014 \u2192 ' + rightRowIndex;
+						} else {
+							indicesDisplay = '\u2014';
+						}
+
+						var rowObj = {
+							rowIndex: rowIndex,
+							indicesDisplay: indicesDisplay,
+							status: statusText,
+							rowStatus: rowClass
+						};
+
+						for (var c = 0; c < cellsPacked.length; c++) {
+							var cp = cellsPacked[c] || [];
+							var value = cp[0];
+							var cellStatusCode = cp[1] || 0;
+							var html = cp[2] || null;
+							var isFormatOnly = !!cp[3];
+							var leftVal = cp[4] != null ? cp[4] : null;
+							var rightVal = cp[5] != null ? cp[5] : null;
+
+							rowObj['col' + c] = value;
+							var cls = CELL_STATUS_CLASS[cellStatusCode] || 'cell-unchanged';
+							if (isFormatOnly) cls += ' cell-format-only';
+							rowObj['_col' + c + '_class'] = cls;
+							rowObj['_col' + c + '_status'] = cellStatusCode;
+							if (html) {
+								rowObj['_col' + c + '_html'] = html;
+							}
+							if (leftVal != null || rightVal != null) {
+								rowObj['_col' + c + '_left'] = leftVal;
+								rowObj['_col' + c + '_right'] = rightVal;
+							}
+						}
+
+						result[i] = rowObj;
+					}
+					return result;
+				}
 
 				var columnDefs = [
 					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false },
 					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false },
-					{ field: 'status', headerName: 'Status', colId: 'status', filter: false,
+					{ field: 'status', headerName: 'Status', colId: 'status', filter: 'agSetColumnFilter',
 					  cellRenderer: function(params) {
 						if (!params.value) return null;
 						var s = document.createElement('span');
@@ -364,13 +439,31 @@ public sealed class HtmlReportGenerator
 							field: 'col' + idx,
 							headerName: headers[idx],
 							colId: 'col' + idx,
-							filter: false,
+							filter: 'agTextColumnFilter',
 							cellClass: function(params) { return (params.data && params.data['_col' + idx + '_class']) || ''; },
 							cellRenderer: function(params) {
 								var span = document.createElement('span');
+								var data = params.data || {};
 								var htmlKey = '_col' + idx + '_html';
-								if (params.data && params.data[htmlKey]) {
-									span.innerHTML = params.data[htmlKey];
+								var leftKey = '_col' + idx + '_left';
+								var rightKey = '_col' + idx + '_right';
+								var statusKey = '_col' + idx + '_status';
+
+								var statusCode = data[statusKey];
+								var left = data[leftKey];
+								var right = data[rightKey];
+
+								if (useWholeValueDiff && statusCode === 3 && (left != null || right != null)) {
+									// Whole value diff preview
+									if (left != null && right != null) {
+										span.innerHTML = '<span class=\"diff-old\">' + escapeHtml(left) + '</span> \u2192 <span class=\"diff-new\">' + escapeHtml(right) + '</span>';
+									} else if (left != null) {
+										span.innerHTML = '<span class=\"diff-old\">' + escapeHtml(left) + '</span>';
+									} else {
+										span.innerHTML = '<span class=\"diff-new\">' + escapeHtml(right) + '</span>';
+									}
+								} else if (data && data[htmlKey]) {
+									span.innerHTML = data[htmlKey];
 								} else {
 									span.textContent = params.value != null ? params.value : '';
 								}
@@ -394,10 +487,15 @@ public sealed class HtmlReportGenerator
 				}
 
 				var gridEl = document.getElementById('diff-grid');
-				if (gridEl && typeof agGrid !== 'undefined' && window.diffGridRowData) {
+				if (gridEl && typeof agGrid !== 'undefined' && diffData) {
+					var rowData = buildRowData(diffData);
 					var gridOptions = {
-						rowData: window.diffGridRowData,
+						rowData: rowData,
 						columnDefs: columnDefs,
+						defaultColDef: {
+							filter: true,
+							floatingFilter: true,
+						},
 						getRowClass: function(params) { return params.data ? params.data.rowStatus || '' : ''; },
 						domLayout: 'normal',
 						suppressCellFocus: true,
@@ -409,6 +507,8 @@ public sealed class HtmlReportGenerator
 							updateHideCols();
 							updateHideAdded();
 							updateHideRemoved();
+							updateHighlightRows();
+							updateHighlightCells();
 							gridApi.onFilterChanged();
 							setTimeout(function() { gridApi.autoSizeAllColumns(); }, 1000);
 						},
@@ -444,6 +544,28 @@ public sealed class HtmlReportGenerator
 					try { localStorage.setItem(STORAGE_HIDE_REMOVED, hide ? '1' : '0'); } catch (e) {}
 					if (gridApi) gridApi.onFilterChanged();
 				}
+				function updateHighlightRows() {
+					var on = !highlightRowsCb || !!highlightRowsCb.checked;
+					try { localStorage.setItem(STORAGE_HIGHLIGHT_ROWS, on ? '1' : '0'); } catch (e) {}
+					if (layout) {
+						if (on) layout.classList.add('highlight-rows');
+						else layout.classList.remove('highlight-rows');
+					}
+				}
+				function updateHighlightCells() {
+					var on = !highlightCellsCb || !!highlightCellsCb.checked;
+					try { localStorage.setItem(STORAGE_HIGHLIGHT_CELLS, on ? '1' : '0'); } catch (e) {}
+					if (layout) {
+						if (on) layout.classList.add('highlight-cells');
+						else layout.classList.remove('highlight-cells');
+					}
+					if (gridApi) gridApi.refreshCells({ force: true });
+				}
+				function updateWholeDiff() {
+					useWholeValueDiff = !!(wholeDiffCb && wholeDiffCb.checked);
+					try { localStorage.setItem(STORAGE_WHOLE_DIFF, useWholeValueDiff ? '1' : '0'); } catch (e) {}
+					if (gridApi) gridApi.refreshCells({ force: true });
+				}
 				var autosizeBtn = document.getElementById('autosize-columns-btn');
 				if (autosizeBtn) {
 					autosizeBtn.addEventListener('click', function() {
@@ -451,10 +573,13 @@ public sealed class HtmlReportGenerator
 						gridApi.autoSizeAllColumns();
 					});
 				}
-				hideRowsCb.addEventListener('change', updateHideRows);
-				hideColsCb.addEventListener('change', updateHideCols);
-				hideAddedCb.addEventListener('change', updateHideAdded);
-				hideRemovedCb.addEventListener('change', updateHideRemoved);
+				if (hideRowsCb) hideRowsCb.addEventListener('change', updateHideRows);
+				if (hideColsCb) hideColsCb.addEventListener('change', updateHideCols);
+				if (hideAddedCb) hideAddedCb.addEventListener('change', updateHideAdded);
+				if (hideRemovedCb) hideRemovedCb.addEventListener('change', updateHideRemoved);
+				if (highlightRowsCb) highlightRowsCb.addEventListener('change', updateHighlightRows);
+				if (highlightCellsCb) highlightCellsCb.addEventListener('change', updateHighlightCells);
+				if (wholeDiffCb) wholeDiffCb.addEventListener('change', updateWholeDiff);
 
 				function setView(view) {
 					var v = view || 'table';
@@ -486,13 +611,28 @@ public sealed class HtmlReportGenerator
 				});
 
 				try {
-					if (localStorage.getItem(STORAGE_HIDE_ROWS) === '1') { hideRowsCb.checked = true; }
-					if (localStorage.getItem(STORAGE_HIDE_COLS) === '1') { hideColsCb.checked = true; }
+					if (hideRowsCb && localStorage.getItem(STORAGE_HIDE_ROWS) === '1') { hideRowsCb.checked = true; }
+					if (hideColsCb && localStorage.getItem(STORAGE_HIDE_COLS) === '1') { hideColsCb.checked = true; }
 					var initialView = layout ? layout.getAttribute('data-initial-view') : null;
 					if (initialView !== 'text' && initialView !== 'table') initialView = 'table';
 					setView(initialView);
-					if (localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; }
-					if (localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; }
+					if (hideAddedCb && localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; }
+					if (hideRemovedCb && localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; }
+					if (highlightRowsCb) {
+						var savedHighlightRows = localStorage.getItem(STORAGE_HIGHLIGHT_ROWS);
+						if (savedHighlightRows === '0') highlightRowsCb.checked = false;
+					}
+					if (highlightCellsCb) {
+						var savedHighlightCells = localStorage.getItem(STORAGE_HIGHLIGHT_CELLS);
+						if (savedHighlightCells === '0') highlightCellsCb.checked = false;
+					}
+					if (wholeDiffCb && localStorage.getItem(STORAGE_WHOLE_DIFF) === '1') {
+						wholeDiffCb.checked = true;
+						useWholeValueDiff = true;
+					}
+					updateHighlightRows();
+					updateHighlightCells();
+					updateWholeDiff();
 				} catch (e) {}
 			})();
 			</script>
@@ -585,20 +725,21 @@ h1 {{ margin-top: 0; color: #333; }}
 .status-badge.modified {{ background: {mod}; color: white; }}
 .status-badge.reordered {{ background: {reord}; color: white; }}
 .status-badge.unchanged {{ background: #e0e0e0; color: #555; }}
-.ag-row.row-added {{ background: {add}22 !important; }}
-.ag-row.row-removed {{ background: {rem}22 !important; }}
-.ag-row.row-modified {{ background: {mod}22 !important; }}
+.layout.highlight-rows .ag-row.row-added {{ background: {add}22 !important; }}
+.layout.highlight-rows .ag-row.row-removed {{ background: {rem}22 !important; }}
+.layout.highlight-rows .ag-row.row-modified {{ background: {mod}22 !important; }}
 .ag-row.row-unchanged {{ }}
-.ag-cell.cell-added {{ background: {add}44 !important; }}
-.ag-cell.cell-removed {{ background: {rem}44 !important; }}
-.ag-cell.cell-modified {{ background: {mod}44 !important; }}
+.layout.highlight-cells .ag-cell.cell-added {{ background: {add}44 !important; }}
+.layout.highlight-cells .ag-cell.cell-removed {{ background: {rem}44 !important; }}
+.layout.highlight-cells .ag-cell.cell-modified {{ background: {mod}44 !important; }}
 .ag-cell.cell-unchanged {{ }}
-.diff-old {{ background: {add}59; border-radius: 4px; padding: 2px 6px; margin-right: 4px; }}
-.diff-new {{ background: {rem}59; border-radius: 4px; padding: 2px 6px; }}
+.ag-cell.cell-format-only {{ box-shadow: inset 0 0 0 1px rgba(0,0,0,0.18); }}
+.diff-old {{ background: {rem}59; border-radius: 4px; padding: 2px 6px; margin-right: 4px; }}
+.diff-new {{ background: {add}59; border-radius: 4px; padding: 2px 6px; }}
 .ag-row:hover .ag-cell {{ background: #fafafa !important; }}
-.ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
-.ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
-.ag-row.row-modified:hover .ag-cell {{ background: {mod}33 !important; }}
+.layout.highlight-rows .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
+.layout.highlight-rows .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
+.layout.highlight-rows .ag-row.row-modified:hover .ag-cell {{ background: {mod}33 !important; }}
 .text-diff {{ font-family: ui-monospace, monospace; font-size: 13px; line-height: 1.5; margin: 0; padding: 12px; overflow-x: auto; white-space: pre; border: 1px solid #ddd; border-radius: 4px; background: #fafafa; }}
 .text-diff .text-line-added {{ display: block; background: {add}22; }}
 .text-diff .text-line-removed {{ display: block; background: {rem}22; }}
@@ -632,9 +773,9 @@ h1 {{ margin-top: 0; color: #333; }}
   --ag-alpine-active-color: #0d6efd;
 }}
 [data-theme=""dark""] .ag-row:hover .ag-cell {{ background: #3d3d3d !important; }}
-[data-theme=""dark""] .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
-[data-theme=""dark""] .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
-[data-theme=""dark""] .ag-row.row-modified:hover .ag-cell {{ background: {mod}33 !important; }}
+[data-theme=""dark""] .layout.highlight-rows .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
+[data-theme=""dark""] .layout.highlight-rows .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
+[data-theme=""dark""] .layout.highlight-rows .ag-row.row-modified:hover .ag-cell {{ background: {mod}33 !important; }}
 [data-theme=""dark""] .text-diff {{ background: #252525; border-color: #495057; color: #e9ecef; }}
 ";
 	}
@@ -761,5 +902,31 @@ h1 {{ margin-top: 0; color: #333; }}
 			}
 		}
 		return sb.ToString();
+	}
+
+	private static bool AreSemanticallyEqual(string left, string right)
+	{
+		if (string.Equals(left, right, StringComparison.Ordinal))
+			return true;
+
+		// Numbers (using invariant culture, matching XlsxReader behavior)
+		if (double.TryParse(left, NumberStyles.Any, CultureInfo.InvariantCulture, out var d1) &&
+		    double.TryParse(right, NumberStyles.Any, CultureInfo.InvariantCulture, out var d2) &&
+		    d1.Equals(d2))
+			return true;
+
+		// ISO dates or other invariant date formats
+		if (DateTime.TryParse(left, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t1) &&
+		    DateTime.TryParse(right, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t2) &&
+		    t1.Equals(t2))
+			return true;
+
+		// Booleans
+		if (bool.TryParse(left, out var b1) &&
+		    bool.TryParse(right, out var b2) &&
+		    b1 == b2)
+			return true;
+
+		return false;
 	}
 }

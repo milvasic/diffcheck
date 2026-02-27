@@ -74,7 +74,7 @@ public sealed class XlsxReader : IFileReader
 		return Task.FromResult(new Models.DataTable(headers, rows, path));
 	}
 
-	private static string GetCellValue(IXLCell cell)
+	private static string GetRawCellValue(IXLCell cell)
 	{
 		if (cell.TryGetValue(out string? text))
 			return text ?? string.Empty;
@@ -89,5 +89,13 @@ public sealed class XlsxReader : IFileReader
 			return boolean.ToString();
 
 		return cell.GetString() ?? string.Empty;
+	}
+
+	private static string GetCellValue(IXLCell cell)
+	{
+		// Prefer the formatted text as shown in Excel so that
+		// format changes (e.g. 1 vs 1.00, date formats) are visible in the diff.
+		var formatted = cell.GetFormattedString();
+		return formatted ?? string.Empty;
 	}
 }
