@@ -126,6 +126,9 @@ public sealed class DiffCheckService
 	/// <param name="leftFileSize">Optional file size in bytes of the first file.</param>
 	/// <param name="rightFileSize">Optional file size in bytes of the second file.</param>
 	/// <param name="theme">Theme for the report: "light" or "dark". Default: "light".</param>
+	/// <param name="initialView">
+	/// Initial active view in the report: "table" or "text". Default: "table".
+	/// </param>
 	/// <returns>HTML string.</returns>
 	public string GenerateHtml(
 		DiffResult result,
@@ -133,7 +136,8 @@ public sealed class DiffCheckService
 		string? rightFilePath = null,
 		long? leftFileSize = null,
 		long? rightFileSize = null,
-		string? theme = null
+		string? theme = null,
+		string? initialView = null
 	)
 	{
 		return _htmlGenerator.Generate(
@@ -142,7 +146,8 @@ public sealed class DiffCheckService
 			rightFilePath,
 			leftFileSize,
 			rightFileSize,
-			theme
+			theme,
+			initialView
 		);
 	}
 

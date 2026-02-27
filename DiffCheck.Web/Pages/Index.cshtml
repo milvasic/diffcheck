@@ -141,12 +141,19 @@
 
 					var formData = new FormData(form);
 					var theme = document.documentElement.getAttribute('data-theme') || 'light';
+					var viewPref;
+					try {
+						viewPref = localStorage.getItem('diffcheck-view') || 'table';
+					} catch (e) {
+						viewPref = 'table';
+					}
 
 					fetch(form.action, {
 						method: 'POST',
 						body: formData,
 						headers: {
-							'X-Theme': theme
+							'X-Theme': theme,
+							'X-View': viewPref
 						}
 					})
 					.then(function (r) { return r.text(); })

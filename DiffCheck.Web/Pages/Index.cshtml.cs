@@ -53,6 +53,7 @@ public class IndexModel : PageModel
 			}
 
 			var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
+			var viewPref = Request.Headers["X-View"].FirstOrDefault() ?? "table";
 
 			var result = await _diffCheckService.CompareAsync(leftPath, rightPath);
 			LeftFileName = leftFile.FileName;
@@ -63,7 +64,8 @@ public class IndexModel : PageModel
 				rightFile.FileName,
 				leftFile.Length,
 				rightFile.Length,
-				theme
+				theme,
+				viewPref
 			);
 		}
 		catch (Exception ex)

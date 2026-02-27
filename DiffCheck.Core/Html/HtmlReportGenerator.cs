@@ -25,6 +25,7 @@ public sealed class HtmlReportGenerator
 	/// <param name="leftFileSize">File size in bytes of the first file (optional).</param>
 	/// <param name="rightFileSize">File size in bytes of the second file (optional).</param>
 	/// <param name="theme">Theme for the report: "light" or "dark". Default: "light".</param>
+	/// <param name="initialView">Initial active view: "table" or "text". Default: "table".</param>
 	/// <returns>HTML string.</returns>
 	public string Generate(
 		DiffResult result,
@@ -32,7 +33,8 @@ public sealed class HtmlReportGenerator
 		string? rightFilePath = null,
 		long? leftFileSize = null,
 		long? rightFileSize = null,
-		string? theme = null
+		string? theme = null,
+		string? initialView = null
 	)
 	{
 		ArgumentNullException.ThrowIfNull(result);
@@ -40,6 +42,10 @@ public sealed class HtmlReportGenerator
 		var effectiveTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase)
 			? "dark"
 			: "light";
+
+		var effectiveView = string.Equals(initialView, "text", StringComparison.OrdinalIgnoreCase)
+			? "text"
+			: "table";
 
 		var columnHasChanges = BuildColumnHasChanges(result);
 
@@ -61,7 +67,7 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("  </style>");
 		sb.AppendLine("</head>");
 		sb.AppendLine("<body>");
-		sb.AppendLine("  <div class=\"layout\" id=\"report-layout\">");
+		sb.AppendLine($"  <div class=\"layout\" id=\"report-layout\" data-initial-view=\"{effectiveView}\">");
 		sb.AppendLine("    <aside class=\"tools-curtain expanded\" id=\"tools-curtain\" aria-label=\"Tools\">");
 		sb.AppendLine("      <div class=\"tools-header\">");
 		sb.AppendLine("        <span class=\"tools-label\"><span class=\"tools-icon\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M.102 2.223A3.004 3.004 0 0 0 3.78 5.897l6.341 6.252A3.003 3.003 0 0 0 13 16a3 3 0 1 0-.851-5.878L5.897 3.781A3.004 3.004 0 0 0 2.223.1l2.141 2.142L4 4l-1.757.364zm13.37 9.019.528.026.287.445.445.287.026.529L15 13l-.242.471-.026.529-.445.287-.287.445-.529.026L13 15l-.471-.242-.529-.026-.287-.445-.445-.287-.026-.529L11 13l.242-.471.026-.529.445-.287.287-.445.529-.026L13 11z\"/></svg></span>Tools</span>");
@@ -77,6 +83,10 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("          <span class=\"view-switcher-label\">View</span>");
 		sb.AppendLine("          <button type=\"button\" class=\"view-btn active\" data-view=\"table\" id=\"view-btn-table\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z\"/></svg></span>Table</button>");
 		sb.AppendLine("          <button type=\"button\" class=\"view-btn\" data-view=\"text\" id=\"view-btn-text\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z\"/><path d=\"M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z\"/></svg></span>Text</button>");
+		sb.AppendLine("        </div>");
+		sb.AppendLine("        <div class=\"view-switcher\" id=\"tools-grid-section\">");
+		sb.AppendLine("          <span class=\"view-switcher-label\">Grid</span>");
+		sb.AppendLine("          <button type=\"button\" class=\"view-btn\" id=\"autosize-columns-btn\" title=\"Size columns to fit content\">Autosize columns</button>");
 		sb.AppendLine("        </div>");
 		sb.AppendLine("      </div>");
 		sb.AppendLine("    </aside>");
@@ -310,7 +320,7 @@ public sealed class HtmlReportGenerator
 		return """
 			<script>
 			(function() {
-				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_HIDE_ADDED = 'diffcheck-hide-added-rows', STORAGE_HIDE_REMOVED = 'diffcheck-hide-removed-rows', STORAGE_VIEW = 'diffcheck-view';
+				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_HIDE_ADDED = 'diffcheck-hide-added-rows', STORAGE_HIDE_REMOVED = 'diffcheck-hide-removed-rows', STORAGE_VIEW_KEY = 'diffcheck-view';
 				var curtain = document.getElementById('tools-curtain');
 				var toggleBtn = document.getElementById('tools-toggle');
 				var hideRowsCb = document.getElementById('hide-unchanged-rows');
@@ -334,9 +344,9 @@ public sealed class HtmlReportGenerator
 				var columnHasChanges = window.diffGridColumnHasChanges || [];
 
 				var columnDefs = [
-					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', width: 70, type: 'numericColumn', filter: false },
-					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', width: 110, filter: false },
-					{ field: 'status', headerName: 'Status', colId: 'status', width: 100, filter: false,
+					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false },
+					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false },
+					{ field: 'status', headerName: 'Status', colId: 'status', filter: false,
 					  cellRenderer: function(params) {
 						if (!params.value) return null;
 						var s = document.createElement('span');
@@ -380,13 +390,15 @@ public sealed class HtmlReportGenerator
 							gridApi = params.api;
 							updateHideRows();
 							updateHideCols();
-						}
+							setTimeout(() => gridApi.autoSizeAllColumns(), 1000);
+						},
+						suppressColumnVirtualisation: true,
 					};
 					agGrid.createGrid(gridEl, gridOptions);
 				}
 
 				function updateHideRows() {
-					var hide = hideRowsCb.checked;
+					var hide = !!hideRowsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_ROWS, hide ? '1' : '0'); } catch (e) {}
 					if (gridApi) {
 						if (hide) {
@@ -397,7 +409,7 @@ public sealed class HtmlReportGenerator
 					}
 				}
 				function updateHideCols() {
-					var hide = hideColsCb.checked;
+					var hide = !!hideColsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch (e) {}
 					if (gridApi) {
 						columnDefs.forEach(function(col, i) {
@@ -409,16 +421,21 @@ public sealed class HtmlReportGenerator
 					}
 				}
 				function updateHideAdded() {
-					var hide = hideAddedCb.checked;
+					var hide = !!hideAddedCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_ADDED, hide ? '1' : '0'); } catch (e) {}
-					layout.classList.toggle('hide-added-rows', hide);
-					refreshVisibleIndices(); renderWindow();
+					if (layout) layout.classList.toggle('hide-added-rows', hide);
 				}
 				function updateHideRemoved() {
-					var hide = hideRemovedCb.checked;
+					var hide = !!hideRemovedCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_REMOVED, hide ? '1' : '0'); } catch (e) {}
-					layout.classList.toggle('hide-removed-rows', hide);
-					refreshVisibleIndices(); renderWindow();
+					if (layout) layout.classList.toggle('hide-removed-rows', hide);
+				}
+				var autosizeBtn = document.getElementById('autosize-columns-btn');
+				if (autosizeBtn) {
+					autosizeBtn.addEventListener('click', function() {
+						if (!gridApi) return;
+						gridApi.autoSizeAllColumns();
+					});
 				}
 				hideRowsCb.addEventListener('change', updateHideRows);
 				hideColsCb.addEventListener('change', updateHideCols);
@@ -426,35 +443,40 @@ public sealed class HtmlReportGenerator
 				hideRemovedCb.addEventListener('change', updateHideRemoved);
 
 				function setView(view) {
+					var v = view || 'table';
+					try { localStorage.setItem(STORAGE_VIEW_KEY, v); } catch (e) {}
 					var tableEl = document.getElementById('view-table');
 					var textEl = document.getElementById('view-text');
 					var btnTable = document.getElementById('view-btn-table');
 					var btnText = document.getElementById('view-btn-text');
-					if (view === 'text') {
+					var gridSection = document.getElementById('tools-grid-section');
+					if (v === 'text') {
 						tableEl.hidden = true;
 						textEl.hidden = false;
 						btnTable.classList.remove('active');
 						btnText.classList.add('active');
+						if (gridSection) gridSection.hidden = true;
 					} else {
 						tableEl.hidden = false;
 						textEl.hidden = true;
 						btnTable.classList.add('active');
 						btnText.classList.remove('active');
-						renderWindow();
+						if (gridSection) gridSection.hidden = false;
 					}
-					try { localStorage.setItem(STORAGE_VIEW, view); } catch (e) {}
 				}
-				document.querySelectorAll('.view-btn').forEach(function(btn) {
+				document.querySelectorAll('.view-btn[data-view]').forEach(function(btn) {
 					btn.addEventListener('click', function() { setView(btn.getAttribute('data-view')); });
 				});
 
 				try {
 					if (localStorage.getItem(STORAGE_HIDE_ROWS) === '1') { hideRowsCb.checked = true; }
 					if (localStorage.getItem(STORAGE_HIDE_COLS) === '1') { hideColsCb.checked = true; }
-					var savedView = localStorage.getItem(STORAGE_VIEW);
-					if (savedView === 'text') setView('text');
+					var initialView = layout ? layout.getAttribute('data-initial-view') : null;
+					if (initialView !== 'text' && initialView !== 'table') initialView = 'table';
+					setView(initialView);
+					if (localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; if (layout) layout.classList.add('hide-added-rows'); }
+					if (localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; if (layout) layout.classList.add('hide-removed-rows'); }
 				} catch (e) {}
-				initVirtualizer();
 			})();
 			</script>
 			""";
@@ -514,7 +536,7 @@ body {{ font-family: {font}; margin: 0; padding: 0; background: #f5f5f5; }}
 .tools-toggle:hover .tools-caret {{ background: rgba(0,0,0,0.08); }}
 .tools-curtain.expanded .tools-caret {{ transform: rotate(180deg); }}
 .tools-panel {{ padding: 12px; min-width: 220px; }}
-.main-content {{ margin-left: 36px; padding: 20px; min-width: 0; transition: margin-left 0.2s ease; flex: 1; }}
+.main-content {{ margin-left: 36px; min-width: 0; transition: margin-left 0.2s ease; flex: 1; }}
 .tools-curtain.expanded + .main-content {{ margin-left: 220px; }}
 .tools-option {{ display: block; margin-bottom: 10px; font-size: 13px; cursor: pointer; }}
 .tools-option input {{ margin-right: 8px; }}
@@ -522,7 +544,7 @@ body {{ font-family: {font}; margin: 0; padding: 0; background: #f5f5f5; }}
 .view-switcher-label {{ display: block; font-size: 12px; color: #666; margin-bottom: 6px; }}
 .view-btn {{ padding: 6px 12px; margin-right: 4px; border: 1px solid #ccc; background: #fff; border-radius: 4px; cursor: pointer; font-size: 13px; }}
 .view-btn.active {{ background: #333; color: #fff; border-color: #333; }}
-.container {{ max-width: 100%; background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
+.container {{ max-width: 100%; background: white; padding: 24px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }}
 h1 {{ margin-top: 0; color: #333; }}
 .file-info {{ margin-bottom: 16px; padding: 12px; background: #f9f9f9; border-radius: 4px; font-size: 14px; display: flex; flex-wrap: wrap; gap: 16px; }}
 .file-info-block {{ flex: 1; min-width: 200px; }}
@@ -575,6 +597,16 @@ h1 {{ margin-top: 0; color: #333; }}
 [data-theme=""dark""] .file-info {{ background: #3d3d3d; color: #e9ecef; }}
 [data-theme=""dark""] .file-info .file-stats {{ color: #adb5bd; }}
 [data-theme=""dark""] .badge.unchanged {{ background: #495057; color: #adb5bd; }}
+[data-theme=""dark""] .diff-grid-container.ag-theme-alpine {{
+  --ag-background-color: #2d2d2d;
+  --ag-foreground-color: #e9ecef;
+  --ag-header-background-color: #3d3d3d;
+  --ag-header-foreground-color: #e9ecef;
+  --ag-border-color: #495057;
+  --ag-odd-row-background-color: #252525;
+  --ag-row-hover-color: rgba(255,255,255,0.04);
+  --ag-alpine-active-color: #0d6efd;
+}}
 [data-theme=""dark""] .ag-row:hover .ag-cell {{ background: #3d3d3d !important; }}
 [data-theme=""dark""] .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
 [data-theme=""dark""] .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
