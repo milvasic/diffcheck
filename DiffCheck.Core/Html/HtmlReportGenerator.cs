@@ -61,44 +61,70 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine(
 			$"  <title>Diff Report - {EscapeHtml(leftFilePath ?? "File 1")} vs {EscapeHtml(rightFilePath ?? "File 2")}</title>"
 		);
-		sb.AppendLine("  <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/styles/ag-grid.min.css\">");
-		sb.AppendLine("  <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/styles/ag-theme-alpine.min.css\">");
+		sb.AppendLine(
+			"  <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/styles/ag-grid.min.css\">"
+		);
+		sb.AppendLine(
+			"  <link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/styles/ag-theme-alpine.min.css\">"
+		);
 		sb.AppendLine("  <style>");
 		sb.AppendLine(GetStyles());
 		sb.AppendLine("  </style>");
 		sb.AppendLine("</head>");
 		sb.AppendLine("<body>");
-		sb.AppendLine($"  <div class=\"layout\" id=\"report-layout\" data-initial-view=\"{effectiveView}\">");
-		sb.AppendLine("    <aside class=\"tools-curtain\" id=\"tools-curtain\" aria-label=\"Tools\">");
+		sb.AppendLine(
+			$"  <div class=\"layout\" id=\"report-layout\" data-initial-view=\"{effectiveView}\">"
+		);
+		sb.AppendLine(
+			"    <aside class=\"tools-curtain\" id=\"tools-curtain\" aria-label=\"Tools\">"
+		);
 		sb.AppendLine("      <div class=\"tools-header\">");
-		sb.AppendLine("        <span class=\"tools-label\"><span class=\"tools-icon\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M.102 2.223A3.004 3.004 0 0 0 3.78 5.897l6.341 6.252A3.003 3.003 0 0 0 13 16a3 3 0 1 0-.851-5.878L5.897 3.781A3.004 3.004 0 0 0 2.223.1l2.141 2.142L4 4l-1.757.364zm13.37 9.019.528.026.287.445.445.287.026.529L15 13l-.242.471-.026.529-.445.287-.287.445-.529.026L13 15l-.471-.242-.529-.026-.287-.445-.445-.287-.026-.529L11 13l.242-.471.026-.529.445-.287.287-.445.529-.026L13 11z\"/></svg></span>Tools</span>");
-		sb.AppendLine("        <button type=\"button\" class=\"tools-toggle\" id=\"tools-toggle\" title=\"Toggle tools\"><span class=\"tools-caret\" aria-hidden=\"true\">&#9654;</span></button>");
+		sb.AppendLine(
+			"        <span class=\"tools-label\"><span class=\"tools-icon\" aria-hidden=\"true\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M.102 2.223A3.004 3.004 0 0 0 3.78 5.897l6.341 6.252A3.003 3.003 0 0 0 13 16a3 3 0 1 0-.851-5.878L5.897 3.781A3.004 3.004 0 0 0 2.223.1l2.141 2.142L4 4l-1.757.364zm13.37 9.019.528.026.287.445.445.287.026.529L15 13l-.242.471-.026.529-.445.287-.287.445-.529.026L13 15l-.471-.242-.529-.026-.287-.445-.445-.287-.026-.529L11 13l.242-.471.026-.529.445-.287.287-.445.529-.026L13 11z\"/></svg></span>Tools</span>"
+		);
+		sb.AppendLine(
+			"        <button type=\"button\" class=\"tools-toggle\" id=\"tools-toggle\" title=\"Toggle tools\"><span class=\"tools-caret\" aria-hidden=\"true\">&#9654;</span></button>"
+		);
 		sb.AppendLine("      </div>");
 		sb.AppendLine("      <div class=\"tools-panel\" id=\"tools-panel\">");
 		sb.AppendLine("        <div class=\"view-switcher\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">View</span>");
-		sb.AppendLine("          <button type=\"button\" class=\"view-btn active\" data-view=\"table\" id=\"view-btn-table\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z\"/></svg></span>Table</button>");
-		sb.AppendLine("          <button type=\"button\" class=\"view-btn\" data-view=\"text\" id=\"view-btn-text\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z\"/><path d=\"M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z\"/></svg></span>Text</button>");
+		sb.AppendLine(
+			"          <button type=\"button\" class=\"view-btn active\" data-view=\"table\" id=\"view-btn-table\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M2 2h5v5H2V2zm7 0h5v5H9V2zM2 9h5v5H2V9zm7 0h5v5H9V9z\"/></svg></span>Table</button>"
+		);
+		sb.AppendLine(
+			"          <button type=\"button\" class=\"view-btn\" data-view=\"text\" id=\"view-btn-text\"><span class=\"view-btn-icon\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"14\" height=\"14\" fill=\"currentColor\" viewBox=\"0 0 16 16\"><path d=\"M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5a.5.5 0 0 1 .5-.5h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z\"/><path d=\"M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H4z\"/></svg></span>Text</button>"
+		);
 		sb.AppendLine("        </div>");
 		sb.AppendLine("        <div class=\"view-switcher\" id=\"tools-grid-section\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">Grid</span>");
-		sb.AppendLine("          <button type=\"button\" class=\"view-btn\" id=\"autosize-columns-btn\" title=\"Size columns to fit content\">Autosize columns</button>");
+		sb.AppendLine(
+			"          <button type=\"button\" class=\"view-btn\" id=\"autosize-columns-btn\" title=\"Size columns to fit content\">Autosize columns</button>"
+		);
 		sb.AppendLine("        </div>");
 		sb.AppendLine("        <div class=\"view-switcher\" id=\"tools-options-section\">");
 		sb.AppendLine("          <span class=\"view-switcher-label\">Options</span>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-rows\"> Hide unchanged rows</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-added-rows\"> Hide added rows</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-removed-rows\"> Hide removed rows</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-rows\" checked> Highlight changed rows</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-cells\" checked> Highlight changed cells</label>");
-		sb.AppendLine("          <label class=\"tools-option\"><input type=\"checkbox\" id=\"whole-value-diff\"> Whole value cell diff</label>");
+		sb.AppendLine(
+			"          <label class=\"tools-option\"><input type=\"checkbox\" id=\"hide-unchanged-cols\"> Hide unchanged columns</label>"
+		);
+		sb.AppendLine(
+			"          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-rows\" checked> Highlight changed rows</label>"
+		);
+		sb.AppendLine(
+			"          <label class=\"tools-option\"><input type=\"checkbox\" id=\"highlight-cells\" checked> Highlight changed cells</label>"
+		);
+		sb.AppendLine(
+			"          <label class=\"tools-option\"><input type=\"checkbox\" id=\"whole-value-diff\"> Whole value cell diff</label>"
+		);
 		sb.AppendLine("        </div>");
 		sb.AppendLine("      </div>");
 		sb.AppendLine("    </aside>");
 		sb.AppendLine("    <div class=\"main-content\">");
 		sb.AppendLine("      <div class=\"container\">");
-		var generatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+		var generatedAt = DateTime.Now.ToString(
+			"yyyy-MM-dd HH:mm",
+			System.Globalization.CultureInfo.InvariantCulture
+		);
 		// sb.AppendLine("        <h1>Diff Report</h1>");
 
 		{
@@ -126,9 +152,7 @@ public sealed class HtmlReportGenerator
 			sb.AppendLine(
 				$"            <div class=\"file-name\"><strong>Generated:</strong></div>"
 			);
-			sb.AppendLine(
-				$"            <div class=\"file-stats\">{EscapeHtml(generatedAt)}</div>"
-			);
+			sb.AppendLine($"            <div class=\"file-stats\">{EscapeHtml(generatedAt)}</div>");
 			sb.AppendLine("          </div>");
 			sb.AppendLine("        </div>");
 		}
@@ -152,7 +176,9 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("        </div>");
 
 		sb.AppendLine("        <div id=\"view-table\" class=\"diff-view\">");
-		sb.AppendLine("          <div id=\"diff-grid\" class=\"diff-grid-container ag-theme-alpine\"></div>");
+		sb.AppendLine(
+			"          <div id=\"diff-grid\" class=\"diff-grid-container ag-theme-alpine\"></div>"
+		);
 		var diffDataJson = BuildGridDataJson(result, columnHasChanges);
 		sb.AppendLine("          <script>");
 		sb.AppendLine("            window.diffData = " + diffDataJson + ";");
@@ -168,7 +194,9 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("      </div>");
 		sb.AppendLine("    </div>");
 		sb.AppendLine("  </div>");
-		sb.AppendLine("  <script src=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/dist/ag-grid-community.min.js\"></script>");
+		sb.AppendLine(
+			"  <script src=\"https://cdn.jsdelivr.net/npm/ag-grid-community@32/dist/ag-grid-community.min.js\"></script>"
+		);
 		sb.AppendLine(GetToolsScript());
 		sb.AppendLine("</body>");
 		sb.AppendLine("</html>");
@@ -195,7 +223,10 @@ public sealed class HtmlReportGenerator
 				var isFormatOnly = false;
 				if (cell.Status == DiffCellStatus.Modified)
 				{
-					if (!string.Equals(left, right, StringComparison.Ordinal) && AreSemanticallyEqual(left, right))
+					if (
+						!string.Equals(left, right, StringComparison.Ordinal)
+						&& AreSemanticallyEqual(left, right)
+					)
 						isFormatOnly = true;
 					html = CharacterDiffCellHtml(left, right);
 				}
@@ -229,7 +260,10 @@ public sealed class HtmlReportGenerator
 			["c"] = columnHasChanges,
 			["r"] = rows,
 		};
-		if (result.ColumnHeaderRenames != null && result.ColumnHeaderRenames.Count == result.Headers.Count)
+		if (
+			result.ColumnHeaderRenames != null
+			&& result.ColumnHeaderRenames.Count == result.Headers.Count
+		)
 		{
 			root["hr"] = new List<string?>(result.ColumnHeaderRenames);
 		}
@@ -274,7 +308,6 @@ public sealed class HtmlReportGenerator
 		}
 		return hasChanges;
 	}
-
 
 	private static string BuildTextView(DiffResult result)
 	{
@@ -326,13 +359,10 @@ public sealed class HtmlReportGenerator
 						.replace(/'/g, '&#39;');
 				}
 
-				var LAYOUT = 'report-layout', STORAGE_HIDE_ROWS = 'diffcheck-hide-unchanged-rows', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_HIDE_ADDED = 'diffcheck-hide-added-rows', STORAGE_HIDE_REMOVED = 'diffcheck-hide-removed-rows', STORAGE_VIEW_KEY = 'diffcheck-view';
+				var LAYOUT = 'report-layout', STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols', STORAGE_VIEW_KEY = 'diffcheck-view';
 				var curtain = document.getElementById('tools-curtain');
 				var toggleBtn = document.getElementById('tools-toggle');
-				var hideRowsCb = document.getElementById('hide-unchanged-rows');
 				var hideColsCb = document.getElementById('hide-unchanged-cols');
-				var hideAddedCb = document.getElementById('hide-added-rows');
-				var hideRemovedCb = document.getElementById('hide-removed-rows');
 				var highlightRowsCb = document.getElementById('highlight-rows');
 				var highlightCellsCb = document.getElementById('highlight-cells');
 				var wholeDiffCb = document.getElementById('whole-value-diff');
@@ -425,10 +455,97 @@ public sealed class HtmlReportGenerator
 					return result;
 				}
 
+				var ALL_STATUSES = ['added', 'removed', 'modified', 'reordered', 'unchanged'];
+				function StatusFilter() {}
+				StatusFilter.prototype.init = function(params) {
+					this._params = params;
+					this._selected = new Set(ALL_STATUSES);
+					this._gui = document.createElement('div');
+					this._gui.style.cssText = 'padding:10px 12px;width:100%;';
+					var self = this;
+
+					var CB_STYLE = 'accent-color:#0d6efd;cursor:pointer;flex-shrink:0;';
+
+					// --- Select All row ---
+					var allLabel = document.createElement('label');
+					allLabel.className = 'sf-row sf-row-all';
+					var allCb = document.createElement('input');
+					allCb.type = 'checkbox';
+					allCb.checked = true;
+					allCb.style.cssText = CB_STYLE;
+					this._allCb = allCb;
+					allCb.addEventListener('change', function() {
+						var checked = allCb.checked;
+						allCb.indeterminate = false;
+						if (checked) self._selected = new Set(ALL_STATUSES);
+						else self._selected.clear();
+						self._gui.querySelectorAll('.sf-item-cb').forEach(function(c) { c.checked = checked; });
+						params.filterChangedCallback();
+					});
+					var allText = document.createElement('span');
+					allText.textContent = '(Select All)';
+					allText.style.cssText = 'font-size:13px;';
+					allLabel.appendChild(allCb);
+					allLabel.appendChild(allText);
+					this._gui.appendChild(allLabel);
+
+					// --- Per-status rows ---
+					this._itemCbs = {};
+					ALL_STATUSES.forEach(function(status) {
+						var label = document.createElement('label');
+						label.className = 'sf-row';
+						var cb = document.createElement('input');
+						cb.type = 'checkbox';
+						cb.checked = true;
+						cb.className = 'sf-item-cb';
+						cb.style.cssText = CB_STYLE;
+						self._itemCbs[status] = cb;
+						cb.addEventListener('change', function() {
+							if (cb.checked) self._selected.add(status);
+							else self._selected.delete(status);
+							self._syncAllCb();
+							params.filterChangedCallback();
+						});
+						var badge = document.createElement('span');
+						badge.className = 'status-badge ' + status;
+						badge.textContent = status;
+						label.appendChild(cb);
+						label.appendChild(badge);
+						self._gui.appendChild(label);
+					});
+				};
+				StatusFilter.prototype._syncAllCb = function() {
+					var n = this._selected.size;
+					if (n === ALL_STATUSES.length) { this._allCb.checked = true; this._allCb.indeterminate = false; }
+					else if (n === 0) { this._allCb.checked = false; this._allCb.indeterminate = false; }
+					else { this._allCb.checked = false; this._allCb.indeterminate = true; }
+				};
+				StatusFilter.prototype.getGui = function() { return this._gui; };
+				StatusFilter.prototype.isFilterActive = function() { return this._selected.size < ALL_STATUSES.length; };
+				StatusFilter.prototype.doesFilterPass = function(params) {
+					var val = params.data && params.data.status ? params.data.status : 'unchanged';
+					return this._selected.has(val);
+				};
+				StatusFilter.prototype.getModel = function() {
+					return this.isFilterActive() ? { values: Array.from(this._selected) } : null;
+				};
+				StatusFilter.prototype.setModel = function(model) {
+					var self = this;
+					if (model && model.values) {
+						this._selected = new Set(model.values);
+					} else {
+						this._selected = new Set(ALL_STATUSES);
+					}
+					ALL_STATUSES.forEach(function(status) {
+						if (self._itemCbs[status]) self._itemCbs[status].checked = self._selected.has(status);
+					});
+					self._syncAllCb();
+				};
+
 				var columnDefs = [
-					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false },
-					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false },
-					{ field: 'status', headerName: 'Status', colId: 'status', filter: 'agSetColumnFilter',
+					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false, suppressMovable: true },
+					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false, suppressMovable: true },
+					{ field: 'status', headerName: 'Status', colId: 'status', filter: StatusFilter, floatingFilter: false, suppressMovable: true,
 					  cellRenderer: function(params) {
 						if (!params.value) return null;
 						var s = document.createElement('span');
@@ -481,19 +598,6 @@ public sealed class HtmlReportGenerator
 					})(i);
 				}
 
-				function isRowFilterActive() {
-					return (hideRowsCb && hideRowsCb.checked) || (hideAddedCb && hideAddedCb.checked) || (hideRemovedCb && hideRemovedCb.checked);
-				}
-				function externalFilterPass(node) {
-					var data = node.data;
-					if (!data || !data.status) return true;
-					var status = data.status;
-					if (hideRowsCb && hideRowsCb.checked && status === 'unchanged') return false;
-					if (hideAddedCb && hideAddedCb.checked && status === 'added') return false;
-					if (hideRemovedCb && hideRemovedCb.checked && status === 'removed') return false;
-					return true;
-				}
-
 				var gridEl = document.getElementById('diff-grid');
 				if (gridEl && typeof agGrid !== 'undefined' && diffData) {
 					var rowData = buildRowData(diffData);
@@ -506,29 +610,38 @@ public sealed class HtmlReportGenerator
 						getRowClass: function(params) { return params.data ? params.data.rowStatus || '' : ''; },
 						domLayout: 'normal',
 						suppressCellFocus: true,
-						isExternalFilterPresent: function() { return isRowFilterActive(); },
-						doesExternalFilterPass: function(node) { return externalFilterPass(node); },
 						onGridReady: function(params) {
 							gridApi = params.api;
-							updateHideRows();
 							updateHideCols();
-							updateHideAdded();
-							updateHideRemoved();
 							updateHighlightRows();
 							updateHighlightCells();
 							gridApi.onFilterChanged();
-							setTimeout(function() { gridApi.autoSizeAllColumns(); }, 1000);
+							setTimeout(function() { sizeColumnsConditionally(params.api); }, 150);
 						},
 						suppressColumnVirtualisation: true,
 					};
 					agGrid.createGrid(gridEl, gridOptions);
 				}
 
-				function updateHideRows() {
-					var hide = !!hideRowsCb.checked;
-					try { localStorage.setItem(STORAGE_HIDE_ROWS, hide ? '1' : '0'); } catch (e) {}
-					if (gridApi) gridApi.onFilterChanged();
-				}
+				const sizeColumnsConditionally = (gridApi) => {
+					// Attempt to fit columns to grid width first
+					gridApi.sizeColumnsToFit();
+
+					// Check if horizontal scroll is present after sizeColumnsToFit
+					// This requires accessing the DOM element directly
+					const viewport = document.querySelector('.ag-body-viewport'); 
+					
+					// A scrollbar is present if the scrollWidth is greater than the clientWidth
+					if (viewport && viewport.scrollWidth > viewport.clientWidth) {
+						// If there is a scrollbar, it means sizeColumnsToFit didn't make all content fit 
+						// or there's more content off-screen.
+						
+						// Use autoSizeAllColumns() to size columns based on their content, which will likely result in a scrollbar
+						const allColumnIds = gridApi.getAllDisplayedColumns().map(col => col.getColId());
+						gridApi.autoSizeColumns(allColumnIds);
+					}
+				};
+
 				function updateHideCols() {
 					var hide = !!hideColsCb.checked;
 					try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch (e) {}
@@ -540,16 +653,6 @@ public sealed class HtmlReportGenerator
 							}
 						});
 					}
-				}
-				function updateHideAdded() {
-					var hide = !!hideAddedCb.checked;
-					try { localStorage.setItem(STORAGE_HIDE_ADDED, hide ? '1' : '0'); } catch (e) {}
-					if (gridApi) gridApi.onFilterChanged();
-				}
-				function updateHideRemoved() {
-					var hide = !!hideRemovedCb.checked;
-					try { localStorage.setItem(STORAGE_HIDE_REMOVED, hide ? '1' : '0'); } catch (e) {}
-					if (gridApi) gridApi.onFilterChanged();
 				}
 				function updateHighlightRows() {
 					var on = !highlightRowsCb || !!highlightRowsCb.checked;
@@ -580,10 +683,7 @@ public sealed class HtmlReportGenerator
 						gridApi.autoSizeAllColumns();
 					});
 				}
-				if (hideRowsCb) hideRowsCb.addEventListener('change', updateHideRows);
 				if (hideColsCb) hideColsCb.addEventListener('change', updateHideCols);
-				if (hideAddedCb) hideAddedCb.addEventListener('change', updateHideAdded);
-				if (hideRemovedCb) hideRemovedCb.addEventListener('change', updateHideRemoved);
 				if (highlightRowsCb) highlightRowsCb.addEventListener('change', updateHighlightRows);
 				if (highlightCellsCb) highlightCellsCb.addEventListener('change', updateHighlightCells);
 				if (wholeDiffCb) wholeDiffCb.addEventListener('change', updateWholeDiff);
@@ -618,13 +718,10 @@ public sealed class HtmlReportGenerator
 				});
 
 				try {
-					if (hideRowsCb && localStorage.getItem(STORAGE_HIDE_ROWS) === '1') { hideRowsCb.checked = true; }
 					if (hideColsCb && localStorage.getItem(STORAGE_HIDE_COLS) === '1') { hideColsCb.checked = true; }
 					var initialView = layout ? layout.getAttribute('data-initial-view') : null;
 					if (initialView !== 'text' && initialView !== 'table') initialView = 'table';
 					setView(initialView);
-					if (hideAddedCb && localStorage.getItem(STORAGE_HIDE_ADDED) === '1') { hideAddedCb.checked = true; }
-					if (hideRemovedCb && localStorage.getItem(STORAGE_HIDE_REMOVED) === '1') { hideRemovedCb.checked = true; }
 					if (highlightRowsCb) {
 						var savedHighlightRows = localStorage.getItem(STORAGE_HIGHLIGHT_ROWS);
 						if (savedHighlightRows === '0') highlightRowsCb.checked = false;
@@ -726,7 +823,13 @@ h1 {{ margin-top: 0; color: #333; }}
 .diff-view:not([hidden]) {{ flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }}
 .diff-view[hidden] {{ display: none !important; }}
 .diff-grid-container {{ flex: 1; min-height: 0; width: 100%; }}
-.status-badge {{ padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; }}
+.ag-filter-body-wrapper {{ min-width: 0 !important; width: max-content !important; }}
+.sf-row {{ display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; padding: 3px 4px; border-radius: 4px; transition: background 0.12s; }}
+.sf-row:hover {{ background: rgba(0,0,0,0.06); }}
+.sf-row-all {{ margin-bottom: 10px; padding-bottom: 11px; border-bottom: 1px solid #ccc; }}
+[data-theme=""dark""] .sf-row:hover {{ background: rgba(255,255,255,0.08); }}
+[data-theme=""dark""] .sf-row-all {{ border-bottom-color: #495057; }}
+.status-badge {{ width: 100px; display: inline-block; line-height: 15px; text-align: center; padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 500; box-sizing: border-box; }}
 .status-badge.added {{ background: {add}; color: white; }}
 .status-badge.removed {{ background: {rem}; color: white; }}
 .status-badge.modified {{ background: {mod}; color: white; }}
@@ -779,7 +882,23 @@ h1 {{ margin-top: 0; color: #333; }}
   --ag-odd-row-background-color: #252525;
   --ag-row-hover-color: rgba(255,255,255,0.04);
   --ag-alpine-active-color: #0d6efd;
+  --ag-control-panel-background-color: #3d3d3d;
+  --ag-input-focus-border-color: #0d6efd;
 }}
+[data-theme=""dark""] .ag-floating-filter-input input,
+[data-theme=""dark""] .ag-text-field-input,
+[data-theme=""dark""] .ag-number-field-input {{ background: #2d2d2d; color: #e9ecef; border-color: #495057; }}
+[data-theme=""dark""] .ag-filter {{ background: #3d3d3d; color: #e9ecef; }}
+[data-theme=""dark""] .ag-filter label {{ color: #e9ecef; }}
+[data-theme=""dark""] .ag-filter .sf-item-cb,
+[data-theme=""dark""] .ag-filter input[type=checkbox] {{ accent-color: #0d6efd; }}
+[data-theme=""dark""] .ag-filter label[style*=""border-bottom""] {{ border-bottom-color: #495057 !important; }}
+[data-theme=""dark""] .ag-picker-field-wrapper {{ background: #2d2d2d !important; border-color: #495057 !important; }}
+[data-theme=""dark""] .ag-picker-field-display {{ color: #e9ecef !important; }}
+[data-theme=""dark""] .ag-select-list {{ background: #2d2d2d; border-color: #495057; color: #e9ecef; }}
+[data-theme=""dark""] .ag-select-list-item {{ color: #e9ecef; }}
+[data-theme=""dark""] .ag-select-list-item:hover,
+[data-theme=""dark""] .ag-select-list-item.ag-active-item {{ background: #3d3d3d !important; color: #e9ecef !important; }}
 [data-theme=""dark""] .ag-row:hover .ag-cell {{ background: #3d3d3d !important; }}
 [data-theme=""dark""] .layout.highlight-rows .ag-row.row-added:hover .ag-cell {{ background: {add}33 !important; }}
 [data-theme=""dark""] .layout.highlight-rows .ag-row.row-removed:hover .ag-cell {{ background: {rem}33 !important; }}
@@ -832,7 +951,10 @@ h1 {{ margin-top: 0; color: #333; }}
 	/// <summary>
 	/// Character-level diff (git-diff style). Returns HTML for the "removed" line (left with removals in diff-old) and "added" line (right with additions in diff-new).
 	/// </summary>
-	private static (string RemovedLineHtml, string AddedLineHtml) CharacterDiffHtml(string left, string right)
+	private static (string RemovedLineHtml, string AddedLineHtml) CharacterDiffHtml(
+		string left,
+		string right
+	)
 	{
 		if (string.IsNullOrEmpty(left) && string.IsNullOrEmpty(right))
 			return ("", "");
@@ -907,7 +1029,9 @@ h1 {{ margin-top: 0; color: #333; }}
 				var start = i;
 				while (i < text.Length && !matched[i])
 					i++;
-				sb.Append($"<span class=\"{spanClass}\">{EscapeHtml(text.Substring(start, i - start))}</span>");
+				sb.Append(
+					$"<span class=\"{spanClass}\">{EscapeHtml(text.Substring(start, i - start))}</span>"
+				);
 			}
 		}
 		return sb.ToString();
@@ -919,21 +1043,28 @@ h1 {{ margin-top: 0; color: #333; }}
 			return true;
 
 		// Numbers (using invariant culture, matching XlsxReader behavior)
-		if (double.TryParse(left, NumberStyles.Any, CultureInfo.InvariantCulture, out var d1) &&
-		    double.TryParse(right, NumberStyles.Any, CultureInfo.InvariantCulture, out var d2) &&
-		    d1.Equals(d2))
+		if (
+			double.TryParse(left, NumberStyles.Any, CultureInfo.InvariantCulture, out var d1)
+			&& double.TryParse(right, NumberStyles.Any, CultureInfo.InvariantCulture, out var d2)
+			&& d1.Equals(d2)
+		)
 			return true;
 
 		// ISO dates or other invariant date formats
-		if (DateTime.TryParse(left, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t1) &&
-		    DateTime.TryParse(right, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t2) &&
-		    t1.Equals(t2))
+		if (
+			DateTime.TryParse(left, CultureInfo.InvariantCulture, DateTimeStyles.None, out var t1)
+			&& DateTime.TryParse(
+				right,
+				CultureInfo.InvariantCulture,
+				DateTimeStyles.None,
+				out var t2
+			)
+			&& t1.Equals(t2)
+		)
 			return true;
 
 		// Booleans
-		if (bool.TryParse(left, out var b1) &&
-		    bool.TryParse(right, out var b2) &&
-		    b1 == b2)
+		if (bool.TryParse(left, out var b1) && bool.TryParse(right, out var b2) && b1 == b2)
 			return true;
 
 		return false;

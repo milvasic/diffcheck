@@ -118,7 +118,13 @@ public sealed class DiffCheckService
 		CancellationToken cancellationToken = default
 	)
 	{
-		var result = await CompareAsync(leftFilePath, rightFilePath, columnMappings, keyColumns, cancellationToken);
+		var result = await CompareAsync(
+			leftFilePath,
+			rightFilePath,
+			columnMappings,
+			keyColumns,
+			cancellationToken
+		);
 		var leftSize = new FileInfo(leftFilePath).Length;
 		var rightSize = new FileInfo(rightFilePath).Length;
 		await _htmlGenerator.WriteToFileAsync(

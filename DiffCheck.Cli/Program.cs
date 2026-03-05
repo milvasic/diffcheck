@@ -11,12 +11,18 @@ var outputOption = new Option<FileInfo>("--output", ["-o"])
 	DefaultValueFactory = x => new FileInfo("diff-report.html"),
 };
 
-var columnMapOption = new Option<string[]>("--column-map", "Column mapping: left header and right header (e.g. \"Name:FullName\"). Can be specified multiple times.")
+var columnMapOption = new Option<string[]>(
+	"--column-map",
+	"Column mapping: left header and right header (e.g. \"Name:FullName\"). Can be specified multiple times."
+)
 {
 	AllowMultipleArgumentsPerToken = true,
 };
 
-var keyColumnsOption = new Option<string[]>("--key-columns", "Column name(s) to match rows by (faster). Comma-separated or multiple. E.g. \"ID\" or \"ID,Name\".")
+var keyColumnsOption = new Option<string[]>(
+	"--key-columns",
+	"Column name(s) to match rows by (faster). Comma-separated or multiple. E.g. \"ID\" or \"ID,Name\"."
+)
 {
 	AllowMultipleArgumentsPerToken = true,
 };
@@ -51,13 +57,12 @@ rootCommand.SetAction(
 					var colon = s.IndexOf(':');
 					if (colon < 0)
 					{
-						Console.Error.WriteLine($"Invalid column map \"{s}\". Use format LeftHeader:RightHeader (e.g. Name:FullName).");
+						Console.Error.WriteLine(
+							$"Invalid column map \"{s}\". Use format LeftHeader:RightHeader (e.g. Name:FullName)."
+						);
 						return;
 					}
-					list.Add(new ColumnMapping(
-						s[..colon].Trim(),
-						s[(colon + 1)..].Trim()
-					));
+					list.Add(new ColumnMapping(s[..colon].Trim(), s[(colon + 1)..].Trim()));
 				}
 				columnMappings = list;
 			}
@@ -69,7 +74,12 @@ rootCommand.SetAction(
 				var list = new List<string>();
 				foreach (var s in keyStrings)
 				{
-					foreach (var part in s.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+					foreach (
+						var part in s.Split(
+							',',
+							StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
+						)
+					)
 					{
 						if (part.Length > 0)
 							list.Add(part);

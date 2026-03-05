@@ -77,6 +77,24 @@ body.d-flex.flex-column main {
   border-color: #0d6efd !important;
 }
 
+.drop-zone-compact {
+  padding: 0.5rem 1rem !important;
+}
+
+.drop-zone-compact .drop-content {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 10px;
+  text-align: left;
+}
+
+.drop-zone-compact .drop-icon {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+}
+
 /* Diff result fullscreen */
 #diffResultContainer.diff-result-fullscreen {
   display: flex;

@@ -119,7 +119,12 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("text-line-unchanged") || html.Contains("text-line-added") || html.Contains("text-line-removed") || html.Contains("text-line-modified"));
+		Assert.IsTrue(
+			html.Contains("text-line-unchanged")
+				|| html.Contains("text-line-added")
+				|| html.Contains("text-line-removed")
+				|| html.Contains("text-line-modified")
+		);
 	}
 
 	private static DiffResult CreateSimpleDiffResult()

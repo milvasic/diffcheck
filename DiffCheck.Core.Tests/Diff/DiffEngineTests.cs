@@ -169,8 +169,8 @@ public class DiffEngineTests
 			new List<IReadOnlyList<string>>
 			{
 				new[] { "1", "Alice" },
-				new[] { "2", "Robert" },   // modified
-				new[] { "4", "Dave" },    // added
+				new[] { "2", "Robert" }, // modified
+				new[] { "4", "Dave" }, // added
 			}
 		);
 		var keyColumns = new[] { "ID" };
@@ -178,11 +178,11 @@ public class DiffEngineTests
 		var engine = new DiffEngine();
 		var result = engine.Compare(left, right, keyColumns: keyColumns);
 
-		Assert.AreEqual(4, result.Rows.Count);  // removed, unchanged, modified, added
-		Assert.AreEqual(1, result.Summary.UnchangedRows);   // ID 1
-		Assert.AreEqual(1, result.Summary.ModifiedRows);     // ID 2
-		Assert.AreEqual(1, result.Summary.AddedRows);       // ID 4
-		Assert.AreEqual(1, result.Summary.RemovedRows);    // ID 3
+		Assert.AreEqual(4, result.Rows.Count); // removed, unchanged, modified, added
+		Assert.AreEqual(1, result.Summary.UnchangedRows); // ID 1
+		Assert.AreEqual(1, result.Summary.ModifiedRows); // ID 2
+		Assert.AreEqual(1, result.Summary.AddedRows); // ID 4
+		Assert.AreEqual(1, result.Summary.RemovedRows); // ID 3
 	}
 
 	[TestMethod]

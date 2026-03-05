@@ -40,9 +40,10 @@ public sealed class DiffEngine
 
 		// When key columns are specified, match by key (O(1) lookup per row) instead of content-based (O(n) per row)
 		var keyColumnsFiltered = FilterKeyColumns(keyColumns, headers, leftColIndex, rightColIndex);
-		Dictionary<string, Queue<int>>? leftKeyToIndices = keyColumnsFiltered.Count > 0
-			? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex)
-			: null;
+		Dictionary<string, Queue<int>>? leftKeyToIndices =
+			keyColumnsFiltered.Count > 0
+				? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex)
+				: null;
 
 		var diffRows = new List<DiffRow>();
 		var leftMatched = new HashSet<int>();
@@ -213,7 +214,11 @@ public sealed class DiffEngine
 			if (string.IsNullOrWhiteSpace(col))
 				continue;
 			var name = col.Trim();
-			if (headerSet.Contains(name) && leftColIndex.ContainsKey(name) && rightColIndex.ContainsKey(name))
+			if (
+				headerSet.Contains(name)
+				&& leftColIndex.ContainsKey(name)
+				&& rightColIndex.ContainsKey(name)
+			)
 				result.Add(name);
 		}
 		return result;
@@ -311,7 +316,12 @@ public sealed class DiffEngine
 	/// left/right columns designated as pairs are treated as one column.
 	/// Also returns headerRenames: for each header index, the right-side name when mapped (for display "Left → Right").
 	/// </summary>
-	private static (IReadOnlyList<string> Headers, IReadOnlyDictionary<string, int> LeftColIndex, IReadOnlyDictionary<string, int> RightColIndex, IReadOnlyList<string?> HeaderRenames) BuildColumnIndices(
+	private static (
+		IReadOnlyList<string> Headers,
+		IReadOnlyDictionary<string, int> LeftColIndex,
+		IReadOnlyDictionary<string, int> RightColIndex,
+		IReadOnlyList<string?> HeaderRenames
+	) BuildColumnIndices(
 		IReadOnlyList<string> leftHeaders,
 		IReadOnlyList<string> rightHeaders,
 		IReadOnlyList<ColumnMapping>? columnMappings

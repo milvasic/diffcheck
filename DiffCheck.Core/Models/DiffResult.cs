@@ -65,7 +65,8 @@ public sealed class DiffResult
 		LeftColumnCount = leftColumnCount;
 		RightRowCount = rightRowCount;
 		RightColumnCount = rightColumnCount;
-		ColumnHeaderRenames = columnHeaderRenames?.Count == headers.Count ? columnHeaderRenames : null;
+		ColumnHeaderRenames =
+			columnHeaderRenames?.Count == headers.Count ? columnHeaderRenames : null;
 	}
 }
 
