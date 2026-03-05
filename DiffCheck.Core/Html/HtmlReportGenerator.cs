@@ -607,6 +607,9 @@ public sealed class HtmlReportGenerator
 						defaultColDef: {
 							filter: true,
 						},
+						autoSizeStrategy: {
+							type: 'fitCellContents',
+						},
 						getRowClass: function(params) { return params.data ? params.data.rowStatus || '' : ''; },
 						domLayout: 'normal',
 						suppressCellFocus: true,
@@ -616,7 +619,8 @@ public sealed class HtmlReportGenerator
 							updateHighlightRows();
 							updateHighlightCells();
 							gridApi.onFilterChanged();
-							setTimeout(function() { sizeColumnsConditionally(params.api); }, 150);
+							// setTimeout(function() { gridApi.autoSizeAllColumns(); }, 150);
+							// setTimeout(function() { sizeColumnsConditionally(params.api); }, 150);
 						},
 						suppressColumnVirtualisation: true,
 					};
