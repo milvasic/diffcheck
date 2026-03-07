@@ -75,10 +75,14 @@ public class HtmlReportGeneratorTests
 
 		Assert.IsTrue(html.Contains("tools-curtain"));
 		Assert.IsTrue(html.Contains("tools-toggle"));
-		Assert.IsTrue(html.Contains("Hide unchanged rows"));
 		Assert.IsTrue(html.Contains("Hide unchanged columns"));
-		Assert.IsTrue(html.Contains("hide-unchanged-rows"));
 		Assert.IsTrue(html.Contains("hide-unchanged-cols"));
+		Assert.IsTrue(html.Contains("Highlight changed rows"));
+		Assert.IsTrue(html.Contains("highlight-rows"));
+		Assert.IsTrue(html.Contains("Highlight changed cells"));
+		Assert.IsTrue(html.Contains("highlight-cells"));
+		Assert.IsTrue(html.Contains("Whole value cell diff"));
+		Assert.IsTrue(html.Contains("whole-value-diff"));
 	}
 
 	[TestMethod]
@@ -106,8 +110,8 @@ public class HtmlReportGeneratorTests
 		var html = generator.Generate(result);
 
 		Assert.IsTrue(html.Contains("diff-grid"));
-		Assert.IsTrue(html.Contains("diffGridRowData"));
-		Assert.IsTrue(html.Contains("diffGridColumnHasChanges"));
+		Assert.IsTrue(html.Contains("window.diffData"));
+		Assert.IsTrue(html.Contains("\"c\":"));
 		Assert.IsTrue(html.Contains("row-unchanged"));
 	}
 
@@ -125,6 +129,27 @@ public class HtmlReportGeneratorTests
 				|| html.Contains("text-line-removed")
 				|| html.Contains("text-line-modified")
 		);
+	}
+
+	[TestMethod]
+	public void Generate_ContainsStableDomIds()
+	{
+		var result = CreateSimpleDiffResult();
+		var generator = new HtmlReportGenerator();
+
+		var html = generator.Generate(result);
+
+		Assert.IsTrue(html.Contains("id=\"tools-curtain\""));
+		Assert.IsTrue(html.Contains("id=\"tools-panel\""));
+		Assert.IsTrue(html.Contains("id=\"diff-grid\""));
+		Assert.IsTrue(html.Contains("id=\"view-table\""));
+		Assert.IsTrue(html.Contains("id=\"view-text\""));
+		Assert.IsTrue(html.Contains("id=\"text-diff-content\""));
+		Assert.IsTrue(html.Contains("id=\"autosize-columns-btn\""));
+		Assert.IsTrue(html.Contains("id=\"hide-unchanged-cols\""));
+		Assert.IsTrue(html.Contains("id=\"highlight-rows\""));
+		Assert.IsTrue(html.Contains("id=\"highlight-cells\""));
+		Assert.IsTrue(html.Contains("id=\"whole-value-diff\""));
 	}
 
 	private static DiffResult CreateSimpleDiffResult()

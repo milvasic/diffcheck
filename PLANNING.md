@@ -4,20 +4,7 @@ Date: 2026-03-07
 
 ## Findings
 
-1. High - `HtmlReportGenerator` tests are out of sync with current HTML output.
-   - Evidence:
-     - `DiffCheck.Core.Tests/Html/HtmlReportGeneratorTests.cs:78`
-     - `DiffCheck.Core.Tests/Html/HtmlReportGeneratorTests.cs:80`
-     - `DiffCheck.Core.Tests/Html/HtmlReportGeneratorTests.cs:109`
-     - `DiffCheck.Core.Tests/Html/HtmlReportGeneratorTests.cs:110`
-     - `DiffCheck.Core/Html/HtmlReportGenerator.cs:108`
-     - `DiffCheck.Core/Html/HtmlReportGenerator.cs:184`
-   - Risk: CI or local test runs can fail despite valid runtime behavior.
-   - Suggested fix:
-     - Update test assertions to match current report output.
-     - Add a small set of stable marker assertions (DOM ids/classes) to reduce brittleness.
-
-2. Medium - Web upload validation relies on file extension checks and does not enforce an explicit upload size/content guard before temp-file writes.
+1. Medium - Web upload validation relies on file extension checks and does not enforce an explicit upload size/content guard before temp-file writes.
    - Evidence:
      - `DiffCheck.Web/Pages/Index.cshtml.cs:42`
      - `DiffCheck.Web/Pages/Index.cshtml.cs:43`
@@ -32,7 +19,7 @@ Date: 2026-03-07
      - Add max file-size limits in ASP.NET Core request/form options.
      - Validate content signatures where possible and reject empty/invalid payloads early.
 
-3. Medium - CLI error handling does not clearly enforce non-zero process exit codes for automation usage.
+2. Medium - CLI error handling does not clearly enforce non-zero process exit codes for automation usage.
    - Evidence:
      - `DiffCheck.Cli/Program.cs:103`
      - `DiffCheck.Cli/Program.cs:105`
@@ -41,7 +28,7 @@ Date: 2026-03-07
      - Return explicit non-zero exit codes on argument parsing and runtime failures.
      - Add CLI tests for success/failure exit behavior.
 
-4. Low - CLI README does not document advanced options (`--column-map`, `--key-columns`).
+3. Low - CLI README does not document advanced options (`--column-map`, `--key-columns`).
    - Evidence:
      - `DiffCheck.Cli/README.md:38`
      - `DiffCheck.Cli/Program.cs:15`
