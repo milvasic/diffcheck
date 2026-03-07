@@ -4,22 +4,7 @@ Date: 2026-03-07
 
 ## Findings
 
-1. Medium - Web upload validation relies on file extension checks and does not enforce an explicit upload size/content guard before temp-file writes.
-   - Evidence:
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:42`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:43`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:62`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:63`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:124`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:125`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:142`
-     - `DiffCheck.Web/Pages/Index.cshtml.cs:143`
-   - Risk: unnecessary resource pressure and weaker hardening against malformed input.
-   - Suggested fix:
-     - Add max file-size limits in ASP.NET Core request/form options.
-     - Validate content signatures where possible and reject empty/invalid payloads early.
-
-2. Medium - CLI error handling does not clearly enforce non-zero process exit codes for automation usage.
+1. Medium - CLI error handling does not clearly enforce non-zero process exit codes for automation usage.
    - Evidence:
      - `DiffCheck.Cli/Program.cs:103`
      - `DiffCheck.Cli/Program.cs:105`
@@ -28,7 +13,7 @@ Date: 2026-03-07
      - Return explicit non-zero exit codes on argument parsing and runtime failures.
      - Add CLI tests for success/failure exit behavior.
 
-3. Low - CLI README does not document advanced options (`--column-map`, `--key-columns`).
+2. Low - CLI README does not document advanced options (`--column-map`, `--key-columns`).
    - Evidence:
      - `DiffCheck.Cli/README.md:38`
      - `DiffCheck.Cli/Program.cs:15`

@@ -8,11 +8,15 @@ namespace DiffCheck.Web.Pages;
 public class IndexModel : PageModel
 {
 	private readonly DiffCheckService _diffCheckService;
+	private readonly UploadLimits _uploadLimits;
 
-	public IndexModel(DiffCheckService diffCheckService)
+	public IndexModel(DiffCheckService diffCheckService, UploadLimits uploadLimits)
 	{
 		_diffCheckService = diffCheckService;
+		_uploadLimits = uploadLimits;
 	}
+
+	public long MaxFileSizeMb => _uploadLimits.MaxFileSizeBytes / (1024 * 1024);
 
 	public string? DiffReportHtml { get; set; }
 	public string? LeftFileName { get; set; }
@@ -36,6 +40,13 @@ public class IndexModel : PageModel
 	{
 		if (leftFile == null || rightFile == null)
 			return new JsonResult(new { error = "Please provide both files." });
+
+		if (leftFile.Length == 0 || rightFile.Length == 0)
+			return new JsonResult(new { error = "One or both files are empty." });
+
+		var maxBytes = _uploadLimits.MaxFileSizeBytes;
+		if (leftFile.Length > maxBytes || rightFile.Length > maxBytes)
+			return new JsonResult(new { error = $"Each file must be under {MaxFileSizeMb} MB." });
 
 		var leftExt = Path.GetExtension(leftFile.FileName).ToLowerInvariant();
 		var rightExt = Path.GetExtension(rightFile.FileName).ToLowerInvariant();
@@ -116,6 +127,19 @@ public class IndexModel : PageModel
 		if (leftFile == null || rightFile == null)
 		{
 			ErrorMessage = "Please provide both files.";
+			return Page();
+		}
+
+		if (leftFile.Length == 0 || rightFile.Length == 0)
+		{
+			ErrorMessage = "One or both files are empty.";
+			return Page();
+		}
+
+		var maxBytes = _uploadLimits.MaxFileSizeBytes;
+		if (leftFile.Length > maxBytes || rightFile.Length > maxBytes)
+		{
+			ErrorMessage = $"Each file must be under {MaxFileSizeMb} MB.";
 			return Page();
 		}
 

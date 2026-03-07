@@ -195,6 +195,8 @@
 										const rightInput = document.getElementById('rightFile');
 										const leftName = document.getElementById('leftFileName');
 										const rightName = document.getElementById('rightFileName');
+										const MAX_FILE_SIZE = @(Model.MaxFileSizeMb) * 1024 * 1024;
+										const MAX_FILE_SIZE_MB = @(Model.MaxFileSizeMb);
 										const STORAGE_KEY_COLUMNS = 'diffcheck-key-columns';
 										const STORAGE_COLUMN_MAPPINGS = 'diffcheck-column-mappings';
 
@@ -234,6 +236,20 @@
 
 										function checkAndSubmit() {
 											if (!leftInput.files?.length || !rightInput.files?.length) return;
+
+											var errorEl = document.getElementById('compareError');
+											var leftSize = leftInput.files[0].size;
+											var rightSize = rightInput.files[0].size;
+											if (leftSize === 0 || rightSize === 0) {
+												errorEl.textContent = 'One or both files are empty.';
+												errorEl.classList.remove('d-none');
+												return;
+											}
+											if (leftSize > MAX_FILE_SIZE || rightSize > MAX_FILE_SIZE) {
+												errorEl.textContent = 'Each file must be under ' + MAX_FILE_SIZE_MB + ' MB.';
+												errorEl.classList.remove('d-none');
+												return;
+											}
 
 											saveOptionsToStorage();
 											var overlay = document.getElementById('loadingOverlay');
