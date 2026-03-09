@@ -31,16 +31,7 @@ Date: 2026-03-07
      - `DiffCheck.Core/Readers/XlsxReader.cs:17`
      - `DiffCheck.Core/Readers/XlsxReader.cs:44`
 
-2. Saved comparison profiles (high value)
-   - Save reusable presets for key columns, column mappings, and future matching rules.
-   - Support profiles in Web UI and CLI (`--profile`).
-   - References:
-     - `DiffCheck.Web/Pages/Index.cshtml:198`
-     - `DiffCheck.Web/Pages/Index.cshtml:199`
-     - `DiffCheck.Cli/Program.cs:15`
-     - `DiffCheck.Cli/Program.cs:23`
-
-3. Configurable matching and normalization rules (high value)
+2. Configurable matching and normalization rules (high value)
    - Add options for match threshold, case-insensitive compare, trim/whitespace normalization, and numeric/date tolerance.
    - Keep defaults compatible with current behavior.
    - References:
@@ -48,7 +39,7 @@ Date: 2026-03-07
      - `DiffCheck.Core/Diff/DiffEngine.cs:282`
      - `DiffCheck.Core/Diff/DiffEngine.cs:308`
 
-4. Machine-readable outputs and API mode (medium-high value)
+3. Machine-readable outputs and API mode (medium-high value)
    - Add `--format json` for CLI and optional `/api/compare` endpoint for integrations.
    - Preserve HTML as default while enabling CI/data pipeline usage.
    - References:
@@ -56,7 +47,7 @@ Date: 2026-03-07
      - `DiffCheck.Cli/Program.cs:8`
      - `DiffCheck.Web/Program.cs:4`
 
-5. CI gating features (medium value)
+4. CI gating features (medium value)
    - Add options like `--fail-on-diff`, `--max-added`, `--max-removed`, and `--max-modified`.
    - Return non-zero exit code when thresholds are exceeded.
    - References:
@@ -69,4 +60,4 @@ Date: 2026-03-07
 2. Add CLI exit-code guarantees and CI gating options.
 3. Harden web uploads with explicit limits and validation.
 4. Implement workbook-aware sheet diff.
-5. Add profiles and machine-readable/API output.
+5. Add machine-readable/API output.

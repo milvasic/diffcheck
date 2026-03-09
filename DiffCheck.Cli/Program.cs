@@ -1,6 +1,7 @@
 using System.CommandLine;
 using DiffCheck;
 using DiffCheck.Models;
+using DiffCheck.Profiles;
 
 var leftArg = new Argument<FileInfo>("left") { Description = "Path to the left file." };
 var rightArg = new Argument<FileInfo>("right") { Description = "Path to the right file." };
@@ -27,6 +28,16 @@ var keyColumnsOption = new Option<string[]>(
 	AllowMultipleArgumentsPerToken = true,
 };
 
+var profileOption = new Option<string?>(
+	"--profile",
+	"Load a saved profile by name. Explicit --key-columns and --column-map flags override the profile values."
+);
+
+var saveProfileOption = new Option<string?>(
+	"--save-profile",
+	"Save the effective key columns and column mappings as a named profile after a successful run."
+);
+
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
 {
 	leftArg,
@@ -34,12 +45,31 @@ var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an
 	outputOption,
 	columnMapOption,
 	keyColumnsOption,
+	profileOption,
+	saveProfileOption,
 };
+
+// Subcommand: list-profiles
+var listProfilesCommand = new Command("list-profiles", "List all saved comparison profiles.");
+listProfilesCommand.SetAction(
+	(parseResult) =>
+	{
+		var store = new ProfileStore(ProfileStore.DefaultCliDirectory);
+		var profiles = store.List();
+		if (profiles.Count == 0)
+			Console.WriteLine("No saved profiles.");
+		else
+			foreach (var name in profiles)
+				Console.WriteLine(name);
+	}
+);
+rootCommand.Add(listProfilesCommand);
 
 rootCommand.SetAction(
 	async (parseResult, token) =>
 	{
 		var service = new DiffCheckService();
+		var profileStore = new ProfileStore(ProfileStore.DefaultCliDirectory);
 
 		try
 		{
@@ -47,6 +77,24 @@ rootCommand.SetAction(
 			var rightFilePath = parseResult.GetValue(rightArg)!.FullName;
 			var outputPath = parseResult.GetValue(outputOption)!.FullName;
 			var mapStrings = parseResult.GetValue(columnMapOption) ?? Array.Empty<string>();
+			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? Array.Empty<string>();
+			var profileName = parseResult.GetValue(profileOption);
+			var saveProfileName = parseResult.GetValue(saveProfileOption);
+
+			// Load profile defaults (explicit CLI flags take precedence)
+			IReadOnlyList<ColumnMapping>? profileMappings = null;
+			IReadOnlyList<string>? profileKeyColumns = null;
+			if (profileName != null)
+			{
+				var profile = await profileStore.LoadAsync(profileName);
+				if (profile == null)
+				{
+					Console.Error.WriteLine($"Profile \"{profileName}\" not found.");
+					return;
+				}
+				profileMappings = profile.ColumnMappings;
+				profileKeyColumns = profile.KeyColumns;
+			}
 
 			IReadOnlyList<ColumnMapping>? columnMappings = null;
 			if (mapStrings.Length > 0)
@@ -66,9 +114,12 @@ rootCommand.SetAction(
 				}
 				columnMappings = list;
 			}
+			else
+			{
+				columnMappings = profileMappings;
+			}
 
 			IReadOnlyList<string>? keyColumns = null;
-			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? Array.Empty<string>();
 			if (keyStrings.Length > 0)
 			{
 				var list = new List<string>();
@@ -88,6 +139,10 @@ rootCommand.SetAction(
 				if (list.Count > 0)
 					keyColumns = list;
 			}
+			else
+			{
+				keyColumns = profileKeyColumns;
+			}
 
 			await service.CompareAndSaveHtmlAsync(
 				leftFilePath,
@@ -99,6 +154,13 @@ rootCommand.SetAction(
 			);
 
 			Console.WriteLine($"Report saved to: {outputPath}");
+
+			if (saveProfileName != null)
+			{
+				var profile = new ComparisonProfile(saveProfileName, keyColumns, columnMappings);
+				await profileStore.SaveAsync(profile);
+				Console.WriteLine($"Profile \"{saveProfileName}\" saved.");
+			}
 		}
 		catch (Exception ex)
 		{

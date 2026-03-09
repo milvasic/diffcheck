@@ -1,5 +1,6 @@
 using DiffCheck;
 using DiffCheck.Models;
+using DiffCheck.Profiles;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -9,11 +10,17 @@ public class IndexModel : PageModel
 {
 	private readonly DiffCheckService _diffCheckService;
 	private readonly UploadLimits _uploadLimits;
+	private readonly ProfileStore _profileStore;
 
-	public IndexModel(DiffCheckService diffCheckService, UploadLimits uploadLimits)
+	public IndexModel(
+		DiffCheckService diffCheckService,
+		UploadLimits uploadLimits,
+		ProfileStore profileStore
+	)
 	{
 		_diffCheckService = diffCheckService;
 		_uploadLimits = uploadLimits;
+		_profileStore = profileStore;
 	}
 
 	public long MaxFileSizeMb => _uploadLimits.MaxFileSizeBytes / (1024 * 1024);
@@ -205,6 +212,66 @@ public class IndexModel : PageModel
 		ColumnMappingsRaw = columnMappingsRaw;
 		KeyColumnsRaw = keyColumnsRaw;
 		return Page();
+	}
+
+	public IActionResult OnGetProfiles()
+	{
+		var names = _profileStore.List();
+		var profiles = names
+			.Select(name => _profileStore.LoadAsync(name).GetAwaiter().GetResult())
+			.OfType<ComparisonProfile>()
+			.Select(p => new
+			{
+				name = p.Name,
+				keyColumns = p.KeyColumns,
+				columnMappings = p.ColumnMappings?.Select(m => new
+				{
+					leftHeader = m.LeftHeader,
+					rightHeader = m.RightHeader,
+				}),
+			});
+		return new JsonResult(profiles);
+	}
+
+	public async Task<IActionResult> OnPostSaveProfileAsync(
+		string? name,
+		string? keyColumnsRaw,
+		string? columnMappingsRaw
+	)
+	{
+		if (string.IsNullOrWhiteSpace(name))
+			return new JsonResult(new { error = "Profile name is required." });
+
+		try
+		{
+			var profile = new ComparisonProfile(
+				name.Trim(),
+				ParseKeyColumns(keyColumnsRaw),
+				ParseColumnMappings(columnMappingsRaw)
+			);
+			await _profileStore.SaveAsync(profile);
+			return new JsonResult(new { success = true });
+		}
+		catch (ArgumentException ex)
+		{
+			return new JsonResult(new { error = ex.Message });
+		}
+	}
+
+	public async Task<IActionResult> OnPostDeleteProfileAsync(string? name)
+	{
+		if (string.IsNullOrWhiteSpace(name))
+			return new JsonResult(new { error = "Profile name is required." });
+
+		try
+		{
+			await _profileStore.DeleteAsync(name.Trim());
+			return new JsonResult(new { success = true });
+		}
+		catch (ArgumentException ex)
+		{
+			return new JsonResult(new { error = ex.Message });
+		}
 	}
 
 	private static IReadOnlyList<string>? ParseKeyColumns(string? raw)

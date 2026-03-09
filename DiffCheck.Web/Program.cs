@@ -1,3 +1,4 @@
+using DiffCheck.Profiles;
 using Microsoft.AspNetCore.Http.Features;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +20,11 @@ var maxRequestSizeBytes = maxFileSizeBytes * 2 + 1024 * 1024; // two files + ove
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<DiffCheck.DiffCheckService>();
 builder.Services.AddSingleton(new DiffCheck.Web.UploadLimits(maxFileSizeBytes));
+
+var profilesDir =
+	Environment.GetEnvironmentVariable("DIFFCHECK_PROFILES_DIR")
+	?? Path.Combine(builder.Environment.ContentRootPath, "profiles");
+builder.Services.AddSingleton(new ProfileStore(profilesDir));
 builder.Services.Configure<FormOptions>(options =>
 {
 	options.MultipartBodyLengthLimit = maxRequestSizeBytes;
