@@ -8,8 +8,6 @@ namespace DiffCheck.Diff;
 /// </summary>
 public sealed class DiffEngine
 {
-	private const double MatchThreshold = 0.5;
-
 	/// <summary>
 	/// Compares two data tables.
 	/// </summary>
@@ -17,16 +15,20 @@ public sealed class DiffEngine
 	/// <param name="right">The second (modified) table.</param>
 	/// <param name="columnMappings">Optional pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional list of column names to match rows by (faster than content-based matching).</param>
+	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
 	/// <returns>The diff result.</returns>
 	public DiffResult Compare(
 		DataTable left,
 		DataTable right,
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
-		IReadOnlyList<string>? keyColumns = null
+		IReadOnlyList<string>? keyColumns = null,
+		ComparisonOptions? options = null
 	)
 	{
 		ArgumentNullException.ThrowIfNull(left);
 		ArgumentNullException.ThrowIfNull(right);
+
+		var opts = options ?? ComparisonOptions.Default;
 
 		var (headers, leftColIndex, rightColIndex, headerRenames) = BuildColumnIndices(
 			left.Headers,
@@ -42,7 +44,7 @@ public sealed class DiffEngine
 		var keyColumnsFiltered = FilterKeyColumns(keyColumns, headers, leftColIndex, rightColIndex);
 		Dictionary<string, Queue<int>>? leftKeyToIndices =
 			keyColumnsFiltered.Count > 0
-				? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex)
+				? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex, opts)
 				: null;
 
 		var diffRows = new List<DiffRow>();
@@ -62,7 +64,7 @@ public sealed class DiffEngine
 			int? bestLeft = null;
 			if (leftKeyToIndices != null)
 			{
-				var rightKey = GetRowKey(rightRow, keyColumnsFiltered, rightColIndex);
+				var rightKey = GetRowKey(rightRow, keyColumnsFiltered, rightColIndex, opts);
 				if (leftKeyToIndices.TryGetValue(rightKey, out var queue) && queue.Count > 0)
 				{
 					bestLeft = queue.Dequeue();
@@ -79,7 +81,8 @@ public sealed class DiffEngine
 					leftMatched,
 					headers,
 					leftColIndex,
-					rightColIndex
+					rightColIndex,
+					opts
 				);
 			}
 
@@ -88,7 +91,14 @@ public sealed class DiffEngine
 				var (leftRow, leftOrigIdx) = leftIndexed[bestLeft.Value];
 				leftMatched.Add(bestLeft.Value);
 
-				var cells = CompareCells(headers, leftRow, rightRow, leftColIndex, rightColIndex);
+				var cells = CompareCells(
+					headers,
+					leftRow,
+					rightRow,
+					leftColIndex,
+					rightColIndex,
+					opts
+				);
 				var cellStatus = GetRowCellStatus(cells);
 				var isReordered = leftOrigIdx != rightOrigIdx;
 
@@ -227,13 +237,14 @@ public sealed class DiffEngine
 	private static Dictionary<string, Queue<int>> BuildLeftKeyMultimap(
 		IReadOnlyList<(IReadOnlyList<string> Row, int OriginalIndex)> leftIndexed,
 		IReadOnlyList<string> keyColumns,
-		IReadOnlyDictionary<string, int> leftColIndex
+		IReadOnlyDictionary<string, int> leftColIndex,
+		ComparisonOptions options
 	)
 	{
 		var map = new Dictionary<string, Queue<int>>(StringComparer.Ordinal);
 		for (var i = 0; i < leftIndexed.Count; i++)
 		{
-			var key = GetRowKey(leftIndexed[i].Row, keyColumns, leftColIndex);
+			var key = GetRowKey(leftIndexed[i].Row, keyColumns, leftColIndex, options);
 			if (!map.TryGetValue(key, out var queue))
 			{
 				queue = new Queue<int>();
@@ -247,14 +258,19 @@ public sealed class DiffEngine
 	private static string GetRowKey(
 		IReadOnlyList<string> row,
 		IReadOnlyList<string> keyColumns,
-		IReadOnlyDictionary<string, int> colIndex
+		IReadOnlyDictionary<string, int> colIndex,
+		ComparisonOptions options
 	)
 	{
 		var parts = new string[keyColumns.Count];
 		for (var i = 0; i < keyColumns.Count; i++)
 		{
-			var val = GetValue(row, colIndex, keyColumns[i]);
-			parts[i] = val ?? string.Empty;
+			var val = GetValue(row, colIndex, keyColumns[i]) ?? string.Empty;
+			if (options.TrimWhitespace)
+				val = val.Trim();
+			if (!options.CaseSensitive)
+				val = val.ToUpperInvariant();
+			parts[i] = val;
 		}
 		return string.Join(KeySeparator, parts);
 	}
@@ -265,7 +281,8 @@ public sealed class DiffEngine
 		HashSet<int> leftMatched,
 		IReadOnlyList<string> headers,
 		IReadOnlyDictionary<string, int> leftColIndex,
-		IReadOnlyDictionary<string, int> rightColIndex
+		IReadOnlyDictionary<string, int> rightColIndex,
+		ComparisonOptions options
 	)
 	{
 		double bestScore = 0;
@@ -277,9 +294,16 @@ public sealed class DiffEngine
 				continue;
 
 			var leftRow = leftIndexed[i].Row;
-			var score = GetMatchScore(leftRow, rightRow, headers, leftColIndex, rightColIndex);
+			var score = GetMatchScore(
+				leftRow,
+				rightRow,
+				headers,
+				leftColIndex,
+				rightColIndex,
+				options
+			);
 
-			if (score >= MatchThreshold && score > bestScore)
+			if (score >= options.MatchThreshold && score > bestScore)
 			{
 				bestScore = score;
 				bestIdx = i;
@@ -294,7 +318,8 @@ public sealed class DiffEngine
 		IReadOnlyList<string> rightRow,
 		IReadOnlyList<string> headers,
 		IReadOnlyDictionary<string, int> leftColIndex,
-		IReadOnlyDictionary<string, int> rightColIndex
+		IReadOnlyDictionary<string, int> rightColIndex,
+		ComparisonOptions options
 	)
 	{
 		if (headers.Count == 0)
@@ -305,7 +330,7 @@ public sealed class DiffEngine
 		{
 			var leftVal = GetValue(leftRow, leftColIndex, header) ?? string.Empty;
 			var rightVal = GetValue(rightRow, rightColIndex, header) ?? string.Empty;
-			if (string.Equals(leftVal, rightVal, StringComparison.Ordinal))
+			if (ValuesAreEqual(leftVal, rightVal, options))
 				matches++;
 		}
 		return (double)matches / headers.Count;
@@ -418,7 +443,8 @@ public sealed class DiffEngine
 		IReadOnlyList<string> leftRow,
 		IReadOnlyList<string> rightRow,
 		IReadOnlyDictionary<string, int> leftColIndex,
-		IReadOnlyDictionary<string, int> rightColIndex
+		IReadOnlyDictionary<string, int> rightColIndex,
+		ComparisonOptions options
 	)
 	{
 		var cells = new List<DiffCell>();
@@ -433,7 +459,7 @@ public sealed class DiffEngine
 			DiffCellStatus status;
 			string display;
 
-			if (leftStr == rightStr)
+			if (ValuesAreEqual(leftStr, rightStr, options))
 			{
 				status = DiffCellStatus.Unchanged;
 				display = leftStr;
@@ -464,5 +490,40 @@ public sealed class DiffEngine
 		if (!colIndex.TryGetValue(header, out var idx) || idx >= row.Count)
 			return null;
 		return row[idx];
+	}
+
+	/// <summary>
+	/// Returns true when <paramref name="left"/> and <paramref name="right"/> are considered equal
+	/// under the given <paramref name="options"/> (trim, case, numeric tolerance).
+	/// Raw values are compared; normalization is applied only for the equality check.
+	/// </summary>
+	private static bool ValuesAreEqual(string left, string right, ComparisonOptions options)
+	{
+		var l = options.TrimWhitespace ? left.Trim() : left;
+		var r = options.TrimWhitespace ? right.Trim() : right;
+
+		if (
+			options.NumericTolerance.HasValue
+			&& double.TryParse(
+				l,
+				System.Globalization.NumberStyles.Any,
+				System.Globalization.CultureInfo.InvariantCulture,
+				out var lNum
+			)
+			&& double.TryParse(
+				r,
+				System.Globalization.NumberStyles.Any,
+				System.Globalization.CultureInfo.InvariantCulture,
+				out var rNum
+			)
+		)
+		{
+			return Math.Abs(lNum - rNum) <= options.NumericTolerance.Value;
+		}
+
+		var comparison = options.CaseSensitive
+			? StringComparison.Ordinal
+			: StringComparison.OrdinalIgnoreCase;
+		return string.Equals(l, r, comparison);
 	}
 }

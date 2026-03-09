@@ -141,4 +141,39 @@ public class ProfileStoreTests
 		Assert.IsNotNull(loaded);
 		CollectionAssert.AreEqual(new[] { "NewKey" }, loaded.KeyColumns!.ToList());
 	}
+
+	[TestMethod]
+	public async Task SaveAndLoad_WithComparisonOptions_RoundTrip()
+	{
+		var options = new ComparisonOptions
+		{
+			CaseSensitive = false,
+			TrimWhitespace = true,
+			NumericTolerance = 0.001,
+			MatchThreshold = 0.7,
+		};
+		var profile = new ComparisonProfile("opts-profile", ["ID"], null, options);
+
+		await _store.SaveAsync(profile);
+		var loaded = await _store.LoadAsync("opts-profile");
+
+		Assert.IsNotNull(loaded);
+		Assert.IsNotNull(loaded.Options);
+		Assert.AreEqual(false, loaded.Options.CaseSensitive);
+		Assert.AreEqual(true, loaded.Options.TrimWhitespace);
+		Assert.AreEqual(0.001, loaded.Options.NumericTolerance);
+		Assert.AreEqual(0.7, loaded.Options.MatchThreshold);
+	}
+
+	[TestMethod]
+	public async Task SaveAndLoad_WithNullOptions_RoundTrip()
+	{
+		var profile = new ComparisonProfile("no-opts", null, null, null);
+
+		await _store.SaveAsync(profile);
+		var loaded = await _store.LoadAsync("no-opts");
+
+		Assert.IsNotNull(loaded);
+		Assert.IsNull(loaded.Options);
+	}
 }

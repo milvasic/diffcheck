@@ -31,15 +31,7 @@ Date: 2026-03-07
      - `DiffCheck.Core/Readers/XlsxReader.cs:17`
      - `DiffCheck.Core/Readers/XlsxReader.cs:44`
 
-2. Configurable matching and normalization rules (high value)
-   - Add options for match threshold, case-insensitive compare, trim/whitespace normalization, and numeric/date tolerance.
-   - Keep defaults compatible with current behavior.
-   - References:
-     - `DiffCheck.Core/Diff/DiffEngine.cs:11`
-     - `DiffCheck.Core/Diff/DiffEngine.cs:282`
-     - `DiffCheck.Core/Diff/DiffEngine.cs:308`
-
-3. Machine-readable outputs and API mode (medium-high value)
+2. Machine-readable outputs and API mode (medium-high value)
    - Add `--format json` for CLI and optional `/api/compare` endpoint for integrations.
    - Preserve HTML as default while enabling CI/data pipeline usage.
    - References:
@@ -47,7 +39,7 @@ Date: 2026-03-07
      - `DiffCheck.Cli/Program.cs:8`
      - `DiffCheck.Web/Program.cs:4`
 
-4. CI gating features (medium value)
+3. CI gating features (medium value)
    - Add options like `--fail-on-diff`, `--max-added`, `--max-removed`, and `--max-modified`.
    - Return non-zero exit code when thresholds are exceeded.
    - References:

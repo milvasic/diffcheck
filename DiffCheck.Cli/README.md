@@ -38,8 +38,12 @@ diffcheck <left> <right> [options]
 | `--output` | `-o` | Path for the output HTML report | `diff-report.html` |
 | `--column-map` | | Column mapping in `LeftHeader:RightHeader` format. Can be specified multiple times | |
 | `--key-columns` | | Column name(s) to match rows by key (faster matching). Comma-separated or multiple flags | |
-| `--profile` | | Load a saved profile by name. Explicit `--key-columns`/`--column-map` flags override profile values | |
+| `--profile` | | Load a saved profile by name. Explicit flags override profile values | |
 | `--save-profile` | | After a successful run, save the effective settings as a named profile | |
+| `--case-insensitive` | | Compare values case-insensitively | |
+| `--trim-whitespace` | | Strip leading/trailing whitespace before comparing | |
+| `--numeric-tolerance` | | Treat numbers as equal when their absolute difference is within this value (e.g. `0.001`) | |
+| `--match-threshold` | | Fraction of columns that must match for content-based row pairing (default: `0.5`) | |
 
 ### Subcommands
 
@@ -76,6 +80,24 @@ diffcheck old.csv new.csv --profile my-preset
 
 # Run with a profile, overriding key columns
 diffcheck old.csv new.csv --profile my-preset --key-columns OrderID
+
+# Compare case-insensitively
+diffcheck old.csv new.csv --case-insensitive
+
+# Ignore leading/trailing spaces
+diffcheck old.csv new.csv --trim-whitespace
+
+# Treat numbers as equal within a tolerance
+diffcheck old.csv new.csv --numeric-tolerance 0.001
+
+# Combine normalization options
+diffcheck old.csv new.csv --case-insensitive --trim-whitespace --numeric-tolerance 0.01
+
+# Lower the row-matching threshold (default 0.5)
+diffcheck old.csv new.csv --match-threshold 0.3
+
+# Save normalization settings in a profile
+diffcheck old.csv new.csv --case-insensitive --trim-whitespace --save-profile ci-trim
 
 # List all saved profiles
 diffcheck list-profiles

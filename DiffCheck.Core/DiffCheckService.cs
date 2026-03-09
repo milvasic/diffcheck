@@ -49,6 +49,7 @@ public sealed class DiffCheckService
 	/// <param name="rightFilePath">Path to the second file.</param>
 	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
+	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result.</returns>
 	/// <exception cref="ArgumentException">Thrown when file format is not supported.</exception>
@@ -57,6 +58,7 @@ public sealed class DiffCheckService
 		string rightFilePath,
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
 		IReadOnlyList<string>? keyColumns = null,
+		ComparisonOptions? options = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -79,7 +81,7 @@ public sealed class DiffCheckService
 		var left = await leftReader.ReadAsync(leftFilePath, cancellationToken);
 		var right = await rightReader.ReadAsync(rightFilePath, cancellationToken);
 
-		return _diffEngine.Compare(left, right, columnMappings, keyColumns);
+		return _diffEngine.Compare(left, right, columnMappings, keyColumns, options);
 	}
 
 	/// <summary>
@@ -89,14 +91,16 @@ public sealed class DiffCheckService
 	/// <param name="right">The second (modified) table.</param>
 	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
+	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
 	public DiffResult Compare(
 		DataTable left,
 		DataTable right,
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
-		IReadOnlyList<string>? keyColumns = null
+		IReadOnlyList<string>? keyColumns = null,
+		ComparisonOptions? options = null
 	)
 	{
-		return _diffEngine.Compare(left, right, columnMappings, keyColumns);
+		return _diffEngine.Compare(left, right, columnMappings, keyColumns, options);
 	}
 
 	/// <summary>
@@ -107,6 +111,7 @@ public sealed class DiffCheckService
 	/// <param name="outputPath">Path for the output HTML file.</param>
 	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
+	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result (for further use if needed).</returns>
 	public async Task<DiffResult> CompareAndSaveHtmlAsync(
@@ -115,6 +120,7 @@ public sealed class DiffCheckService
 		string outputPath,
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
 		IReadOnlyList<string>? keyColumns = null,
+		ComparisonOptions? options = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -123,6 +129,7 @@ public sealed class DiffCheckService
 			rightFilePath,
 			columnMappings,
 			keyColumns,
+			options,
 			cancellationToken
 		);
 		var leftSize = new FileInfo(leftFilePath).Length;

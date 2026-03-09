@@ -38,6 +38,26 @@ var saveProfileOption = new Option<string?>(
 	"Save the effective key columns and column mappings as a named profile after a successful run."
 );
 
+var caseInsensitiveOption = new Option<bool>(
+	"--case-insensitive",
+	"Compare values case-insensitively."
+);
+
+var trimWhitespaceOption = new Option<bool>(
+	"--trim-whitespace",
+	"Trim leading and trailing whitespace before comparing."
+);
+
+var numericToleranceOption = new Option<double?>(
+	"--numeric-tolerance",
+	"Treat numeric values as equal when their absolute difference is within this tolerance (e.g. 0.001)."
+);
+
+var matchThresholdOption = new Option<double?>(
+	"--match-threshold",
+	"Fraction of columns that must match for content-based row pairing (default: 0.5)."
+);
+
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
 {
 	leftArg,
@@ -47,6 +67,10 @@ var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an
 	keyColumnsOption,
 	profileOption,
 	saveProfileOption,
+	caseInsensitiveOption,
+	trimWhitespaceOption,
+	numericToleranceOption,
+	matchThresholdOption,
 };
 
 // Subcommand: list-profiles
@@ -80,10 +104,15 @@ rootCommand.SetAction(
 			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? Array.Empty<string>();
 			var profileName = parseResult.GetValue(profileOption);
 			var saveProfileName = parseResult.GetValue(saveProfileOption);
+			var caseInsensitive = parseResult.GetValue(caseInsensitiveOption);
+			var trimWhitespace = parseResult.GetValue(trimWhitespaceOption);
+			var numericTolerance = parseResult.GetValue(numericToleranceOption);
+			var matchThreshold = parseResult.GetValue(matchThresholdOption);
 
 			// Load profile defaults (explicit CLI flags take precedence)
 			IReadOnlyList<ColumnMapping>? profileMappings = null;
 			IReadOnlyList<string>? profileKeyColumns = null;
+			ComparisonOptions? profileOptions = null;
 			if (profileName != null)
 			{
 				var profile = await profileStore.LoadAsync(profileName);
@@ -94,6 +123,7 @@ rootCommand.SetAction(
 				}
 				profileMappings = profile.ColumnMappings;
 				profileKeyColumns = profile.KeyColumns;
+				profileOptions = profile.Options;
 			}
 
 			IReadOnlyList<ColumnMapping>? columnMappings = null;
@@ -144,12 +174,35 @@ rootCommand.SetAction(
 				keyColumns = profileKeyColumns;
 			}
 
+			// Build ComparisonOptions: explicit CLI flags override profile options
+			var anyOptionFlag =
+				parseResult.GetResult(caseInsensitiveOption) != null
+				|| parseResult.GetResult(trimWhitespaceOption) != null
+				|| parseResult.GetResult(numericToleranceOption) != null
+				|| parseResult.GetResult(matchThresholdOption) != null;
+			ComparisonOptions? comparisonOptions;
+			if (anyOptionFlag)
+			{
+				comparisonOptions = new ComparisonOptions
+				{
+					CaseSensitive = !caseInsensitive,
+					TrimWhitespace = trimWhitespace,
+					NumericTolerance = numericTolerance,
+					MatchThreshold = matchThreshold ?? ComparisonOptions.Default.MatchThreshold,
+				};
+			}
+			else
+			{
+				comparisonOptions = profileOptions;
+			}
+
 			await service.CompareAndSaveHtmlAsync(
 				leftFilePath,
 				rightFilePath,
 				outputPath,
 				columnMappings,
 				keyColumns,
+				comparisonOptions,
 				token
 			);
 
@@ -157,7 +210,12 @@ rootCommand.SetAction(
 
 			if (saveProfileName != null)
 			{
-				var profile = new ComparisonProfile(saveProfileName, keyColumns, columnMappings);
+				var profile = new ComparisonProfile(
+					saveProfileName,
+					keyColumns,
+					columnMappings,
+					comparisonOptions
+				);
 				await profileStore.SaveAsync(profile);
 				Console.WriteLine($"Profile \"{saveProfileName}\" saved.");
 			}

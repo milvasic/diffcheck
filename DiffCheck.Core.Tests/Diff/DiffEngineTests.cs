@@ -205,4 +205,217 @@ public class DiffEngineTests
 		Assert.AreEqual(withoutKeys.Summary.AddedRows, withKeys.Summary.AddedRows);
 		Assert.AreEqual(withoutKeys.Summary.RemovedRows, withKeys.Summary.RemovedRows);
 	}
+
+	// ── ComparisonOptions tests ───────────────────────────────────────────────
+
+	[TestMethod]
+	public void Compare_DefaultOptions_SameResultAsNoOptions()
+	{
+		var left = new DataTable(
+			new[] { "A", "B" },
+			new List<IReadOnlyList<string>> { new[] { "1", "hello" }, new[] { "2", "world" } }
+		);
+		var right = new DataTable(
+			new[] { "A", "B" },
+			new List<IReadOnlyList<string>> { new[] { "1", "hello" }, new[] { "2", "changed" } }
+		);
+
+		var engine = new DiffEngine();
+		var withDefault = engine.Compare(left, right, options: ComparisonOptions.Default);
+		var withNull = engine.Compare(left, right);
+
+		Assert.AreEqual(withNull.Summary.UnchangedRows, withDefault.Summary.UnchangedRows);
+		Assert.AreEqual(withNull.Summary.ModifiedRows, withDefault.Summary.ModifiedRows);
+	}
+
+	[TestMethod]
+	public void Compare_CaseInsensitive_TreatsValuesAsEqual()
+	{
+		// Use 2 columns so match score for case-sensitive row is 1/2 = 0.5 (still paired)
+		var left = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "Hello" } }
+		);
+		var right = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "HELLO" } }
+		);
+
+		var engine = new DiffEngine();
+		var sensitive = engine.Compare(left, right);
+		var insensitive = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { CaseSensitive = false }
+		);
+
+		Assert.AreEqual(1, sensitive.Summary.ModifiedRows);
+		Assert.AreEqual(0, insensitive.Summary.ModifiedRows);
+		Assert.AreEqual(1, insensitive.Summary.UnchangedRows);
+	}
+
+	[TestMethod]
+	public void Compare_CaseSensitive_DefaultBehaviorPreserved()
+	{
+		// ID column matches (1==1) giving 50% score, so row is paired; Name column differs in case
+		var left = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "abc" } }
+		);
+		var right = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "ABC" } }
+		);
+
+		var engine = new DiffEngine();
+		var result = engine.Compare(left, right); // default: case-sensitive
+
+		Assert.AreEqual(1, result.Summary.ModifiedRows);
+	}
+
+	[TestMethod]
+	public void Compare_TrimWhitespace_TreatsValuesAsEqual()
+	{
+		// ID column provides stable 50% match so row is always paired
+		var left = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "  hello  " } }
+		);
+		var right = new DataTable(
+			new[] { "ID", "Name" },
+			new List<IReadOnlyList<string>> { new[] { "1", "hello" } }
+		);
+
+		var engine = new DiffEngine();
+		var withTrim = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { TrimWhitespace = true }
+		);
+		var withoutTrim = engine.Compare(left, right);
+
+		Assert.AreEqual(0, withTrim.Summary.ModifiedRows);
+		Assert.AreEqual(1, withoutTrim.Summary.ModifiedRows);
+	}
+
+	[TestMethod]
+	public void Compare_NumericTolerance_TreatsCloseValuesAsEqual()
+	{
+		// ID column provides stable 50%+ match so rows are always paired
+		var left = new DataTable(
+			new[] { "ID", "Price" },
+			new List<IReadOnlyList<string>> { new[] { "1", "1.0" } }
+		);
+		var right = new DataTable(
+			new[] { "ID", "Price" },
+			new List<IReadOnlyList<string>> { new[] { "1", "1.0009" } } // diff = 0.0009
+		);
+
+		var engine = new DiffEngine();
+		var withinTolerance = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { NumericTolerance = 0.001 } // 0.0009 ≤ 0.001
+		);
+		var outsideTolerance = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { NumericTolerance = 0.0001 } // 0.0009 > 0.0001
+		);
+
+		Assert.AreEqual(
+			0,
+			withinTolerance.Summary.ModifiedRows,
+			"Should be unchanged within tolerance"
+		);
+		Assert.AreEqual(
+			1,
+			outsideTolerance.Summary.ModifiedRows,
+			"Should be modified outside tolerance"
+		);
+	}
+
+	[TestMethod]
+	public void Compare_NumericTolerance_NonNumericValuesUseStringCompare()
+	{
+		var left = new DataTable(
+			new[] { "Tag" },
+			new List<IReadOnlyList<string>> { new[] { "alpha" } }
+		);
+		var right = new DataTable(
+			new[] { "Tag" },
+			new List<IReadOnlyList<string>> { new[] { "alpha" } }
+		);
+
+		var engine = new DiffEngine();
+		var result = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { NumericTolerance = 0.5 }
+		);
+
+		Assert.AreEqual(1, result.Summary.UnchangedRows);
+	}
+
+	[TestMethod]
+	public void Compare_CustomMatchThreshold_AffectsRowMatching()
+	{
+		// Row with 1 of 4 columns matching = 25% match score.
+		// Default threshold 0.5 would NOT match them; lowered to 0.2 should match.
+		var left = new DataTable(
+			new[] { "A", "B", "C", "D" },
+			new List<IReadOnlyList<string>> { new[] { "same", "x", "y", "z" } }
+		);
+		var right = new DataTable(
+			new[] { "A", "B", "C", "D" },
+			new List<IReadOnlyList<string>> { new[] { "same", "1", "2", "3" } }
+		);
+
+		var engine = new DiffEngine();
+		var defaultThreshold = engine.Compare(left, right); // 1/4 = 25% < 50% → not matched
+		var lowThreshold = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { MatchThreshold = 0.2 } // 25% ≥ 20% → matched (modified)
+		);
+
+		Assert.AreEqual(1, defaultThreshold.Summary.AddedRows);
+		Assert.AreEqual(1, defaultThreshold.Summary.RemovedRows);
+		Assert.AreEqual(1, lowThreshold.Summary.ModifiedRows);
+	}
+
+	[TestMethod]
+	public void Compare_CaseInsensitiveKeyColumns_MatchesRowsRegardlessOfCase()
+	{
+		var left = new DataTable(
+			new[] { "ID", "Value" },
+			new List<IReadOnlyList<string>> { new[] { "abc", "100" }, new[] { "def", "200" } }
+		);
+		var right = new DataTable(
+			new[] { "ID", "Value" },
+			new List<IReadOnlyList<string>>
+			{
+				new[] { "ABC", "100" }, // key differs in case only
+				new[] { "DEF", "999" }, // key differs in case, value changed
+			}
+		);
+		var keyColumns = new[] { "ID" };
+
+		var engine = new DiffEngine();
+		var sensitive = engine.Compare(left, right, keyColumns: keyColumns);
+		var insensitive = engine.Compare(
+			left,
+			right,
+			keyColumns: keyColumns,
+			options: new ComparisonOptions { CaseSensitive = false }
+		);
+
+		// Case-sensitive: no key matches → all added/removed
+		Assert.AreEqual(2, sensitive.Summary.AddedRows);
+		Assert.AreEqual(2, sensitive.Summary.RemovedRows);
+
+		// Case-insensitive: keys match; abc+ABC unchanged on value, def+DEF value changed
+		Assert.AreEqual(1, insensitive.Summary.UnchangedRows);
+		Assert.AreEqual(1, insensitive.Summary.ModifiedRows);
+	}
 }

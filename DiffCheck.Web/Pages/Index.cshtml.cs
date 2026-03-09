@@ -36,13 +36,29 @@ public class IndexModel : PageModel
 	/// <summary>Raw key columns text (comma or newline separated) for repopulating the form.</summary>
 	public string? KeyColumnsRaw { get; set; }
 
+	/// <summary>Whether case-insensitive comparison was selected.</summary>
+	public bool CaseInsensitive { get; set; }
+
+	/// <summary>Whether trim-whitespace was selected.</summary>
+	public bool TrimWhitespace { get; set; }
+
+	/// <summary>Numeric tolerance value as raw string for repopulating the form.</summary>
+	public string? NumericToleranceRaw { get; set; }
+
+	/// <summary>Match threshold value as raw string for repopulating the form.</summary>
+	public string? MatchThresholdRaw { get; set; }
+
 	public void OnGet() { }
 
 	public async Task<IActionResult> OnPostCompareAsync(
 		IFormFile? leftFile,
 		IFormFile? rightFile,
 		string? columnMappingsRaw,
-		string? keyColumnsRaw
+		string? keyColumnsRaw,
+		bool caseInsensitive = false,
+		bool trimWhitespace = false,
+		string? numericToleranceRaw = null,
+		string? matchThresholdRaw = null
 	)
 	{
 		if (leftFile == null || rightFile == null)
@@ -86,11 +102,18 @@ public class IndexModel : PageModel
 
 			IReadOnlyList<ColumnMapping>? columnMappings = ParseColumnMappings(columnMappingsRaw);
 			IReadOnlyList<string>? keyColumns = ParseKeyColumns(keyColumnsRaw);
+			var comparisonOptions = BuildComparisonOptions(
+				caseInsensitive,
+				trimWhitespace,
+				numericToleranceRaw,
+				matchThresholdRaw
+			);
 			var result = await _diffCheckService.CompareAsync(
 				leftPath,
 				rightPath,
 				columnMappings,
-				keyColumns
+				keyColumns,
+				comparisonOptions
 			);
 			var html = _diffCheckService.GenerateHtml(
 				result,
@@ -128,7 +151,11 @@ public class IndexModel : PageModel
 		IFormFile? leftFile,
 		IFormFile? rightFile,
 		string? columnMappingsRaw,
-		string? keyColumnsRaw
+		string? keyColumnsRaw,
+		bool caseInsensitive = false,
+		bool trimWhitespace = false,
+		string? numericToleranceRaw = null,
+		string? matchThresholdRaw = null
 	)
 	{
 		if (leftFile == null || rightFile == null)
@@ -179,11 +206,18 @@ public class IndexModel : PageModel
 
 			IReadOnlyList<ColumnMapping>? columnMappings = ParseColumnMappings(columnMappingsRaw);
 			IReadOnlyList<string>? keyColumns = ParseKeyColumns(keyColumnsRaw);
+			var comparisonOptions = BuildComparisonOptions(
+				caseInsensitive,
+				trimWhitespace,
+				numericToleranceRaw,
+				matchThresholdRaw
+			);
 			var result = await _diffCheckService.CompareAsync(
 				leftPath,
 				rightPath,
 				columnMappings,
-				keyColumns
+				keyColumns,
+				comparisonOptions
 			);
 			LeftFileName = leftFile.FileName;
 			RightFileName = rightFile.FileName;
@@ -312,5 +346,42 @@ public class IndexModel : PageModel
 				list.Add(new ColumnMapping(left, right));
 		}
 		return list.Count == 0 ? null : list;
+	}
+
+	private static ComparisonOptions? BuildComparisonOptions(
+		bool caseInsensitive,
+		bool trimWhitespace,
+		string? numericToleranceRaw,
+		string? matchThresholdRaw
+	)
+	{
+		var tolerance = double.TryParse(
+			numericToleranceRaw,
+			System.Globalization.NumberStyles.Any,
+			System.Globalization.CultureInfo.InvariantCulture,
+			out var t
+		)
+			? t
+			: (double?)null;
+
+		var threshold = double.TryParse(
+			matchThresholdRaw,
+			System.Globalization.NumberStyles.Any,
+			System.Globalization.CultureInfo.InvariantCulture,
+			out var th
+		)
+			? th
+			: (double?)null;
+
+		if (!caseInsensitive && !trimWhitespace && tolerance == null && threshold == null)
+			return null; // defaults — no need to allocate
+
+		return new ComparisonOptions
+		{
+			CaseSensitive = !caseInsensitive,
+			TrimWhitespace = trimWhitespace,
+			NumericTolerance = tolerance,
+			MatchThreshold = threshold ?? ComparisonOptions.Default.MatchThreshold,
+		};
 	}
 }
