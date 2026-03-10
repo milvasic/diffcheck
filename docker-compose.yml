@@ -1,9 +1,9 @@
 services:
   diffcheck:
-    build:
-      context: .
-      dockerfile: DiffCheck.Web/Dockerfile
+    # build:
+    #   context: .
+    #   dockerfile: DiffCheck.Web/Dockerfile
     # Or pull the published image instead of building locally:
-    # image: ghcr.io/milvasic/diffcheck-web:latest
+    image: ghcr.io/milvasic/diffcheck-web:latest
     ports:
       - "8080:8080"

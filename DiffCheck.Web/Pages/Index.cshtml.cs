@@ -263,6 +263,15 @@ public class IndexModel : PageModel
 					leftHeader = m.LeftHeader,
 					rightHeader = m.RightHeader,
 				}),
+				options = p.Options != null
+					? new
+					{
+						caseSensitive = p.Options.CaseSensitive,
+						trimWhitespace = p.Options.TrimWhitespace,
+						numericTolerance = p.Options.NumericTolerance,
+						matchThreshold = p.Options.MatchThreshold,
+					}
+					: null,
 			});
 		return new JsonResult(profiles);
 	}
@@ -270,7 +279,11 @@ public class IndexModel : PageModel
 	public async Task<IActionResult> OnPostSaveProfileAsync(
 		string? name,
 		string? keyColumnsRaw,
-		string? columnMappingsRaw
+		string? columnMappingsRaw,
+		bool caseInsensitive = false,
+		bool trimWhitespace = false,
+		string? numericToleranceRaw = null,
+		string? matchThresholdRaw = null
 	)
 	{
 		if (string.IsNullOrWhiteSpace(name))
@@ -278,10 +291,17 @@ public class IndexModel : PageModel
 
 		try
 		{
+			var options = BuildComparisonOptions(
+				caseInsensitive,
+				trimWhitespace,
+				numericToleranceRaw,
+				matchThresholdRaw
+			);
 			var profile = new ComparisonProfile(
 				name.Trim(),
 				ParseKeyColumns(keyColumnsRaw),
-				ParseColumnMappings(columnMappingsRaw)
+				ParseColumnMappings(columnMappingsRaw),
+				options
 			);
 			await _profileStore.SaveAsync(profile);
 			return new JsonResult(new { success = true });

@@ -10,6 +10,8 @@
 		"dotnet build": true,
 		"docker build": true,
 		"docker run": true,
-		"dotnet test": true
+		"dotnet test": true,
+		"dotnet tool": true,
+		"dotnet csharpier": true
 	}
 }

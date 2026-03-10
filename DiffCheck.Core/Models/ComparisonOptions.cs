@@ -21,9 +21,9 @@ public sealed record ComparisonOptions
 	/// <summary>
 	/// When set, two values that both parse as numbers are considered equal if their
 	/// absolute difference is within this tolerance.
-	/// Default: <c>null</c> (exact string comparison).
+	/// Default: <c>0.0</c> (exact string comparison).
 	/// </summary>
-	public double? NumericTolerance { get; init; } = null;
+	public double? NumericTolerance { get; init; } = 0.0;
 
 	/// <summary>
 	/// Fraction of columns that must match for two rows to be considered a candidate pair

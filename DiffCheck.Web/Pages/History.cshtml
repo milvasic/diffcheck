@@ -16,9 +16,9 @@
 		</div>
 
 		<div id="history-list" class="theme-aware flex-shrink-0" style="display: none;">
-			<div class="mb-2">
+			<div class="m-2">
 				<label for="history-search" class="form-label visually-hidden">Search by file names or tags</label>
-				<input type="search" class="form-control form-control-sm" id="history-search"
+				<input type="search" class="form-control form-control-sm history-bar-search" id="history-search"
 					   placeholder="Search by file names or tags..." aria-label="Search by file names or tags"
 					   autocomplete="off" />
 			</div>
@@ -134,362 +134,362 @@
 					@section Scripts {
 						<script src="~/js/history-db.js" asp-append-version="true"></script>
 						<script>
-								(function () {
-									var DB = window.DiffCheckHistoryDB;
-									if (!DB) return;
+																																(function () {
+																																	var DB = window.DiffCheckHistoryDB;
+																																	if (!DB) return;
 
-									var emptyEl = document.getElementById('history-empty');
-									var listEl = document.getElementById('history-list');
-									var entriesEl = document.getElementById('history-entries');
-									var searchInput = document.getElementById('history-search');
-									var noMatchesEl = document.getElementById('history-no-matches');
-									var openContainer = document.getElementById('history-open-container');
-									var fullscreenWrapper = document.getElementById('history-report-fullscreen-wrapper');
-									var reportFrame = document.getElementById('history-report-frame');
-									var closeBtn = document.getElementById('history-close-report');
-									var clearAllBtn = document.getElementById('history-clear-all');
-									var currentRunId = null;
-									var allRuns = [];
+																																	var emptyEl = document.getElementById('history-empty');
+																																	var listEl = document.getElementById('history-list');
+																																	var entriesEl = document.getElementById('history-entries');
+																																	var searchInput = document.getElementById('history-search');
+																																	var noMatchesEl = document.getElementById('history-no-matches');
+																																	var openContainer = document.getElementById('history-open-container');
+																																	var fullscreenWrapper = document.getElementById('history-report-fullscreen-wrapper');
+																																	var reportFrame = document.getElementById('history-report-frame');
+																																	var closeBtn = document.getElementById('history-close-report');
+																																	var clearAllBtn = document.getElementById('history-clear-all');
+																																	var currentRunId = null;
+																																	var allRuns = [];
 
-									// Same format as report "Generated" field: yyyy-MM-dd HH:mm
-									function formatDate(iso) {
-										try {
-											var d = new Date(iso);
-											if (isNaN(d.getTime())) return iso;
-											var y = d.getFullYear();
-											var m = String(d.getMonth() + 1).padStart(2, '0');
-											var day = String(d.getDate()).padStart(2, '0');
-											var h = String(d.getHours()).padStart(2, '0');
-											var min = String(d.getMinutes()).padStart(2, '0');
-											return y + '-' + m + '-' + day + ' ' + h + ':' + min;
-										} catch (e) { return iso; }
-									}
+																																	// Same format as report "Generated" field: yyyy-MM-dd HH:mm
+																																	function formatDate(iso) {
+																																		try {
+																																			var d = new Date(iso);
+																																			if (isNaN(d.getTime())) return iso;
+																																			var y = d.getFullYear();
+																																			var m = String(d.getMonth() + 1).padStart(2, '0');
+																																			var day = String(d.getDate()).padStart(2, '0');
+																																			var h = String(d.getHours()).padStart(2, '0');
+																																			var min = String(d.getMinutes()).padStart(2, '0');
+																																			return y + '-' + m + '-' + day + ' ' + h + ':' + min;
+																																		} catch (e) { return iso; }
+																																	}
 
-									function summaryBadgesHtml(summary) {
-										if (!summary) return '';
-										var parts = [];
-										if (summary.added != null) parts.push('<span class="badge added">' + escapeHtml(String(summary.added)) + '</span>');
-										if (summary.removed != null) parts.push('<span class="badge removed">' + escapeHtml(String(summary.removed)) + '</span>');
-										if (summary.modified != null) parts.push('<span class="badge modified">' + escapeHtml(String(summary.modified)) + '</span>');
-										if (summary.reordered != null) parts.push('<span class="badge reordered">' + escapeHtml(String(summary.reordered)) + '</span>');
-										if (summary.unchanged != null) parts.push('<span class="badge unchanged">' + escapeHtml(String(summary.unchanged)) + '</span>');
-										if (parts.length === 0) return '';
-										return '<span class="history-summary-badges d-inline-flex gap-1">' + parts.join(' ') + '</span>';
-									}
+																																	function summaryBadgesHtml(summary) {
+																																		if (!summary) return '';
+																																		var parts = [];
+																																		if (summary.added != null) parts.push('<span class="badge added">' + escapeHtml(String(summary.added)) + '</span>');
+																																		if (summary.removed != null) parts.push('<span class="badge removed">' + escapeHtml(String(summary.removed)) + '</span>');
+																																		if (summary.modified != null) parts.push('<span class="badge modified">' + escapeHtml(String(summary.modified)) + '</span>');
+																																		if (summary.reordered != null) parts.push('<span class="badge reordered">' + escapeHtml(String(summary.reordered)) + '</span>');
+																																		if (summary.unchanged != null) parts.push('<span class="badge unchanged">' + escapeHtml(String(summary.unchanged)) + '</span>');
+																																		if (parts.length === 0) return '';
+																																		return '<span class="history-summary-badges d-inline-flex gap-1">' + parts.join(' ') + '</span>';
+																																	}
 
-									function tagsHtml(run) {
-										var tags = run.tags || [];
-										if (tags.length === 0) return '';
-										var t = tags.map(function (tag, i) {
-											return '<span class="history-tag badge bg-secondary" data-id="' + escapeHtml(run.id) + '" data-tag-index="' + i + '" title="Remove tag">' + escapeHtml(tag) + ' <span class="history-tag-remove" aria-hidden="true">&times;</span></span>';
-										});
-										return '<span class="history-tags d-inline-flex flex-wrap gap-1 align-items-center">' + t.join('') + '</span>';
-									}
+																																	function tagsHtml(run) {
+																																		var tags = run.tags || [];
+																																		if (tags.length === 0) return '';
+																																		var t = tags.map(function (tag, i) {
+																																			return '<span class="history-tag badge bg-secondary" data-id="' + escapeHtml(run.id) + '" data-tag-index="' + i + '" title="Remove tag">' + escapeHtml(tag) + ' <span class="history-tag-remove" aria-hidden="true">&times;</span></span>';
+																																		});
+																																		return '<span class="history-tags d-inline-flex flex-wrap gap-1 align-items-center">' + t.join('') + '</span>';
+																																	}
 
-									function renderList(runs) {
-										entriesEl.innerHTML = '';
-										runs.forEach(function (run) {
-											var li = document.createElement('li');
-											li.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
-											li.innerHTML =
-												'<div class="flex-grow-1 min-w-0 text-truncate">' +
-												'<span class="fw-medium">' + escapeHtml(run.leftFileName) + ' <span class="text-muted">vs</span> ' + escapeHtml(run.rightFileName) + '</span>' +
-												' <span class="text-muted small">· ' + formatDate(run.createdAt) + '</span>' +
-												'</div>' +
-												'<div class="d-flex gap-2 align-items-center flex-shrink-0">' +
-												summaryBadgesHtml(run.summary) +
-												tagsHtml(run) +
-												'<input type="text" class="form-control form-control-sm history-tag-input" data-id="' + escapeHtml(run.id) + '" placeholder="+ tag" maxlength="50" style="width: 5rem;" title="Add tag (press Enter)" />' +
-												'<button type="button" class="btn btn-outline-primary btn-sm history-open" data-id="' + escapeHtml(run.id) + '">Open</button>' +
-												'<button type="button" class="btn btn-outline-danger btn-sm history-delete" data-id="' + escapeHtml(run.id) + '">Delete</button>' +
-												'</div>';
-											entriesEl.appendChild(li);
-										});
-									}
+																																	function renderList(runs) {
+																																		entriesEl.innerHTML = '';
+																																		runs.forEach(function (run) {
+																																			var li = document.createElement('li');
+																																			li.className = 'list-group-item d-flex justify-content-between align-items-center gap-2';
+																																			li.innerHTML =
+																																				'<div class="flex-grow-1 min-w-0 text-truncate">' +
+																																				'<span class="fw-medium">' + escapeHtml(run.leftFileName) + ' <span class="text-muted">vs</span> ' + escapeHtml(run.rightFileName) + '</span>' +
+																																				' <span class="text-muted small">· ' + formatDate(run.createdAt) + '</span>' +
+																																				'</div>' +
+																																				'<div class="d-flex gap-2 align-items-center flex-shrink-0">' +
+																																				summaryBadgesHtml(run.summary) +
+																																				tagsHtml(run) +
+																																				'<input type="text" class="form-control form-control-sm history-tag-input" data-id="' + escapeHtml(run.id) + '" placeholder="+ tag" maxlength="50" style="width: 5rem;" title="Add tag (press Enter)" />' +
+																																				'<button type="button" class="btn btn-outline-primary btn-sm history-open" data-id="' + escapeHtml(run.id) + '">Open</button>' +
+																																				'<button type="button" class="btn btn-outline-danger btn-sm history-delete" data-id="' + escapeHtml(run.id) + '">Delete</button>' +
+																																				'</div>';
+																																			entriesEl.appendChild(li);
+																																		});
+																																	}
 
-									function escapeHtml(s) {
-										var d = document.createElement('div');
-										d.textContent = s;
-										return d.innerHTML;
-									}
+																																	function escapeHtml(s) {
+																																		var d = document.createElement('div');
+																																		d.textContent = s;
+																																		return d.innerHTML;
+																																	}
 
-									function showList() {
-										emptyEl.style.display = 'none';
-										listEl.style.display = 'block';
-										openContainer.classList.add('d-none');
-										openContainer.setAttribute('aria-hidden', 'true');
-									}
+																																	function showList() {
+																																		emptyEl.style.display = 'none';
+																																		listEl.style.display = 'block';
+																																		openContainer.classList.add('d-none');
+																																		openContainer.setAttribute('aria-hidden', 'true');
+																																	}
 
-									function showEmpty() {
-										listEl.style.display = 'none';
-										emptyEl.style.display = 'block';
-										noMatchesEl.style.display = 'none';
-										openContainer.classList.add('d-none');
-										openContainer.setAttribute('aria-hidden', 'true');
-									}
+																																	function showEmpty() {
+																																		listEl.style.display = 'none';
+																																		emptyEl.style.display = 'block';
+																																		noMatchesEl.style.display = 'none';
+																																		openContainer.classList.add('d-none');
+																																		openContainer.setAttribute('aria-hidden', 'true');
+																																	}
 
-									function filterRuns(runs, query) {
-										if (!query) return runs;
-										var q = query.trim().toLowerCase();
-										if (!q) return runs;
-										return runs.filter(function (run) {
-											var left = (run.leftFileName || '').toLowerCase();
-											var right = (run.rightFileName || '').toLowerCase();
-											var tags = run.tags || [];
-											if (left.indexOf(q) >= 0 || right.indexOf(q) >= 0) return true;
-											for (var i = 0; i < tags.length; i++) {
-												if ((tags[i] || '').toLowerCase().indexOf(q) >= 0) return true;
-											}
-											return false;
-										});
-									}
+																																	function filterRuns(runs, query) {
+																																		if (!query) return runs;
+																																		var q = query.trim().toLowerCase();
+																																		if (!q) return runs;
+																																		return runs.filter(function (run) {
+																																			var left = (run.leftFileName || '').toLowerCase();
+																																			var right = (run.rightFileName || '').toLowerCase();
+																																			var tags = run.tags || [];
+																																			if (left.indexOf(q) >= 0 || right.indexOf(q) >= 0) return true;
+																																			for (var i = 0; i < tags.length; i++) {
+																																				if ((tags[i] || '').toLowerCase().indexOf(q) >= 0) return true;
+																																			}
+																																			return false;
+																																		});
+																																	}
 
-									function applySearch() {
-										var q = searchInput ? (searchInput.value || '').trim() : '';
-										var filtered = filterRuns(allRuns, q);
-										noMatchesEl.style.display = (allRuns.length > 0 && filtered.length === 0) ? 'block' : 'none';
-										renderList(filtered);
-										bindRowActions();
-									}
+																																	function applySearch() {
+																																		var q = searchInput ? (searchInput.value || '').trim() : '';
+																																		var filtered = filterRuns(allRuns, q);
+																																		noMatchesEl.style.display = (allRuns.length > 0 && filtered.length === 0) ? 'block' : 'none';
+																																		renderList(filtered);
+																																		bindRowActions();
+																																	}
 
-									function loadList() {
-										DB.getAllRuns().then(function (runs) {
-											allRuns = runs;
-											if (runs.length === 0) {
-												showEmpty();
-											} else {
-												showList();
-												applySearch();
-											}
-										}).catch(function (err) {
-											showEmpty();
-											console.error('DiffCheck history load failed:', err);
-										});
-									}
+																																	function loadList() {
+																																		DB.getAllRuns().then(function (runs) {
+																																			allRuns = runs;
+																																			if (runs.length === 0) {
+																																				showEmpty();
+																																			} else {
+																																				showList();
+																																				applySearch();
+																																			}
+																																		}).catch(function (err) {
+																																			showEmpty();
+																																			console.error('DiffCheck history load failed:', err);
+																																		});
+																																	}
 
-									function getReportHtml() {
-										var doc = reportFrame.contentDocument;
-										if (doc) return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
-										return reportFrame.srcdoc || '';
-									}
+																																	function getReportHtml() {
+																																		var doc = reportFrame.contentDocument;
+																																		if (doc) return '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+																																		return reportFrame.srcdoc || '';
+																																	}
 
-									function doDownload(html) {
-										var blob = new Blob([html], { type: 'text/html' });
-										var url = URL.createObjectURL(blob);
-										var a = document.createElement('a');
-										a.href = url;
-										a.download = 'diff-report.html';
-										a.click();
-										URL.revokeObjectURL(url);
-									}
+																																	function doDownload(html) {
+																																		var blob = new Blob([html], { type: 'text/html' });
+																																		var url = URL.createObjectURL(blob);
+																																		var a = document.createElement('a');
+																																		a.href = url;
+																																		a.download = 'diff-report.html';
+																																		a.click();
+																																		URL.revokeObjectURL(url);
+																																	}
 
-									function bindRowActions() {
-										entriesEl.querySelectorAll('.history-open').forEach(function (btn) {
-											btn.addEventListener('click', function () {
-												var id = btn.getAttribute('data-id');
-												currentRunId = id;
-												DB.getRun(id).then(function (run) {
-													if (run && run.reportHtml) {
-														reportFrame.srcdoc = run.reportHtml;
-														reportFrame.onload = function () {
-															var theme = document.documentElement.getAttribute('data-theme') || 'light';
-															if (reportFrame.contentDocument && reportFrame.contentDocument.documentElement) {
-																reportFrame.contentDocument.documentElement.setAttribute('data-theme', theme);
-															}
-														};
-														listEl.style.display = 'none';
-														emptyEl.style.display = 'none';
-														openContainer.classList.remove('d-none');
-														openContainer.setAttribute('aria-hidden', 'false');
-														bindReportToolbar();
-													}
-												});
-											});
-										});
-										entriesEl.querySelectorAll('.history-delete').forEach(function (btn) {
-											btn.addEventListener('click', function () {
-												var id = btn.getAttribute('data-id');
-												DB.deleteRun(id).then(loadList);
-											});
-										});
-										entriesEl.querySelectorAll('.history-tag-input').forEach(function (input) {
-											function addTag() {
-												var id = input.getAttribute('data-id');
-												var tag = (input.value || '').trim();
-												if (!tag) return;
-												input.value = '';
-												DB.getRun(id).then(function (run) {
-													if (!run) return;
-													var tags = run.tags || [];
-													if (tags.indexOf(tag) >= 0) return;
-													tags = tags.concat([tag]);
-													DB.updateRun(id, { tags: tags }).then(loadList);
-												});
-											}
-											input.addEventListener('keydown', function (e) {
-												if (e.key === 'Enter') { e.preventDefault(); addTag(); }
-											});
-											input.addEventListener('blur', addTag);
-										});
-										entriesEl.querySelectorAll('.history-tag').forEach(function (tagEl) {
-											tagEl.addEventListener('click', function () {
-												var id = tagEl.getAttribute('data-id');
-												var i = parseInt(tagEl.getAttribute('data-tag-index'), 10);
-												DB.getRun(id).then(function (run) {
-													if (!run || !run.tags) return;
-													var tags = run.tags.slice();
-													tags.splice(i, 1);
-													DB.updateRun(id, { tags: tags }).then(loadList);
-												});
-											});
-										});
-									}
+																																	function bindRowActions() {
+																																		entriesEl.querySelectorAll('.history-open').forEach(function (btn) {
+																																			btn.addEventListener('click', function () {
+																																				var id = btn.getAttribute('data-id');
+																																				currentRunId = id;
+																																				DB.getRun(id).then(function (run) {
+																																					if (run && run.reportHtml) {
+																																						reportFrame.srcdoc = run.reportHtml;
+																																						reportFrame.onload = function () {
+																																							var theme = document.documentElement.getAttribute('data-theme') || 'light';
+																																							if (reportFrame.contentDocument && reportFrame.contentDocument.documentElement) {
+																																								reportFrame.contentDocument.documentElement.setAttribute('data-theme', theme);
+																																							}
+																																						};
+																																						listEl.style.display = 'none';
+																																						emptyEl.style.display = 'none';
+																																						openContainer.classList.remove('d-none');
+																																						openContainer.setAttribute('aria-hidden', 'false');
+																																						bindReportToolbar();
+																																					}
+																																				});
+																																			});
+																																		});
+																																		entriesEl.querySelectorAll('.history-delete').forEach(function (btn) {
+																																			btn.addEventListener('click', function () {
+																																				var id = btn.getAttribute('data-id');
+																																				DB.deleteRun(id).then(loadList);
+																																			});
+																																		});
+																																		entriesEl.querySelectorAll('.history-tag-input').forEach(function (input) {
+																																			function addTag() {
+																																				var id = input.getAttribute('data-id');
+																																				var tag = (input.value || '').trim();
+																																				if (!tag) return;
+																																				input.value = '';
+																																				DB.getRun(id).then(function (run) {
+																																					if (!run) return;
+																																					var tags = run.tags || [];
+																																					if (tags.indexOf(tag) >= 0) return;
+																																					tags = tags.concat([tag]);
+																																					DB.updateRun(id, { tags: tags }).then(loadList);
+																																				});
+																																			}
+																																			input.addEventListener('keydown', function (e) {
+																																				if (e.key === 'Enter') { e.preventDefault(); addTag(); }
+																																			});
+																																			input.addEventListener('blur', addTag);
+																																		});
+																																		entriesEl.querySelectorAll('.history-tag').forEach(function (tagEl) {
+																																			tagEl.addEventListener('click', function () {
+																																				var id = tagEl.getAttribute('data-id');
+																																				var i = parseInt(tagEl.getAttribute('data-tag-index'), 10);
+																																				DB.getRun(id).then(function (run) {
+																																					if (!run || !run.tags) return;
+																																					var tags = run.tags.slice();
+																																					tags.splice(i, 1);
+																																					DB.updateRun(id, { tags: tags }).then(loadList);
+																																				});
+																																			});
+																																		});
+																																	}
 
-									function bindReportToolbar() {
-										var expandBtn = document.getElementById('history-expand-btn');
-										var exitFsBtn = document.getElementById('history-exit-fullscreen-btn');
-										var downloadBtn = document.getElementById('history-download-btn');
-										var downloadDetailsBtn = document.getElementById('history-download-details-btn');
-										var downloadModal = document.getElementById('history-download-modal');
-										var keyValuesContainer = document.getElementById('history-download-key-values');
-										var addRowBtn = document.getElementById('history-download-add-row');
-										var downloadConfirmBtn = document.getElementById('history-download-confirm');
+																																	function bindReportToolbar() {
+																																		var expandBtn = document.getElementById('history-expand-btn');
+																																		var exitFsBtn = document.getElementById('history-exit-fullscreen-btn');
+																																		var downloadBtn = document.getElementById('history-download-btn');
+																																		var downloadDetailsBtn = document.getElementById('history-download-details-btn');
+																																		var downloadModal = document.getElementById('history-download-modal');
+																																		var keyValuesContainer = document.getElementById('history-download-key-values');
+																																		var addRowBtn = document.getElementById('history-download-add-row');
+																																		var downloadConfirmBtn = document.getElementById('history-download-confirm');
 
-										function onFullscreenChange() {
-											var isFs = document.fullscreenElement === fullscreenWrapper;
-											fullscreenWrapper.classList.toggle('diff-result-fullscreen', isFs);
-											if (expandBtn) expandBtn.classList.toggle('d-none', isFs);
-											if (exitFsBtn) exitFsBtn.classList.toggle('d-none', !isFs);
-										}
+																																		function onFullscreenChange() {
+																																			var isFs = document.fullscreenElement === fullscreenWrapper;
+																																			fullscreenWrapper.classList.toggle('diff-result-fullscreen', isFs);
+																																			if (expandBtn) expandBtn.classList.toggle('d-none', isFs);
+																																			if (exitFsBtn) exitFsBtn.classList.toggle('d-none', !isFs);
+																																		}
 
-										if (expandBtn) {
-											expandBtn.onclick = function () {
-												var el = fullscreenWrapper.requestFullscreen || fullscreenWrapper.webkitRequestFullscreen;
-												if (el) el.call(fullscreenWrapper);
-											};
-										}
-										if (exitFsBtn) {
-											exitFsBtn.onclick = function () {
-												var exit = document.exitFullscreen || document.webkitExitFullscreen;
-												if (exit) exit.call(document);
-											};
-										}
-										document.removeEventListener('fullscreenchange', onFullscreenChange);
-										document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
-										document.addEventListener('fullscreenchange', onFullscreenChange);
-										document.addEventListener('webkitfullscreenchange', onFullscreenChange);
+																																		if (expandBtn) {
+																																			expandBtn.onclick = function () {
+																																				var el = fullscreenWrapper.requestFullscreen || fullscreenWrapper.webkitRequestFullscreen;
+																																				if (el) el.call(fullscreenWrapper);
+																																			};
+																																		}
+																																		if (exitFsBtn) {
+																																			exitFsBtn.onclick = function () {
+																																				var exit = document.exitFullscreen || document.webkitExitFullscreen;
+																																				if (exit) exit.call(document);
+																																			};
+																																		}
+																																		document.removeEventListener('fullscreenchange', onFullscreenChange);
+																																		document.removeEventListener('webkitfullscreenchange', onFullscreenChange);
+																																		document.addEventListener('fullscreenchange', onFullscreenChange);
+																																		document.addEventListener('webkitfullscreenchange', onFullscreenChange);
 
-										function addKeyValueRow() {
-											var row = document.createElement('div');
-											row.className = 'row g-2 mb-2 diff-download-row';
-											row.innerHTML = '<div class="col-4"><input type="text" class="form-control form-control-sm" placeholder="Key" /></div><div class="col"><input type="text" class="form-control form-control-sm" placeholder="Value" /></div><div class="col-auto"><button type="button" class="btn btn-outline-secondary btn-sm diff-download-remove" title="Remove row">&times;</button></div>';
-											row.querySelector('.diff-download-remove').addEventListener('click', function () { row.remove(); });
-											keyValuesContainer.appendChild(row);
-										}
+																																		function addKeyValueRow() {
+																																			var row = document.createElement('div');
+																																			row.className = 'row g-2 mb-2 diff-download-row';
+																																			row.innerHTML = '<div class="col-4"><input type="text" class="form-control form-control-sm" placeholder="Key" /></div><div class="col"><input type="text" class="form-control form-control-sm" placeholder="Value" /></div><div class="col-auto"><button type="button" class="btn btn-outline-secondary btn-sm diff-download-remove" title="Remove row">&times;</button></div>';
+																																			row.querySelector('.diff-download-remove').addEventListener('click', function () { row.remove(); });
+																																			keyValuesContainer.appendChild(row);
+																																		}
 
-										keyValuesContainer.querySelectorAll('.diff-download-remove').forEach(function (btn) {
-											btn.onclick = function () {
-												var rows = keyValuesContainer.querySelectorAll('.diff-download-row');
-												if (rows.length > 1) this.closest('.diff-download-row').remove();
-											};
-										});
-										if (addRowBtn) addRowBtn.onclick = addKeyValueRow;
+																																		keyValuesContainer.querySelectorAll('.diff-download-remove').forEach(function (btn) {
+																																			btn.onclick = function () {
+																																				var rows = keyValuesContainer.querySelectorAll('.diff-download-row');
+																																				if (rows.length > 1) this.closest('.diff-download-row').remove();
+																																			};
+																																		});
+																																		if (addRowBtn) addRowBtn.onclick = addKeyValueRow;
 
-										function injectDetailsBlock(html, pairs) {
-											if (pairs.length === 0) return html;
-											var lines = pairs.map(function (p) { return escapeHtml(p.key) + ': ' + escapeHtml(p.value); });
-											var customBlock = '        <div class="file-info custom-details">\n          <div class="file-info-block">\n            <div class="file-name"><strong>Additional details</strong></div>\n            <div class="file-stats">' + lines.join('<br>') + '</div>\n          </div>\n        </div>\n        ';
-											return html.replace(/<div class="summary">/, customBlock + '<div class="summary">');
-										}
+																																		function injectDetailsBlock(html, pairs) {
+																																			if (pairs.length === 0) return html;
+																																			var lines = pairs.map(function (p) { return escapeHtml(p.key) + ': ' + escapeHtml(p.value); });
+																																			var customBlock = '        <div class="file-info custom-details">\n          <div class="file-info-block">\n            <div class="file-name"><strong>Additional details</strong></div>\n            <div class="file-stats">' + lines.join('<br>') + '</div>\n          </div>\n        </div>\n        ';
+																																			return html.replace(/<div class="summary">/, customBlock + '<div class="summary">');
+																																		}
 
-										if (downloadBtn) {
-											downloadBtn.onclick = function () {
-												if (!reportFrame.srcdoc) return;
-												var html = getReportHtml();
-												if (currentRunId) {
-													DB.getRun(currentRunId).then(function (run) {
-														var tags = run && run.tags && run.tags.length ? run.tags : [];
-														if (tags.length > 0) {
-															html = injectDetailsBlock(html, [{ key: 'Tags', value: tags.join(', ') }]);
-														}
-														doDownload(html);
-													}).catch(function () { doDownload(html); });
-												} else {
-													doDownload(html);
-												}
-											};
-										}
-										if (downloadDetailsBtn) {
-											downloadDetailsBtn.onclick = function () {
-												if (!reportFrame.srcdoc) return;
-												keyValuesContainer.innerHTML = '';
-												addKeyValueRow();
-												var modal = new bootstrap.Modal(downloadModal);
-												modal.show();
-											};
-										}
-										if (downloadConfirmBtn) {
-											downloadConfirmBtn.onclick = function () {
-												var pairs = [];
-												if (currentRunId) {
-													DB.getRun(currentRunId).then(function (run) {
-														var tags = run && run.tags && run.tags.length ? run.tags : [];
-														if (tags.length > 0) {
-															pairs.push({ key: 'Tags', value: tags.join(', ') });
-														}
-														keyValuesContainer.querySelectorAll('.diff-download-row').forEach(function (row) {
-															var keyInput = row.querySelector('input[placeholder="Key"]');
-															var valInput = row.querySelector('input[placeholder="Value"]');
-															var k = (keyInput && keyInput.value) ? keyInput.value.trim() : '';
-															var v = (valInput && valInput.value) ? valInput.value.trim() : '';
-															if (k || v) pairs.push({ key: k || '(key)', value: v });
-														});
-														var html = getReportHtml();
-														html = injectDetailsBlock(html, pairs);
-														doDownload(html);
-														bootstrap.Modal.getInstance(downloadModal).hide();
-													});
-												} else {
-													keyValuesContainer.querySelectorAll('.diff-download-row').forEach(function (row) {
-														var keyInput = row.querySelector('input[placeholder="Key"]');
-														var valInput = row.querySelector('input[placeholder="Value"]');
-														var k = (keyInput && keyInput.value) ? keyInput.value.trim() : '';
-														var v = (valInput && valInput.value) ? valInput.value.trim() : '';
-														if (k || v) pairs.push({ key: k || '(key)', value: v });
-													});
-													var html = getReportHtml();
-													html = injectDetailsBlock(html, pairs);
-													doDownload(html);
-													bootstrap.Modal.getInstance(downloadModal).hide();
-												}
-											};
-										}
-									}
+																																		if (downloadBtn) {
+																																			downloadBtn.onclick = function () {
+																																				if (!reportFrame.srcdoc) return;
+																																				var html = getReportHtml();
+																																				if (currentRunId) {
+																																					DB.getRun(currentRunId).then(function (run) {
+																																						var tags = run && run.tags && run.tags.length ? run.tags : [];
+																																						if (tags.length > 0) {
+																																							html = injectDetailsBlock(html, [{ key: 'Tags', value: tags.join(', ') }]);
+																																						}
+																																						doDownload(html);
+																																					}).catch(function () { doDownload(html); });
+																																				} else {
+																																					doDownload(html);
+																																				}
+																																			};
+																																		}
+																																		if (downloadDetailsBtn) {
+																																			downloadDetailsBtn.onclick = function () {
+																																				if (!reportFrame.srcdoc) return;
+																																				keyValuesContainer.innerHTML = '';
+																																				addKeyValueRow();
+																																				var modal = new bootstrap.Modal(downloadModal);
+																																				modal.show();
+																																			};
+																																		}
+																																		if (downloadConfirmBtn) {
+																																			downloadConfirmBtn.onclick = function () {
+																																				var pairs = [];
+																																				if (currentRunId) {
+																																					DB.getRun(currentRunId).then(function (run) {
+																																						var tags = run && run.tags && run.tags.length ? run.tags : [];
+																																						if (tags.length > 0) {
+																																							pairs.push({ key: 'Tags', value: tags.join(', ') });
+																																						}
+																																						keyValuesContainer.querySelectorAll('.diff-download-row').forEach(function (row) {
+																																							var keyInput = row.querySelector('input[placeholder="Key"]');
+																																							var valInput = row.querySelector('input[placeholder="Value"]');
+																																							var k = (keyInput && keyInput.value) ? keyInput.value.trim() : '';
+																																							var v = (valInput && valInput.value) ? valInput.value.trim() : '';
+																																							if (k || v) pairs.push({ key: k || '(key)', value: v });
+																																						});
+																																						var html = getReportHtml();
+																																						html = injectDetailsBlock(html, pairs);
+																																						doDownload(html);
+																																						bootstrap.Modal.getInstance(downloadModal).hide();
+																																					});
+																																				} else {
+																																					keyValuesContainer.querySelectorAll('.diff-download-row').forEach(function (row) {
+																																						var keyInput = row.querySelector('input[placeholder="Key"]');
+																																						var valInput = row.querySelector('input[placeholder="Value"]');
+																																						var k = (keyInput && keyInput.value) ? keyInput.value.trim() : '';
+																																						var v = (valInput && valInput.value) ? valInput.value.trim() : '';
+																																						if (k || v) pairs.push({ key: k || '(key)', value: v });
+																																					});
+																																					var html = getReportHtml();
+																																					html = injectDetailsBlock(html, pairs);
+																																					doDownload(html);
+																																					bootstrap.Modal.getInstance(downloadModal).hide();
+																																				}
+																																			};
+																																		}
+																																	}
 
-									closeBtn.addEventListener('click', function () {
-										currentRunId = null;
-										reportFrame.onload = null;
-										reportFrame.srcdoc = '';
-										openContainer.classList.add('d-none');
-										openContainer.setAttribute('aria-hidden', 'true');
-										loadList();
-									});
+																																	closeBtn.addEventListener('click', function () {
+																																		currentRunId = null;
+																																		reportFrame.onload = null;
+																																		reportFrame.srcdoc = '';
+																																		openContainer.classList.add('d-none');
+																																		openContainer.setAttribute('aria-hidden', 'true');
+																																		loadList();
+																																	});
 
-									clearAllBtn.addEventListener('click', function () {
-										if (!confirm('Clear all saved diff runs?')) return;
-										DB.getAllRuns().then(function (runs) {
-											var chain = Promise.resolve();
-											runs.forEach(function (r) { chain = chain.then(function () { return DB.deleteRun(r.id); }); });
-											return chain;
-										}).then(loadList);
-									});
+																																	clearAllBtn.addEventListener('click', function () {
+																																		if (!confirm('Clear all saved diff runs?')) return;
+																																		DB.getAllRuns().then(function (runs) {
+																																			var chain = Promise.resolve();
+																																			runs.forEach(function (r) { chain = chain.then(function () { return DB.deleteRun(r.id); }); });
+																																			return chain;
+																																		}).then(loadList);
+																																	});
 
-									if (searchInput) {
-										searchInput.addEventListener('input', applySearch);
-										searchInput.addEventListener('search', applySearch);
-									}
+																																	if (searchInput) {
+																																		searchInput.addEventListener('input', applySearch);
+																																		searchInput.addEventListener('search', applySearch);
+																																	}
 
-									loadList();
-								})();
+																																	loadList();
+																																})();
 						</script>
 					}

@@ -4,34 +4,226 @@
 	const rightInput = document.getElementById("rightFile");
 	const MAX_FILE_SIZE_MB = (window.DiffCheckConfig && window.DiffCheckConfig.maxFileSizeMb) || 10;
 	const MAX_FILE_SIZE = MAX_FILE_SIZE_MB * 1024 * 1024;
+
 	const STORAGE_KEY_COLUMNS = "diffcheck-key-columns";
 	const STORAGE_COLUMN_MAPPINGS = "diffcheck-column-mappings";
+	const STORAGE_CASE_INSENSITIVE = "diffcheck-case-insensitive";
+	const STORAGE_TRIM_WHITESPACE = "diffcheck-trim-whitespace";
+	const STORAGE_NUMERIC_TOLERANCE = "diffcheck-numeric-tolerance";
+	const STORAGE_MATCH_THRESHOLD = "diffcheck-match-threshold";
+
+	// ── Chip Input ──────────────────────────────────────────────────────
+
+	function ChipInput(container, hiddenInput, opts) {
+		opts = opts || {};
+		this.container = container;
+		this.hiddenInput = hiddenInput;
+		this.input = container.querySelector(".chip-input-field");
+		this.chips = [];
+		this.paired = !!opts.paired;
+		var self = this;
+
+		container.addEventListener("click", function () {
+			self.input.focus();
+		});
+
+		this.input.addEventListener("keydown", function (e) {
+			if (e.key === "Enter" || e.key === ",") {
+				e.preventDefault();
+				var val = self.input.value.trim();
+				if (val) self.addRaw(val);
+				self.input.value = "";
+			} else if (e.key === "Backspace" && !self.input.value && self.chips.length) {
+				self.removeIndex(self.chips.length - 1);
+			}
+		});
+
+		this.input.addEventListener("paste", function (e) {
+			e.preventDefault();
+			var text = (e.clipboardData || window.clipboardData).getData("text") || "";
+			var parts = text.split(/[,\n\r]+/);
+			parts.forEach(function (p) {
+				var v = p.trim();
+				if (v) self.addRaw(v);
+			});
+			self.input.value = "";
+		});
+
+		// Pre-populate from hidden input
+		this._initFromHidden();
+	}
+
+	ChipInput.prototype._initFromHidden = function () {
+		var val = this.hiddenInput.value || "";
+		if (!val.trim()) return;
+		var self = this;
+		if (this.paired) {
+			val.split("\n").forEach(function (line) {
+				var t = line.trim();
+				if (t) self.addRaw(t);
+			});
+		} else {
+			val.split(/[,\n\r]+/).forEach(function (v) {
+				var t = v.trim();
+				if (t) self.addRaw(t);
+			});
+		}
+	};
+
+	ChipInput.prototype.addRaw = function (raw) {
+		if (this.paired) {
+			var sep = raw.indexOf(":") >= 0 ? ":" : ",";
+			var idx = raw.indexOf(sep);
+			if (idx < 0) return;
+			var left = raw.substring(0, idx).trim();
+			var right = raw.substring(idx + 1).trim();
+			if (!left || !right) return;
+			this._addChip({ left: left, right: right, display: left + " \u2192 " + right });
+		} else {
+			var v = raw.trim();
+			if (!v) return;
+			this._addChip({ value: v, display: v });
+		}
+	};
+
+	ChipInput.prototype._addChip = function (data) {
+		var self = this;
+		var chip = document.createElement("span");
+		chip.className = "chip";
+		chip.textContent = data.display;
+		var close = document.createElement("button");
+		close.type = "button";
+		close.className = "chip-close";
+		close.innerHTML = "&times;";
+		close.addEventListener("click", function (e) {
+			e.stopPropagation();
+			var i = self.chips.indexOf(data);
+			if (i >= 0) self.removeIndex(i);
+		});
+		chip.appendChild(close);
+		data._el = chip;
+		this.chips.push(data);
+		this.container.insertBefore(chip, this.input);
+		this._sync();
+	};
+
+	ChipInput.prototype.removeIndex = function (i) {
+		var data = this.chips[i];
+		if (!data) return;
+		if (data._el && data._el.parentNode) data._el.parentNode.removeChild(data._el);
+		this.chips.splice(i, 1);
+		this._sync();
+	};
+
+	ChipInput.prototype._sync = function () {
+		if (this.paired) {
+			this.hiddenInput.value = this.chips
+				.map(function (c) {
+					return c.left + ":" + c.right;
+				})
+				.join("\n");
+		} else {
+			this.hiddenInput.value = this.chips
+				.map(function (c) {
+					return c.value;
+				})
+				.join(",");
+		}
+	};
+
+	ChipInput.prototype.setChips = function (rawValues) {
+		// Clear all existing chips
+		var self = this;
+		while (this.chips.length) this.removeIndex(this.chips.length - 1);
+		(rawValues || []).forEach(function (v) {
+			self.addRaw(v);
+		});
+	};
+
+	ChipInput.prototype.getValues = function () {
+		if (this.paired) {
+			return this.chips.map(function (c) {
+				return c.left + ":" + c.right;
+			});
+		}
+		return this.chips.map(function (c) {
+			return c.value;
+		});
+	};
+
+	// Initialize chip inputs
+	var keyColumnsChip = new ChipInput(
+		document.getElementById("keyColumnsChipContainer"),
+		document.getElementById("keyColumnsRaw"),
+	);
+
+	var columnMappingsChip = new ChipInput(
+		document.getElementById("columnMappingsChipContainer"),
+		document.getElementById("columnMappingsRaw"),
+		{ paired: true },
+	);
+
+	// Expose chip inputs for the profiles IIFE
+	window._diffcheckKeyColumnsChip = keyColumnsChip;
+	window._diffcheckColumnMappingsChip = columnMappingsChip;
+
+	// ── Save / Restore Options from localStorage ────────────────────────
 
 	function saveOptionsToStorage() {
 		try {
-			var keyEl = document.getElementById("keyColumnsRaw");
-			var mapEl = document.getElementById("columnMappingsRaw");
-			if (keyEl) localStorage.setItem(STORAGE_KEY_COLUMNS, keyEl.value || "");
-			if (mapEl) localStorage.setItem(STORAGE_COLUMN_MAPPINGS, mapEl.value || "");
+			localStorage.setItem(
+				STORAGE_KEY_COLUMNS,
+				document.getElementById("keyColumnsRaw").value || "",
+			);
+			localStorage.setItem(
+				STORAGE_COLUMN_MAPPINGS,
+				document.getElementById("columnMappingsRaw").value || "",
+			);
+			var ci = document.getElementById("caseInsensitive");
+			var tw = document.getElementById("trimWhitespace");
+			var nt = document.getElementById("numericToleranceRaw");
+			var mt = document.getElementById("matchThresholdRaw");
+			if (ci) localStorage.setItem(STORAGE_CASE_INSENSITIVE, ci.checked ? "1" : "0");
+			if (tw) localStorage.setItem(STORAGE_TRIM_WHITESPACE, tw.checked ? "1" : "0");
+			if (nt) localStorage.setItem(STORAGE_NUMERIC_TOLERANCE, nt.value || "");
+			if (mt) localStorage.setItem(STORAGE_MATCH_THRESHOLD, mt.value || "");
 		} catch (e) {}
 	}
 
 	function restoreOptionsFromStorage() {
 		try {
-			var keyEl = document.getElementById("keyColumnsRaw");
-			var mapEl = document.getElementById("columnMappingsRaw");
-			if (keyEl) {
-				var v = localStorage.getItem(STORAGE_KEY_COLUMNS);
-				if (v !== null) keyEl.value = v;
+			var keyVal = localStorage.getItem(STORAGE_KEY_COLUMNS);
+			var mapVal = localStorage.getItem(STORAGE_COLUMN_MAPPINGS);
+			if (keyVal !== null) {
+				document.getElementById("keyColumnsRaw").value = keyVal;
+				keyColumnsChip.setChips(
+					keyVal.split(/[,\n\r]+/).filter(function (v) {
+						return v.trim();
+					}),
+				);
 			}
-			if (mapEl) {
-				var v = localStorage.getItem(STORAGE_COLUMN_MAPPINGS);
-				if (v !== null) mapEl.value = v;
+			if (mapVal !== null) {
+				document.getElementById("columnMappingsRaw").value = mapVal;
+				columnMappingsChip.setChips(
+					mapVal.split("\n").filter(function (v) {
+						return v.trim();
+					}),
+				);
 			}
+			var ci = localStorage.getItem(STORAGE_CASE_INSENSITIVE);
+			var tw = localStorage.getItem(STORAGE_TRIM_WHITESPACE);
+			var nt = localStorage.getItem(STORAGE_NUMERIC_TOLERANCE);
+			var mt = localStorage.getItem(STORAGE_MATCH_THRESHOLD);
+			if (ci !== null) document.getElementById("caseInsensitive").checked = ci === "1";
+			if (tw !== null) document.getElementById("trimWhitespace").checked = tw === "1";
+			if (nt !== null) document.getElementById("numericToleranceRaw").value = nt;
+			if (mt !== null) document.getElementById("matchThresholdRaw").value = mt;
 		} catch (e) {}
 	}
 
 	restoreOptionsFromStorage();
+
+	// ── Form submit / file drop ─────────────────────────────────────────
 
 	form.addEventListener("submit", function (e) {
 		e.preventDefault();
@@ -104,6 +296,10 @@
 					z.querySelector(".drop-icon").setAttribute("height", "24");
 					z.querySelector(".drop-icon").classList.remove("mb-2");
 				});
+				var settingsBar = document.getElementById("settingsBar");
+				if (settingsBar) settingsBar.classList.add("settings-bar-compact");
+				var rerunBtn = document.getElementById("rerunBtn");
+				if (rerunBtn) rerunBtn.classList.remove("d-none");
 				var btn = document.getElementById("diffAddToHistoryBtn");
 				if (btn && btn._origHtml) {
 					btn.disabled = false;
@@ -149,6 +345,14 @@
 			checkAndSubmit();
 		});
 	});
+
+	// Rerun button
+	var rerunBtn = document.getElementById("rerunBtn");
+	if (rerunBtn) {
+		rerunBtn.addEventListener("click", function () {
+			checkAndSubmit();
+		});
+	}
 
 	// Report is generated with theme from X-Theme header, so it renders correctly from the start.
 	// When user toggles theme, theme.js applies it to the iframe.
@@ -334,7 +538,6 @@
 // Profiles
 (function () {
 	var profileSelect = document.getElementById("profileSelect");
-	var profileApplyBtn = document.getElementById("profileApplyBtn");
 	var profileDeleteBtn = document.getElementById("profileDeleteBtn");
 	var profileSaveBtn = document.getElementById("profileSaveBtn");
 	var profileNameInput = document.getElementById("profileNameInput");
@@ -355,20 +558,6 @@
 
 	function clearProfileError() {
 		profileError.classList.add("d-none");
-	}
-
-	function profileMappingsToRaw(mappings) {
-		if (!mappings || !mappings.length) return "";
-		return mappings
-			.map(function (m) {
-				return m.leftHeader + ":" + m.rightHeader;
-			})
-			.join("\n");
-	}
-
-	function profileKeyColumnsToRaw(cols) {
-		if (!cols || !cols.length) return "";
-		return cols.join("\n");
 	}
 
 	function loadProfiles() {
@@ -394,39 +583,105 @@
 				) {
 					profileSelect.value = current;
 				}
-				var hasSelection = !!profileSelect.value;
-				profileApplyBtn.disabled = !hasSelection;
-				profileDeleteBtn.disabled = !hasSelection;
+				profileDeleteBtn.disabled = !profileSelect.value;
 			})
 			.catch(function () {});
 	}
 
+	// Auto-apply on selection change
 	profileSelect.addEventListener("change", function () {
-		var hasSelection = !!profileSelect.value;
-		profileApplyBtn.disabled = !hasSelection;
-		profileDeleteBtn.disabled = !hasSelection;
-		clearProfileError();
-	});
-
-	profileApplyBtn.addEventListener("click", function () {
 		var name = profileSelect.value;
+		profileDeleteBtn.disabled = !name;
+		clearProfileError();
 		if (!name) return;
 		var profile = profileData.find(function (p) {
 			return p.name === name;
 		});
 		if (!profile) return;
-		var keyEl = document.getElementById("keyColumnsRaw");
-		var mapEl = document.getElementById("columnMappingsRaw");
-		if (keyEl) keyEl.value = profileKeyColumnsToRaw(profile.keyColumns);
-		if (mapEl) mapEl.value = profileMappingsToRaw(profile.columnMappings);
-		// Expand the related sections so the user can see the applied values
-		var keySection = document.getElementById("keyColumnsSection");
-		var mapSection = document.getElementById("columnMappingsSection");
-		if (keyEl && keyEl.value && keySection && !keySection.classList.contains("show"))
-			new bootstrap.Collapse(keySection, { toggle: false }).show();
-		if (mapEl && mapEl.value && mapSection && !mapSection.classList.contains("show"))
-			new bootstrap.Collapse(mapSection, { toggle: false }).show();
-		clearProfileError();
+
+		// Key columns
+		var keyCols = profile.keyColumns || [];
+		window._diffcheckKeyColumnsChip.setChips(keyCols);
+
+		// Column mappings
+		var maps = (profile.columnMappings || []).map(function (m) {
+			return m.leftHeader + ":" + m.rightHeader;
+		});
+		window._diffcheckColumnMappingsChip.setChips(maps);
+
+		// Normalization options
+		var opts = profile.options;
+		var ci = document.getElementById("caseInsensitive");
+		var tw = document.getElementById("trimWhitespace");
+		var nt = document.getElementById("numericToleranceRaw");
+		var mt = document.getElementById("matchThresholdRaw");
+		if (opts) {
+			if (ci) ci.checked = !opts.caseSensitive;
+			if (tw) tw.checked = !!opts.trimWhitespace;
+			if (nt) nt.value = opts.numericTolerance != null ? opts.numericTolerance : "";
+			if (mt)
+				mt.value =
+					opts.matchThreshold != null && opts.matchThreshold !== 0.5 ? opts.matchThreshold : "";
+		} else {
+			if (ci) ci.checked = false;
+			if (tw) tw.checked = false;
+			if (nt) nt.value = "";
+			if (mt) mt.value = "";
+		}
+	});
+
+	// Toggle profile name input visibility on save button
+	profileSaveBtn.addEventListener("click", function () {
+		if (profileNameInput.classList.contains("d-none")) {
+			profileNameInput.classList.remove("d-none");
+			profileNameInput.focus();
+			return;
+		}
+		var name = (profileNameInput.value || "").trim();
+		if (!name) {
+			showProfileError("Enter a profile name.");
+			return;
+		}
+		var fd = new FormData();
+		fd.append("name", name);
+		fd.append("keyColumnsRaw", document.getElementById("keyColumnsRaw").value || "");
+		fd.append("columnMappingsRaw", document.getElementById("columnMappingsRaw").value || "");
+		var ci = document.getElementById("caseInsensitive");
+		var tw = document.getElementById("trimWhitespace");
+		var nt = document.getElementById("numericToleranceRaw");
+		var mt = document.getElementById("matchThresholdRaw");
+		if (ci && ci.checked) fd.append("caseInsensitive", "true");
+		if (tw && tw.checked) fd.append("trimWhitespace", "true");
+		if (nt && nt.value) fd.append("numericToleranceRaw", nt.value);
+		if (mt && mt.value) fd.append("matchThresholdRaw", mt.value);
+		fd.append("__RequestVerificationToken", getAntiforgeryToken());
+		fetch("?handler=SaveProfile", { method: "POST", body: fd })
+			.then(function (r) {
+				return r.json();
+			})
+			.then(function (data) {
+				if (data.error) {
+					showProfileError(data.error);
+					return;
+				}
+				clearProfileError();
+				profileNameInput.value = "";
+				profileNameInput.classList.add("d-none");
+				loadProfiles();
+			})
+			.catch(function () {
+				showProfileError("Could not save profile.");
+			});
+	});
+
+	profileNameInput.addEventListener("keydown", function (e) {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			profileSaveBtn.click();
+		} else if (e.key === "Escape") {
+			profileNameInput.classList.add("d-none");
+			profileNameInput.value = "";
+		}
 	});
 
 	profileDeleteBtn.addEventListener("click", function () {
@@ -450,37 +705,6 @@
 			})
 			.catch(function () {
 				showProfileError("Could not delete profile.");
-			});
-	});
-
-	profileSaveBtn.addEventListener("click", function () {
-		var name = (profileNameInput.value || "").trim();
-		if (!name) {
-			showProfileError("Enter a profile name.");
-			return;
-		}
-		var keyEl = document.getElementById("keyColumnsRaw");
-		var mapEl = document.getElementById("columnMappingsRaw");
-		var fd = new FormData();
-		fd.append("name", name);
-		fd.append("keyColumnsRaw", keyEl ? keyEl.value : "");
-		fd.append("columnMappingsRaw", mapEl ? mapEl.value : "");
-		fd.append("__RequestVerificationToken", getAntiforgeryToken());
-		fetch("?handler=SaveProfile", { method: "POST", body: fd })
-			.then(function (r) {
-				return r.json();
-			})
-			.then(function (data) {
-				if (data.error) {
-					showProfileError(data.error);
-					return;
-				}
-				clearProfileError();
-				profileNameInput.value = "";
-				loadProfiles();
-			})
-			.catch(function () {
-				showProfileError("Could not save profile.");
 			});
 	});
 

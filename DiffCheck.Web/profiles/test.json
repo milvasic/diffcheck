@@ -1,0 +1,16 @@
+{
+	"name": "test",
+	"keyColumns": ["E"],
+	"columnMappings": [
+		{
+			"leftHeader": "E",
+			"rightHeader": "EF"
+		}
+	],
+	"options": {
+		"caseSensitive": true,
+		"trimWhitespace": false,
+		"numericTolerance": 0,
+		"matchThreshold": 0.5
+	}
+}
