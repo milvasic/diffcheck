@@ -3,23 +3,27 @@
  * Database: DiffCheckHistory, store: runs (id, leftFileName, rightFileName, createdAt, reportHtml).
  */
 (function (global) {
-	'use strict';
+	"use strict";
 
-	var DB_NAME = 'DiffCheckHistory';
-	var STORE_NAME = 'runs';
+	var DB_NAME = "DiffCheckHistory";
+	var STORE_NAME = "runs";
 	var DB_VERSION = 1;
 	var MAX_RUNS = 50;
 
 	function openDb() {
 		return new Promise(function (resolve, reject) {
 			var req = indexedDB.open(DB_NAME, DB_VERSION);
-			req.onerror = function () { reject(req.error); };
-			req.onsuccess = function () { resolve(req.result); };
+			req.onerror = function () {
+				reject(req.error);
+			};
+			req.onsuccess = function () {
+				resolve(req.result);
+			};
 			req.onupgradeneeded = function (e) {
 				var db = e.target.result;
 				if (!db.objectStoreNames.contains(STORE_NAME)) {
-					var store = db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-					store.createIndex('createdAt', 'createdAt', { unique: false });
+					var store = db.createObjectStore(STORE_NAME, { keyPath: "id" });
+					store.createIndex("createdAt", "createdAt", { unique: false });
 				}
 			};
 		});
@@ -32,12 +36,14 @@
 	function addRun(run) {
 		return openDb().then(function (db) {
 			return new Promise(function (resolve, reject) {
-				var tx = db.transaction(STORE_NAME, 'readwrite');
+				var tx = db.transaction(STORE_NAME, "readwrite");
 				var store = tx.objectStore(STORE_NAME);
-				var index = store.index('createdAt');
+				var index = store.index("createdAt");
 
 				function doAdd() {
-					store.add(run).onsuccess = function () { resolve(); };
+					store.add(run).onsuccess = function () {
+						resolve();
+					};
 				}
 
 				// Optional: keep only last MAX_RUNS
@@ -62,7 +68,9 @@
 						}
 					};
 				};
-				tx.onerror = function () { reject(tx.error); };
+				tx.onerror = function () {
+					reject(tx.error);
+				};
 			});
 		});
 	}
@@ -73,9 +81,9 @@
 	function getAllRuns() {
 		return openDb().then(function (db) {
 			return new Promise(function (resolve, reject) {
-				var tx = db.transaction(STORE_NAME, 'readonly');
-				var index = tx.objectStore(STORE_NAME).index('createdAt');
-				var req = index.openCursor(null, 'prev'); // newest first
+				var tx = db.transaction(STORE_NAME, "readonly");
+				var index = tx.objectStore(STORE_NAME).index("createdAt");
+				var req = index.openCursor(null, "prev"); // newest first
 				var runs = [];
 				req.onsuccess = function () {
 					var cursor = req.result;
@@ -87,14 +95,16 @@
 							rightFileName: v.rightFileName,
 							createdAt: v.createdAt,
 							summary: v.summary,
-							tags: v.tags || []
+							tags: v.tags || [],
 						});
 						cursor.continue();
 					} else {
 						resolve(runs);
 					}
 				};
-				tx.onerror = function () { reject(tx.error); };
+				tx.onerror = function () {
+					reject(tx.error);
+				};
 			});
 		});
 	}
@@ -106,10 +116,14 @@
 	function getRun(id) {
 		return openDb().then(function (db) {
 			return new Promise(function (resolve, reject) {
-				var tx = db.transaction(STORE_NAME, 'readonly');
+				var tx = db.transaction(STORE_NAME, "readonly");
 				var req = tx.objectStore(STORE_NAME).get(id);
-				req.onsuccess = function () { resolve(req.result); };
-				tx.onerror = function () { reject(tx.error); };
+				req.onsuccess = function () {
+					resolve(req.result);
+				};
+				tx.onerror = function () {
+					reject(tx.error);
+				};
 			});
 		});
 	}
@@ -122,16 +136,23 @@
 	function updateRun(id, updates) {
 		return openDb().then(function (db) {
 			return new Promise(function (resolve, reject) {
-				var tx = db.transaction(STORE_NAME, 'readwrite');
+				var tx = db.transaction(STORE_NAME, "readwrite");
 				var store = tx.objectStore(STORE_NAME);
 				var getReq = store.get(id);
 				getReq.onsuccess = function () {
 					var run = getReq.result;
-					if (!run) { resolve(); return; }
+					if (!run) {
+						resolve();
+						return;
+					}
 					if (updates.tags !== undefined) run.tags = updates.tags;
-					store.put(run).onsuccess = function () { resolve(); };
+					store.put(run).onsuccess = function () {
+						resolve();
+					};
 				};
-				tx.onerror = function () { reject(tx.error); };
+				tx.onerror = function () {
+					reject(tx.error);
+				};
 			});
 		});
 	}
@@ -143,10 +164,14 @@
 	function deleteRun(id) {
 		return openDb().then(function (db) {
 			return new Promise(function (resolve, reject) {
-				var tx = db.transaction(STORE_NAME, 'readwrite');
+				var tx = db.transaction(STORE_NAME, "readwrite");
 				var req = tx.objectStore(STORE_NAME).delete(id);
-				req.onsuccess = function () { resolve(); };
-				tx.onerror = function () { reject(tx.error); };
+				req.onsuccess = function () {
+					resolve();
+				};
+				tx.onerror = function () {
+					reject(tx.error);
+				};
 			});
 		});
 	}
@@ -156,6 +181,6 @@
 		getAllRuns: getAllRuns,
 		getRun: getRun,
 		updateRun: updateRun,
-		deleteRun: deleteRun
+		deleteRun: deleteRun,
 	};
-})(typeof window !== 'undefined' ? window : this);
+})(typeof window !== "undefined" ? window : this);

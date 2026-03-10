@@ -1,17 +1,17 @@
 {
-  "$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
-  "tasks": [
-    {
-      "name": "csharpier",
-      "group": "pre-commit",
-      "command": "dotnet",
-      "args": ["csharpier", "format", "${staged}"]
-    },
-    {
-      "name": "git-add-formatted",
-      "group": "pre-commit",
-      "command": "git",
-      "args": ["add", "${staged}"]
-    }
-  ]
+	"$schema": "https://alirezanet.github.io/Husky.Net/schema.json",
+	"tasks": [
+		{
+			"name": "csharpier",
+			"group": "pre-commit",
+			"command": "dotnet",
+			"args": ["csharpier", "format", "${staged}"]
+		},
+		{
+			"name": "git-add-formatted",
+			"group": "pre-commit",
+			"command": "git",
+			"args": ["add", "${staged}"]
+		}
+	]
 }

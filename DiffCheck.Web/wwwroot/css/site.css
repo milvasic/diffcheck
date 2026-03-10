@@ -1,11 +1,11 @@
 html {
-  font-size: 14px;
+	font-size: 14px;
 }
 
 @media (min-width: 768px) {
-  html {
-    font-size: 16px;
-  }
+	html {
+		font-size: 16px;
+	}
 }
 
 .btn:focus,
@@ -13,145 +13,149 @@ html {
 .btn-link.nav-link:focus,
 .form-control:focus,
 .form-check-input:focus {
-  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+	box-shadow:
+		0 0 0 0.1rem white,
+		0 0 0 0.25rem #258cfb;
 }
 
 html {
-  position: relative;
-  min-height: 100%;
+	position: relative;
+	min-height: 100%;
 }
 
 body {
-  margin-bottom: 0;
+	margin-bottom: 0;
 }
 
 /* Fixed layout: only Diff Result section scrolls; prevent footer overlap */
 body.d-flex.flex-column {
-  height: 100vh;
-  max-height: 100vh;
-  overflow: hidden;
+	height: 100vh;
+	max-height: 100vh;
+	overflow: hidden;
 }
 
 body.d-flex.flex-column .container.flex-grow-1 {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
 }
 
 body.d-flex.flex-column main {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+	flex: 1 1 0;
+	min-height: 0;
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
 }
 
 .min-h-0 {
-  min-height: 0;
+	min-height: 0;
 }
 
-.form-floating>.form-control-plaintext::placeholder,
-.form-floating>.form-control::placeholder {
-  color: var(--bs-secondary-color);
-  text-align: end;
+.form-floating > .form-control-plaintext::placeholder,
+.form-floating > .form-control::placeholder {
+	color: var(--bs-secondary-color);
+	text-align: end;
 }
 
-.form-floating>.form-control-plaintext:focus::placeholder,
-.form-floating>.form-control:focus::placeholder {
-  text-align: start;
+.form-floating > .form-control-plaintext:focus::placeholder,
+.form-floating > .form-control:focus::placeholder {
+	text-align: start;
 }
 
 .drop-zone {
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s;
+	cursor: pointer;
+	transition:
+		background-color 0.2s,
+		border-color 0.2s;
 }
 
 .drop-zone:hover {
-  background-color: #f8f9fa;
+	background-color: #f8f9fa;
 }
 
 .drop-zone.drop-zone-active {
-  background-color: #e7f3ff;
-  border-color: #0d6efd !important;
+	background-color: #e7f3ff;
+	border-color: #0d6efd !important;
 }
 
 .drop-zone-compact {
-  padding: 0.5rem 1rem !important;
+	padding: 0.5rem 1rem !important;
 }
 
 .drop-zone-compact .drop-content {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center;
-  gap: 10px;
-  text-align: left;
+	display: flex !important;
+	flex-direction: row !important;
+	align-items: center;
+	gap: 10px;
+	text-align: left;
 }
 
 .drop-zone-compact .drop-icon {
-  flex-shrink: 0;
-  width: 24px;
-  height: 24px;
+	flex-shrink: 0;
+	width: 24px;
+	height: 24px;
 }
 
 /* Diff result fullscreen */
 #diffResultContainer.diff-result-fullscreen {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background: var(--bg-body, #fff);
-  padding: 1rem;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: var(--bg-body, #fff);
+	padding: 1rem;
 }
 
 #diffResultContainer.diff-result-fullscreen .diff-result-frame-wrapper {
-  flex: 1;
-  min-height: 0;
-  display: flex;
+	flex: 1;
+	min-height: 0;
+	display: flex;
 }
 
 #diffResultContainer.diff-result-fullscreen .diff-result-frame-wrapper iframe {
-  flex: 1;
-  min-height: 100%;
+	flex: 1;
+	min-height: 100%;
 }
 
 #history-report-fullscreen-wrapper.diff-result-fullscreen {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  width: 100%;
-  background: var(--bg-body, #fff);
-  padding: 0;
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+	width: 100%;
+	background: var(--bg-body, #fff);
+	padding: 0;
 }
 
 #history-report-fullscreen-wrapper.diff-result-fullscreen .history-report-toolbar {
-  flex-shrink: 0;
+	flex-shrink: 0;
 }
 
 #history-report-fullscreen-wrapper.diff-result-fullscreen iframe {
-  flex: 1 1 0;
-  min-height: 0;
+	flex: 1 1 0;
+	min-height: 0;
 }
 
 /* History report view: fill page to bottom when open */
 #history-open-container {
-  overflow: hidden;
+	overflow: hidden;
 }
 
 #history-open-container #history-report-fullscreen-wrapper iframe {
-  flex: 1 1 0;
-  min-height: 0;
+	flex: 1 1 0;
+	min-height: 0;
 }
 
 /* Diff result in scrollable area: frame wrapper shrinks to fit, footer stays visible */
 .diff-result-scrollable .diff-result-frame-wrapper {
-  flex: 1 1 0;
-  min-height: 0;
-  display: flex;
+	flex: 1 1 0;
+	min-height: 0;
+	display: flex;
 }
 
 .diff-result-scrollable .diff-result-frame-wrapper iframe {
-  flex: 1;
-  min-height: 0;
+	flex: 1;
+	min-height: 0;
 }

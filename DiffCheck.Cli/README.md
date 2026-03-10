@@ -26,29 +26,29 @@ diffcheck <left> <right> [options]
 
 ### Arguments
 
-| Argument | Description |
-|----------|--------------|
-| `left`   | Path to the first (original) file |
+| Argument | Description                        |
+| -------- | ---------------------------------- |
+| `left`   | Path to the first (original) file  |
 | `right`  | Path to the second (modified) file |
 
 ### Options
 
-| Option | Short | Description | Default |
-|--------|-------|--------------|---------|
-| `--output` | `-o` | Path for the output HTML report | `diff-report.html` |
-| `--column-map` | | Column mapping in `LeftHeader:RightHeader` format. Can be specified multiple times | |
-| `--key-columns` | | Column name(s) to match rows by key (faster matching). Comma-separated or multiple flags | |
-| `--profile` | | Load a saved profile by name. Explicit flags override profile values | |
-| `--save-profile` | | After a successful run, save the effective settings as a named profile | |
-| `--case-insensitive` | | Compare values case-insensitively | |
-| `--trim-whitespace` | | Strip leading/trailing whitespace before comparing | |
-| `--numeric-tolerance` | | Treat numbers as equal when their absolute difference is within this value (e.g. `0.001`) | |
-| `--match-threshold` | | Fraction of columns that must match for content-based row pairing (default: `0.5`) | |
+| Option                | Short | Description                                                                               | Default            |
+| --------------------- | ----- | ----------------------------------------------------------------------------------------- | ------------------ |
+| `--output`            | `-o`  | Path for the output HTML report                                                           | `diff-report.html` |
+| `--column-map`        |       | Column mapping in `LeftHeader:RightHeader` format. Can be specified multiple times        |                    |
+| `--key-columns`       |       | Column name(s) to match rows by key (faster matching). Comma-separated or multiple flags  |                    |
+| `--profile`           |       | Load a saved profile by name. Explicit flags override profile values                      |                    |
+| `--save-profile`      |       | After a successful run, save the effective settings as a named profile                    |                    |
+| `--case-insensitive`  |       | Compare values case-insensitively                                                         |                    |
+| `--trim-whitespace`   |       | Strip leading/trailing whitespace before comparing                                        |                    |
+| `--numeric-tolerance` |       | Treat numbers as equal when their absolute difference is within this value (e.g. `0.001`) |                    |
+| `--match-threshold`   |       | Fraction of columns that must match for content-based row pairing (default: `0.5`)        |                    |
 
 ### Subcommands
 
-| Subcommand | Description |
-|------------|-------------|
+| Subcommand      | Description                        |
+| --------------- | ---------------------------------- |
 | `list-profiles` | List all saved comparison profiles |
 
 ### Examples

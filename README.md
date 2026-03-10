@@ -39,12 +39,12 @@ Open http://localhost:5000, upload two files, and view the diff report. Supports
 
 ## Project structure
 
-| Project | Description |
-|---------|--------------|
-| `DiffCheck.Core` | Library: readers, diff engine, HTML report generator |
-| `DiffCheck.Cli` | Command-line tool |
-| `DiffCheck.Web` | Razor Pages web app with file upload |
-| `DiffCheck.Core.Tests` | Unit tests (MSTest) |
+| Project                | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `DiffCheck.Core`       | Library: readers, diff engine, HTML report generator |
+| `DiffCheck.Cli`        | Command-line tool                                    |
+| `DiffCheck.Web`        | Razor Pages web app with file upload                 |
+| `DiffCheck.Core.Tests` | Unit tests (MSTest)                                  |
 
 ## Library usage
 
@@ -110,7 +110,7 @@ var result = await service.CompareAsync("a.xlsx", "b.xlsx");
 ## Supported formats
 
 | Extension | Format        |
-|-----------|---------------|
+| --------- | ------------- |
 | `.csv`    | CSV           |
 | `.txt`    | CSV (treated) |
 | `.xlsx`   | Excel 2007+   |

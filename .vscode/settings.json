@@ -1,12 +1,12 @@
 {
-  "editor.formatOnSave": true,
-  "[csharp]": {
-    "editor.defaultFormatter": "csharpier.csharpier-vscode"
-  },
-  "[xml]": {
-    "editor.defaultFormatter": "csharpier.csharpier-vscode"
-  },
-  "chat.tools.terminal.autoApprove": {
-    "dotnet build": true
-  }
+	"editor.formatOnSave": true,
+	"[csharp]": {
+		"editor.defaultFormatter": "csharpier.csharpier-vscode"
+	},
+	"[xml]": {
+		"editor.defaultFormatter": "csharpier.csharpier-vscode"
+	},
+	"chat.tools.terminal.autoApprove": {
+		"dotnet build": true
+	}
 }

@@ -9,12 +9,12 @@ Guidelines for AI agents working in this repository.
 DiffCheck compares CSV and XLSX files and produces color-coded HTML diff reports.  
 It is a .NET 10 solution with four projects:
 
-| Project | Type | Purpose |
-|---------|------|---------|
-| `DiffCheck.Core` | Class library | All comparison logic: readers, diff engine, HTML generator, models |
-| `DiffCheck.Core.Tests` | MSTest test project | Unit tests for `DiffCheck.Core` |
-| `DiffCheck.Cli` | Console / NuGet tool | `diffcheck` CLI — wraps `DiffCheckService` |
-| `DiffCheck.Web` | ASP.NET Core Razor Pages | Browser UI — wraps `DiffCheckService` |
+| Project                | Type                     | Purpose                                                            |
+| ---------------------- | ------------------------ | ------------------------------------------------------------------ |
+| `DiffCheck.Core`       | Class library            | All comparison logic: readers, diff engine, HTML generator, models |
+| `DiffCheck.Core.Tests` | MSTest test project      | Unit tests for `DiffCheck.Core`                                    |
+| `DiffCheck.Cli`        | Console / NuGet tool     | `diffcheck` CLI — wraps `DiffCheckService`                         |
+| `DiffCheck.Web`        | ASP.NET Core Razor Pages | Browser UI — wraps `DiffCheckService`                              |
 
 All production logic lives in `DiffCheck.Core`. The CLI and Web projects are thin wrappers.
 
@@ -58,6 +58,7 @@ dotnet test --filter FullyQualifiedName~DiffEngineTests
 ```
 
 Test files mirror the source structure:
+
 - `DiffCheck.Core.Tests/Diff/` → tests for `DiffCheck.Core/Diff/`
 - `DiffCheck.Core.Tests/Html/` → tests for `DiffCheck.Core/Html/`
 - `DiffCheck.Core.Tests/Readers/` → tests for `DiffCheck.Core/Readers/`
@@ -99,17 +100,17 @@ Never commit unformatted code. If running CSharpier changes lines unrelated to y
 
 ### `DiffCheck.Core` key types
 
-| Type | Location | Role |
-|------|----------|------|
-| `DiffCheckService` | `DiffCheckService.cs` | Entry point — orchestrates read → diff → generate |
-| `IFileReader` | `Readers/IFileReader.cs` | Reader abstraction; implement to add new formats |
-| `CsvReader` | `Readers/CsvReader.cs` | CSV/TXT reader (CsvHelper) |
-| `XlsxReader` | `Readers/XlsxReader.cs` | XLSX reader (ClosedXML); reads first sheet by default |
-| `FileReaderFactory` | `FileReaderFactory.cs` | Selects reader by file extension |
-| `DiffEngine` | `Diff/DiffEngine.cs` | Compares two `DataTable`s; supports `columnMappings` and `keyColumns` |
-| `HtmlReportGenerator` | `Html/HtmlReportGenerator.cs` | Builds the self-contained HTML report |
-| `HtmlReportOptions` | `Html/HtmlReportOptions.cs` | Color/font customization for the report |
-| `DiffResult` / `DiffRow` / `DiffCell` | `Models/` | Immutable result model |
+| Type                                  | Location                      | Role                                                                  |
+| ------------------------------------- | ----------------------------- | --------------------------------------------------------------------- |
+| `DiffCheckService`                    | `DiffCheckService.cs`         | Entry point — orchestrates read → diff → generate                     |
+| `IFileReader`                         | `Readers/IFileReader.cs`      | Reader abstraction; implement to add new formats                      |
+| `CsvReader`                           | `Readers/CsvReader.cs`        | CSV/TXT reader (CsvHelper)                                            |
+| `XlsxReader`                          | `Readers/XlsxReader.cs`       | XLSX reader (ClosedXML); reads first sheet by default                 |
+| `FileReaderFactory`                   | `FileReaderFactory.cs`        | Selects reader by file extension                                      |
+| `DiffEngine`                          | `Diff/DiffEngine.cs`          | Compares two `DataTable`s; supports `columnMappings` and `keyColumns` |
+| `HtmlReportGenerator`                 | `Html/HtmlReportGenerator.cs` | Builds the self-contained HTML report                                 |
+| `HtmlReportOptions`                   | `Html/HtmlReportOptions.cs`   | Color/font customization for the report                               |
+| `DiffResult` / `DiffRow` / `DiffCell` | `Models/`                     | Immutable result model                                                |
 
 ### HTML report data contract
 
