@@ -9,5 +9,4 @@
 **/*.md
 **/TestData
 **/*.Tests
-DiffCheck.Cli
 DiffCheck.Core.Tests
