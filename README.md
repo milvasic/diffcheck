@@ -29,6 +29,26 @@ dotnet run --project DiffCheck.Cli -- left.csv right.csv
 dotnet run --project DiffCheck.Cli -- left.xlsx right.xlsx -o report.html
 ```
 
+### Docker
+
+Build and run the CLI in a Docker container:
+
+```bash
+# Build the image
+docker build -f DiffCheck.Cli/Dockerfile -t diffcheck:latest .
+
+# Run with volume mounts for input/output files
+docker run --rm -v $(pwd):/workspace diffcheck:latest /workspace/left.csv /workspace/right.csv -o /workspace/report.html
+```
+
+Or use the published image from GitHub Container Registry:
+
+```bash
+docker run --rm -v $(pwd):/workspace ghcr.io/milvasic/diffcheck-cli:latest /workspace/left.csv /workspace/right.csv -o /workspace/report.html
+```
+
+**Note:** Use `-v $(pwd):/workspace` to mount your current directory so the container can access your input files and write the output report.
+
 ### Web app
 
 ```bash

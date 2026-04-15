@@ -12,51 +12,53 @@ var outputOption = new Option<FileInfo>("--output", ["-o"])
 	DefaultValueFactory = x => new FileInfo("diff-report.html"),
 };
 
-var columnMapOption = new Option<string[]>(
-	"--column-map",
-	"Column mapping: left header and right header (e.g. \"Name:FullName\"). Can be specified multiple times."
-)
+var columnMapOption = new Option<string[]>("--column-map")
 {
+	Description =
+		"Column mapping: left header and right header (e.g. \"Name:FullName\"). Can be specified multiple times.",
 	AllowMultipleArgumentsPerToken = true,
 };
 
-var keyColumnsOption = new Option<string[]>(
-	"--key-columns",
-	"Column name(s) to match rows by (faster). Comma-separated or multiple. E.g. \"ID\" or \"ID,Name\"."
-)
+var keyColumnsOption = new Option<string[]>("--key-columns")
 {
+	Description =
+		"Key columns for row pairing, specified as a comma-separated list (e.g. \"ID\") or multiple --key-columns flags (e.g. --key-columns ID --key-columns Name).",
 	AllowMultipleArgumentsPerToken = true,
 };
 
-var profileOption = new Option<string?>(
-	"--profile",
-	"Load a saved profile by name. Explicit --key-columns and --column-map flags override the profile values."
-);
+var profileOption = new Option<string?>("--profile")
+{
+	Description =
+		"Name of a saved comparison profile to use as defaults for key columns, column mappings, and comparison options.",
+};
 
-var saveProfileOption = new Option<string?>(
-	"--save-profile",
-	"Save the effective key columns and column mappings as a named profile after a successful run."
-);
+var saveProfileOption = new Option<string?>("--save-profile")
+{
+	Description =
+		"Save the current comparison settings as a profile with the given name (overwrites existing profile with the same name).",
+};
 
-var caseInsensitiveOption = new Option<bool>(
-	"--case-insensitive",
-	"Compare values case-insensitively."
-);
+var caseInsensitiveOption = new Option<bool>("--case-insensitive")
+{
+	Description = "Perform case-insensitive comparisons.",
+};
 
-var trimWhitespaceOption = new Option<bool>(
-	"--trim-whitespace",
-	"Trim leading and trailing whitespace before comparing."
-);
+var trimWhitespaceOption = new Option<bool>("--trim-whitespace")
+{
+	Description = "Trim leading and trailing whitespace from cell values before comparing.",
+};
 
-var numericToleranceOption = new Option<double?>(
-	"--numeric-tolerance",
-	"Treat numeric values as equal when their absolute difference is within this tolerance (e.g. 0.001)."
-);
+var numericToleranceOption = new Option<double?>("--numeric-tolerance")
+{
+	Description =
+		"Numeric tolerance for comparing numeric values. If specified, numeric columns will be compared using this tolerance instead of exact equality (e.g. 0.01).",
+};
 
-var matchThresholdOption = new Option<double?>(
-	"--match-threshold",
-	"Fraction of columns that must match for content-based row pairing (default: 0.5)."
-);
+var matchThresholdOption = new Option<double?>("--match-threshold")
+{
+	Description =
+		"Match threshold (0 to 1) for determining whether rows are considered a match based on similarity of key column values. Only applicable when key columns are specified. Default is 0.8.",
+};
 
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
 {
