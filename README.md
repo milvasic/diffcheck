@@ -56,6 +56,7 @@ dotnet run --project DiffCheck.Web
 ```
 
 Open http://localhost:5000, upload two files, and view the diff report. Supports drag-and-drop and dark theme. You can add the current report to **History** (client-side only), tag runs, and search by file names or tags. The Privacy page describes file handling and browser storage (localStorage for theme, IndexedDB for history).
+Use the **Manual** page in the top navigation for a step-by-step usage guide.
 
 ## Project structure
 
