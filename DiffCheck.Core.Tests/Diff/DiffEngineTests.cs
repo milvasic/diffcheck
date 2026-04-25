@@ -93,21 +93,25 @@ public class DiffEngineTests
 	}
 
 	[TestMethod]
-	[ExpectedException(typeof(ArgumentNullException))]
 	public void Compare_NullLeft_ThrowsArgumentNullException()
 	{
 		var right = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>>());
 		var engine = new DiffEngine();
-		engine.Compare(null!, right);
+		Assert.ThrowsExactly<ArgumentNullException>(() =>
+		{
+			engine.Compare(null!, right);
+		});
 	}
 
 	[TestMethod]
-	[ExpectedException(typeof(ArgumentNullException))]
 	public void Compare_NullRight_ThrowsArgumentNullException()
 	{
 		var left = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>>());
 		var engine = new DiffEngine();
-		engine.Compare(left, null!);
+		Assert.ThrowsExactly<ArgumentNullException>(() =>
+		{
+			engine.Compare(left, null!);
+		});
 	}
 
 	[TestMethod]

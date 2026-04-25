@@ -74,10 +74,12 @@ public class DiffCheckServiceTests
 	}
 
 	[TestMethod]
-	[ExpectedException(typeof(ArgumentException))]
 	public async Task CompareAsync_UnsupportedFormat_ThrowsArgumentException()
 	{
 		var service = new DiffCheckService();
-		await service.CompareAsync(GetPath("left.csv"), "file.xyz");
+		await Assert.ThrowsExactlyAsync<ArgumentException>(async () =>
+		{
+			await service.CompareAsync(GetPath("left.csv"), "file.xyz");
+		});
 	}
 }

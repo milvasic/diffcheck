@@ -23,11 +23,13 @@ public class XlsxReaderTests
 	}
 
 	[TestMethod]
-	[ExpectedException(typeof(FileNotFoundException))]
 	public async Task ReadAsync_NonExistentFile_ThrowsFileNotFoundException()
 	{
 		var reader = new XlsxReader();
-		await reader.ReadAsync(GetPath("nonexistent.xlsx"));
+		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
+		{
+			await reader.ReadAsync(GetPath("nonexistent.xlsx"));
+		});
 	}
 
 	[TestMethod]

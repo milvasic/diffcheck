@@ -29,11 +29,13 @@ public class CsvReaderTests
 	}
 
 	[TestMethod]
-	[ExpectedException(typeof(FileNotFoundException))]
 	public async Task ReadAsync_NonExistentFile_ThrowsFileNotFoundException()
 	{
 		var reader = new CsvReader();
-		await reader.ReadAsync(GetPath("nonexistent.csv"));
+		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
+		{
+			await reader.ReadAsync(GetPath("nonexistent.csv"));
+		});
 	}
 
 	[TestMethod]
