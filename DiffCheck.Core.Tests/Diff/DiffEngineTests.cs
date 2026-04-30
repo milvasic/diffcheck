@@ -457,6 +457,21 @@ public class DiffEngineTests
 		Assert.AreEqual(1, result.Summary.AddedRows); // ID 5
 		// IDs 3 & 4 are unmatched left rows → Removed
 		Assert.AreEqual(2, result.Summary.RemovedRows);
+
+		// Verify row-level matching: ID 2 row must be Modified (Score changed 80→85)
+		var modifiedRow = result.Rows.SingleOrDefault(r => r.Status == DiffRowStatus.Modified);
+		Assert.IsNotNull(modifiedRow);
+		var scoreCell = modifiedRow.Cells.Single(c => c.Header == "Score");
+		Assert.AreEqual("80", scoreCell.LeftValue);
+		Assert.AreEqual("85", scoreCell.RightValue);
+
+		// ID 3 and ID 4 must be the two Removed rows
+		var removedIds = result
+			.Rows.Where(r => r.Status == DiffRowStatus.Removed)
+			.Select(r => r.Cells.Single(c => c.Header == "ID").LeftValue)
+			.OrderBy(id => id)
+			.ToList();
+		CollectionAssert.AreEqual(new[] { "3", "4" }, removedIds);
 	}
 
 	[TestMethod]

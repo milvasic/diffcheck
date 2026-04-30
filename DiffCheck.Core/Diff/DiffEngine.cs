@@ -388,10 +388,9 @@ public sealed class DiffEngine
 		ComparisonOptions options
 	)
 	{
-		var index = new Dictionary<string, List<int>>(
-			leftIndexed.Count * headers.Count,
-			StringComparer.Ordinal
-		);
+		// Capacity hint: at most one distinct key per left row (common case where values are unique).
+		// The dictionary will grow automatically for high-cardinality data.
+		var index = new Dictionary<string, List<int>>(leftIndexed.Count, StringComparer.Ordinal);
 		for (var i = 0; i < leftIndexed.Count; i++)
 		{
 			var row = leftIndexed[i].Row;
@@ -436,7 +435,10 @@ public sealed class DiffEngine
 			foreach (var leftIdx in candidates)
 			{
 				if (!leftMatched.Contains(leftIdx))
-					hitCounts[leftIdx] = (hitCounts.TryGetValue(leftIdx, out var c) ? c : 0) + 1;
+				{
+					hitCounts.TryGetValue(leftIdx, out var c);
+					hitCounts[leftIdx] = c + 1;
+				}
 			}
 		}
 
