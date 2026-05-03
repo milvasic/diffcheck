@@ -3,33 +3,28 @@ namespace DiffCheck.Models;
 /// <summary>
 /// Represents tabular data loaded from CSV or XLSX files.
 /// </summary>
-public sealed class DataTable
+public sealed class DataTable(
+	IReadOnlyList<string> headers,
+	IReadOnlyList<IReadOnlyList<string>> rows,
+	string? sourcePath = null
+)
 {
 	/// <summary>
 	/// Column headers (first row).
 	/// </summary>
-	public IReadOnlyList<string> Headers { get; }
+	public IReadOnlyList<string> Headers { get; } =
+		headers ?? throw new ArgumentNullException(nameof(headers));
 
 	/// <summary>
 	/// Data rows (excluding header).
 	/// </summary>
-	public IReadOnlyList<IReadOnlyList<string>> Rows { get; }
+	public IReadOnlyList<IReadOnlyList<string>> Rows { get; } =
+		rows ?? throw new ArgumentNullException(nameof(rows));
 
 	/// <summary>
 	/// Source file path (for display purposes).
 	/// </summary>
-	public string? SourcePath { get; }
-
-	public DataTable(
-		IReadOnlyList<string> headers,
-		IReadOnlyList<IReadOnlyList<string>> rows,
-		string? sourcePath = null
-	)
-	{
-		Headers = headers ?? throw new ArgumentNullException(nameof(headers));
-		Rows = rows ?? throw new ArgumentNullException(nameof(rows));
-		SourcePath = sourcePath;
-	}
+	public string? SourcePath { get; } = sourcePath;
 
 	/// <summary>
 	/// Gets the number of columns.

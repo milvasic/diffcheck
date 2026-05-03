@@ -1,5 +1,4 @@
 using DiffCheck.Readers;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DiffCheck.Core.Tests.Readers;
 
@@ -18,11 +17,11 @@ public class CsvReaderTests
 		var result = await reader.ReadAsync(path);
 
 		Assert.IsNotNull(result);
-		Assert.AreEqual(3, result.Headers.Count);
+		Assert.HasCount(3, result.Headers);
 		Assert.AreEqual("Name", result.Headers[0]);
 		Assert.AreEqual("Age", result.Headers[1]);
 		Assert.AreEqual("City", result.Headers[2]);
-		Assert.AreEqual(3, result.Rows.Count);
+		Assert.HasCount(3, result.Rows);
 		Assert.AreEqual("Alice", result.Rows[0][0]);
 		Assert.AreEqual("30", result.Rows[0][1]);
 		Assert.AreEqual("London", result.Rows[0][2]);
@@ -34,7 +33,7 @@ public class CsvReaderTests
 		var reader = new CsvReader();
 		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
 		{
-			await reader.ReadAsync(GetPath("nonexistent.csv"));
+			await reader.ReadAsync(GetPath("nonexistent.csv"), TestContext.CancellationToken);
 		});
 	}
 
@@ -44,7 +43,9 @@ public class CsvReaderTests
 		var reader = new CsvReader();
 		var extensions = reader.SupportedExtensions.ToList();
 
-		Assert.IsTrue(extensions.Contains(".csv"));
-		Assert.IsTrue(extensions.Contains(".txt"));
+		Assert.Contains(".csv", extensions);
+		Assert.Contains(".txt", extensions);
 	}
+
+	public required TestContext TestContext { get; set; }
 }

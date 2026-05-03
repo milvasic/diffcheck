@@ -1,5 +1,4 @@
 using System.Globalization;
-using CsvHelper;
 using CsvHelper.Configuration;
 
 namespace DiffCheck.Readers;
@@ -7,22 +6,17 @@ namespace DiffCheck.Readers;
 /// <summary>
 /// Reads CSV files into tabular data.
 /// </summary>
-public sealed class CsvReader : IFileReader
+public sealed class CsvReader(CsvConfiguration? config = null) : IFileReader
 {
-	private readonly CsvConfiguration _config;
-
-	public CsvReader(CsvConfiguration? config = null)
-	{
-		_config =
-			config
-			?? new CsvConfiguration(CultureInfo.InvariantCulture)
-			{
-				HasHeaderRecord = true,
-				MissingFieldFound = null,
-				BadDataFound = null,
-				TrimOptions = TrimOptions.Trim,
-			};
-	}
+	private readonly CsvConfiguration _config =
+		config
+		?? new CsvConfiguration(CultureInfo.InvariantCulture)
+		{
+			HasHeaderRecord = true,
+			MissingFieldFound = null,
+			BadDataFound = null,
+			TrimOptions = TrimOptions.Trim,
+		};
 
 	public IEnumerable<string> SupportedExtensions => [".csv", ".txt"];
 
@@ -38,7 +32,7 @@ public sealed class CsvReader : IFileReader
 
 		var path = Path.GetFullPath(filePath);
 		var rows = new List<IReadOnlyList<string>>();
-		string[] headers = [];
+		string[] headers;
 
 		using (var reader = new StreamReader(path))
 		using (var csv = new CsvHelper.CsvReader(reader, _config))

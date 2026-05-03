@@ -5,253 +5,270 @@
 }
 
 <div class="index-page d-flex flex-column flex-grow-1 min-h-0 overflow-hidden">
-	<div class="flex-shrink-0">
-		<div class="row mb-2 index-header" id="compareHeader">
-			<div class="col">
-				<h1 class="h5 mb-1">Compare CSV & XLSX Files</h1>
-				<p class="text-muted small mb-0">Drop or select two files to compare. Supported: .csv, .txt, .xlsx,
-					.xlsm</p>
-				</div>
-			</div>
-
-			<form method="post" enctype="multipart/form-data" id="compareForm" class="position-relative"
-				  style="min-height: 80px;">
-				<div class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center rounded"
-					 id="loadingOverlay" style="z-index: 10; min-height: 120px;">
-					<div class="spinner-border text-primary" role="status">
-						<span class="visually-hidden">Comparing...</span>
-					</div>
-				</div>
-				<div class="row g-3 mb-2">
-					<div class="col-md-6">
-						<div class="drop-zone border rounded p-4 text-center" data-target="leftFile">
-							<input type="file" name="leftFile" id="leftFile" class="d-none"
-								   accept=".csv,.txt,.xlsx,.xlsm" />
-							<div class="drop-content d-flex flex-column align-items-center">
-								<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
-									 class="bi bi-file-earmark-text text-muted mb-2 drop-icon" viewBox="0 0 16 16">
-									<path
-									d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z" />
-									<path
-									d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
-								</svg>
-								<div>
-									<p class="mb-1 fw-medium">Left file</p>
-									<p class="small text-muted mb-0" id="leftFileName">Drop file here or click to browse</p>
-								</div>
-							</div>
-						</div>
-					</div>
-					<div class="col-md-6">
-						<div class="drop-zone border rounded p-4 text-center" data-target="rightFile">
-							<input type="file" name="rightFile" id="rightFile" class="d-none"
-								   accept=".csv,.txt,.xlsx,.xlsm" />
-							<div class="drop-content d-flex flex-column align-items-center">
-								<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
-									 class="bi bi-file-earmark-text text-muted mb-2 drop-icon" viewBox="0 0 16 16">
-									<path
-									d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z" />
-									<path
-									d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z" />
-								</svg>
-								<div>
-									<p class="mb-1 fw-medium">Right file</p>
-									<p class="small text-muted mb-0" id="rightFileName">Drop file here or click to browse
-									</p>
-								</div>
-							</div>
-						</div>
-					</div>
-				</div>
-
-				<div class="settings-bar" id="settingsBar">
-					<!-- Profile -->
-					<div class="settings-bar-group">
-						<select id="profileSelect" class="form-select form-select-sm settings-bar-profile-select"
-								title="Load a saved profile">
-							<option value="">Profile</option>
-						</select>
-						<input type="text" id="profileNameInput"
-							   class="form-control form-control-sm d-none settings-bar-profile-name" placeholder="profile-name"
-							   title="Save current settings as" />
-						<button type="button" class="btn btn-outline-primary btn-sm settings-bar-icon-btn"
-								id="profileSaveBtn" title="Save profile">
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-								 viewBox="0 0 16 16">
-								<path
-								d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4.414A1 1 0 0 0 14.707 3.707l-2.414-2.414A1 1 0 0 0 11.586 1H2zm6 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm-4-9h5v2H4V3z" />
-							</svg>
-						</button>
-						<button type="button" class="btn btn-outline-danger btn-sm settings-bar-icon-btn"
-								id="profileDeleteBtn" title="Delete profile" disabled>
-							<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
-								 viewBox="0 0 16 16">
-								<path
-								d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z" />
-								<path fill-rule="evenodd"
-									  d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H5.5l1-1h3l1 1H14.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z" />
-							</svg>
-						</button>
-					</div>
-
-					<div class="settings-bar-separator"></div>
-
-					<!-- Normalization toggles -->
-					<div class="settings-bar-group">
-						<input type="checkbox" class="btn-check" name="caseInsensitive" id="caseInsensitive" value="true"
-							   autocomplete="off" @(Model.CaseInsensitive ? "checked" : "") />
-						<label class="btn btn-outline-secondary btn-sm settings-bar-pill" for="caseInsensitive">Aa</label>
-
-						<input type="checkbox" class="btn-check" name="trimWhitespace" id="trimWhitespace" value="true"
-							   autocomplete="off" @(Model.TrimWhitespace ? "checked" : "") />
-						<label class="btn btn-outline-secondary btn-sm settings-bar-pill" for="trimWhitespace">Trim</label>
-					</div>
-
-					<div class="settings-bar-separator"></div>
-
-					<!-- Numeric inputs -->
-					<div class="settings-bar-group">
-						<label for="numericToleranceRaw" class="settings-bar-label">Tolerance</label>
-						<input type="number" name="numericToleranceRaw" id="numericToleranceRaw"
-							   class="form-control form-control-sm settings-bar-num" min="0" step="any" placeholder="0.0"
-							   value="@(Model.NumericToleranceRaw)" />
-
-						<label for="matchThresholdRaw" class="settings-bar-label">Threshold</label>
-						<input type="number" name="matchThresholdRaw" id="matchThresholdRaw"
-							   class="form-control form-control-sm settings-bar-num" min="0" max="1" step="0.05"
-							   placeholder="0.5" value="@(Model.MatchThresholdRaw)" />
-					</div>
-
-					<div class="settings-bar-separator"></div>
-
-					<!-- Key columns chip input -->
-					<div class="settings-bar-group settings-bar-group-grow">
-						<label class="settings-bar-label">Keys</label>
-						<div class="chip-input" id="keyColumnsChipContainer">
-							<input type="text" class="chip-input-field" placeholder="column + Enter" />
-						</div>
-						<input type="hidden" name="keyColumnsRaw" id="keyColumnsRaw" value="@(Model.KeyColumnsRaw)" />
-					</div>
-
-					<div class="settings-bar-separator"></div>
-
-					<!-- Column mappings chip input -->
-					<div class="settings-bar-group settings-bar-group-grow">
-						<label class="settings-bar-label">Maps</label>
-						<div class="chip-input chip-input-pair" id="columnMappingsChipContainer">
-							<input type="text" class="chip-input-field" placeholder="Left:Right + Enter" />
-						</div>
-						<textarea name="columnMappingsRaw" id="columnMappingsRaw"
-								  class="d-none">@(Model.ColumnMappingsRaw)</textarea>
-					</div>
-
-					<!-- Rerun button (visible after first comparison) -->
-					<button type="button" class="btn btn-primary btn-sm d-none" id="rerunBtn" title="Re-compare with current settings">
-						<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
-							<path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 1 1 .908-.418A6 6 0 1 1 8 2v1z"/>
-							<path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
-						</svg>
-						Rerun
-					</button>
-
-					<div class="alert alert-danger alert-sm py-1 small d-none settings-bar-error" id="profileError"
-						 role="alert"></div>
-				</div>
-
-				<div class="alert alert-danger d-none mt-2" id="compareError" role="alert"></div>
-			</form>
+<div class="flex-shrink-0">
+	<div class="row mb-2 index-header" id="compareHeader">
+		<div class="col">
+			<h1 class="h5 mb-1">Compare CSV & XLSX Files</h1>
+			<p class="text-muted small mb-0">
+				Drop or select two files to compare. Supported: .csv, .txt, .xlsx,
+				.xlsm
+			</p>
 		</div>
+	</div>
 
-		<div id="diffResultContainer"
-			 class="position-relative flex-grow-1 min-h-0 overflow-hidden diff-result-scrollable d-flex flex-column d-none">
-			<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 flex-shrink-0">
-				<h5 class="mb-0">Diff Result</h5>
-				<div class="d-flex gap-2">
-					<button type="button" class="btn btn-outline-secondary btn-sm" id="diffExpandBtn"
-							title="Expand to fullscreen">
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-							 viewBox="0 0 16 16">
+	<form method="post" enctype="multipart/form-data" id="compareForm" class="position-relative"
+	      style="min-height: 80px;">
+		<div class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center rounded"
+		     id="loadingOverlay" style="z-index: 10; min-height: 120px;">
+			<div class="spinner-border text-primary" role="status">
+				<span class="visually-hidden">Comparing...</span>
+			</div>
+		</div>
+		<div class="row g-3 mb-2">
+			<div class="col-md-6">
+				<div class="drop-zone border rounded p-4 text-center" data-target="leftFile">
+					<input type="file" name="leftFile" id="leftFile" class="d-none"
+					       accept=".csv,.txt,.xlsx,.xlsm"/>
+					<div class="drop-content d-flex flex-column align-items-center">
+						<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+						     class="bi bi-file-earmark-text text-muted mb-2 drop-icon" viewBox="0 0 16 16">
 							<path
-							d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z" />
+								d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+							<path
+								d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
 						</svg>
-						Fullscreen
-					</button>
-					<button type="button" class="btn btn-outline-secondary btn-sm d-none" id="diffExitFullscreenBtn"
-							title="Exit fullscreen">Exit fullscreen</button>
-					<button type="button" class="btn btn-outline-primary btn-sm" id="diffDownloadBtn"
-							title="Download diff report (no extra details)">
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-							 viewBox="0 0 16 16">
-							<path
-							d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-							<path
-							d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-						</svg>
-						Download
-					</button>
-					<button type="button" class="btn btn-outline-secondary btn-sm" id="diffDownloadWithDetailsBtn"
-							title="Download with additional details">
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-							 viewBox="0 0 16 16">
-							<path
-							d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
-							<path
-							d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
-						</svg>
-						Download with details
-					</button>
-					<button type="button" class="btn btn-outline-secondary btn-sm" id="diffAddToHistoryBtn"
-							title="Save this run to browser history">
-						<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-							 viewBox="0 0 16 16">
-							<path
-							d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z" />
-						</svg>
-						Add to history
-					</button>
+						<div>
+							<p class="mb-1 fw-medium">Left file</p>
+							<p class="small text-muted mb-0" id="leftFileName">Drop file here or click to browse</p>
+						</div>
+					</div>
 				</div>
 			</div>
-			<div class="border rounded overflow-hidden bg-white diff-result-frame-wrapper flex-grow-1 min-h-0">
-				<iframe id="diffReportFrame" class="w-100 h-100 border-0 d-block" style="min-height: 200px;"
-						title="Diff report"></iframe>
+			<div class="col-md-6">
+				<div class="drop-zone border rounded p-4 text-center" data-target="rightFile">
+					<input type="file" name="rightFile" id="rightFile" class="d-none"
+					       accept=".csv,.txt,.xlsx,.xlsm"/>
+					<div class="drop-content d-flex flex-column align-items-center">
+						<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+						     class="bi bi-file-earmark-text text-muted mb-2 drop-icon" viewBox="0 0 16 16">
+							<path
+								d="M5.5 7a.5.5 0 0 0 0 1h5a.5.5 0 0 0 0-1h-5zM5 9.5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5zm0 2a.5.5 0 0 1 .5-.5h2a.5.5 0 0 1 0 1h-2a.5.5 0 0 1-.5-.5z"/>
+							<path
+								d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+						</svg>
+						<div>
+							<p class="mb-1 fw-medium">Right file</p>
+							<p class="small text-muted mb-0" id="rightFileName">
+								Drop file here or click to browse
+							</p>
+						</div>
+					</div>
+				</div>
 			</div>
 		</div>
 
-		<div class="modal fade theme-aware" id="diffDownloadModal" tabindex="-1" aria-labelledby="diffDownloadModalLabel"
-			 aria-hidden="true">
-			<div class="modal-dialog">
-				<div class="modal-content">
-					<div class="modal-header">
-						<h5 class="modal-title" id="diffDownloadModalLabel">Download diff report</h5>
-						<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-					</div>
-					<div class="modal-body">
-						<p class="text-muted small mb-2">Add optional key-value details to include in the report. Leave
-							empty to download without extra details.</p>
-							<div id="diffDownloadKeyValues">
-								<div class="row g-2 mb-2 diff-download-row">
-									<div class="col-4"><input type="text" class="form-control form-control-sm"
-																  placeholder="Key" /></div>
-										<div class="col"><input type="text" class="form-control form-control-sm"
-																	placeholder="Value" /></div>
-											<div class="col-auto"><button type="button"
-																			  class="btn btn-outline-secondary btn-sm diff-download-remove"
-																			  title="Remove row">&times;</button></div>
-											</div>
-										</div>
-										<button type="button" class="btn btn-link btn-sm p-0" id="diffDownloadAddRow">+ Add another</button>
-									</div>
-									<div class="modal-footer">
-										<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-										<button type="button" class="btn btn-primary" id="diffDownloadConfirm">Download</button>
-									</div>
-								</div>
-							</div>
+		<div class="settings-bar" id="settingsBar">
+			<!-- Profile -->
+			<div class="settings-bar-group">
+				<select id="profileSelect" class="form-select form-select-sm settings-bar-profile-select"
+				        title="Load a saved profile">
+					<option value="">Profile</option>
+				</select>
+				<input type="text" id="profileNameInput"
+				       class="form-control form-control-sm d-none settings-bar-profile-name" placeholder="profile-name"
+				       title="Save current settings as"/>
+				<button type="button" class="btn btn-outline-primary btn-sm settings-bar-icon-btn"
+				        id="profileSaveBtn" title="Save profile">
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+					     viewBox="0 0 16 16">
+						<path
+							d="M2 1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4.414A1 1 0 0 0 14.707 3.707l-2.414-2.414A1 1 0 0 0 11.586 1H2zm6 11a3 3 0 1 1 0-6 3 3 0 0 1 0 6zm-4-9h5v2H4V3z"/>
+					</svg>
+				</button>
+				<button type="button" class="btn btn-outline-danger btn-sm settings-bar-icon-btn"
+				        id="profileDeleteBtn" title="Delete profile" disabled>
+					<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor"
+					     viewBox="0 0 16 16">
+						<path
+							d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5zm3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0V6z"/>
+						<path fill-rule="evenodd"
+						      d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H5.5l1-1h3l1 1H14.5a1 1 0 0 1 1 1v1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4H4.118zM2.5 3V2h11v1h-11z"/>
+					</svg>
+				</button>
+			</div>
+
+			<div class="settings-bar-separator"></div>
+
+			<!-- Normalization toggles -->
+			<div class="settings-bar-group">
+				<input type="checkbox" class="btn-check" name="caseInsensitive" id="caseInsensitive" value="true"
+				       autocomplete="off" @(Model.CaseInsensitive ? "checked" : "")/>
+				<label class="btn btn-outline-secondary btn-sm settings-bar-pill" for="caseInsensitive">Aa</label>
+
+				<input type="checkbox" class="btn-check" name="trimWhitespace" id="trimWhitespace" value="true"
+				       autocomplete="off" @(Model.TrimWhitespace ? "checked" : "")/>
+				<label class="btn btn-outline-secondary btn-sm settings-bar-pill" for="trimWhitespace">Trim</label>
+			</div>
+
+			<div class="settings-bar-separator"></div>
+
+			<!-- Numeric inputs -->
+			<div class="settings-bar-group">
+				<label for="numericToleranceRaw" class="settings-bar-label">Tolerance</label>
+				<input type="number" name="numericToleranceRaw" id="numericToleranceRaw"
+				       class="form-control form-control-sm settings-bar-num" min="0" step="any" placeholder="0.0"
+				       value="@(Model.NumericToleranceRaw)"/>
+
+				<label for="matchThresholdRaw" class="settings-bar-label">Threshold</label>
+				<input type="number" name="matchThresholdRaw" id="matchThresholdRaw"
+				       class="form-control form-control-sm settings-bar-num" min="0" max="1" step="0.05"
+				       placeholder="0.5" value="@(Model.MatchThresholdRaw)"/>
+			</div>
+
+			<div class="settings-bar-separator"></div>
+
+			<!-- Key columns chip input -->
+			<div class="settings-bar-group settings-bar-group-grow">
+				<label class="settings-bar-label">Keys</label>
+				<div class="chip-input" id="keyColumnsChipContainer">
+					<input type="text" class="chip-input-field" placeholder="column + Enter"/>
+				</div>
+				<input type="hidden" name="keyColumnsRaw" id="keyColumnsRaw" value="@(Model.KeyColumnsRaw)"/>
+			</div>
+
+			<div class="settings-bar-separator"></div>
+
+			<!-- Column mappings chip input -->
+			<div class="settings-bar-group settings-bar-group-grow">
+				<label class="settings-bar-label">Maps</label>
+				<div class="chip-input chip-input-pair" id="columnMappingsChipContainer">
+					<input type="text" class="chip-input-field" placeholder="Left:Right + Enter"/>
+				</div>
+				<textarea name="columnMappingsRaw" id="columnMappingsRaw"
+								class="d-none">@(Model.ColumnMappingsRaw)</textarea>
+			</div>
+
+			<!-- Rerun button (visible after first comparison) -->
+			<button type="button" class="btn btn-primary btn-sm d-none" id="rerunBtn" title="Re-compare with current settings">
+				<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+					<path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 1 1 .908-.418A6 6 0 1 1 8 2v1z"/>
+					<path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+				</svg>
+				Rerun
+			</button>
+
+			<div class="alert alert-danger alert-sm py-1 small d-none settings-bar-error" id="profileError"
+			     role="alert">
+			</div>
+		</div>
+
+		<div class="alert alert-danger d-none mt-2" id="compareError" role="alert"></div>
+	</form>
+</div>
+
+<div id="diffResultContainer"
+     class="position-relative flex-grow-1 min-h-0 overflow-hidden diff-result-scrollable d-flex flex-column d-none">
+	<div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2 flex-shrink-0">
+		<h5 class="mb-0">Diff Result</h5>
+		<div class="d-flex gap-2">
+			<button type="button" class="btn btn-outline-secondary btn-sm" id="diffExpandBtn"
+			        title="Expand to fullscreen">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+				     viewBox="0 0 16 16">
+					<path
+						d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/>
+				</svg>
+				Fullscreen
+			</button>
+			<button type="button" class="btn btn-outline-secondary btn-sm d-none" id="diffExitFullscreenBtn"
+			        title="Exit fullscreen">
+				Exit fullscreen
+			</button>
+			<button type="button" class="btn btn-outline-primary btn-sm" id="diffDownloadBtn"
+			        title="Download diff report (no extra details)">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+				     viewBox="0 0 16 16">
+					<path
+						d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+					<path
+						d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+				</svg>
+				Download
+			</button>
+			<button type="button" class="btn btn-outline-secondary btn-sm" id="diffDownloadWithDetailsBtn"
+			        title="Download with additional details">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+				     viewBox="0 0 16 16">
+					<path
+						d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/>
+					<path
+						d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/>
+				</svg>
+				Download with details
+			</button>
+			<button type="button" class="btn btn-outline-secondary btn-sm" id="diffAddToHistoryBtn"
+			        title="Save this run to browser history">
+				<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+				     viewBox="0 0 16 16">
+					<path
+						d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v13.5a.5.5 0 0 1-.777.416L8 13.101l-5.223 2.815A.5.5 0 0 1 2 15.5V2zm2-1a1 1 0 0 0-1 1v12.566l4.723-2.482a.5.5 0 0 1 .554 0L13 14.566V2a1 1 0 0 0-1-1H4z"/>
+				</svg>
+				Add to history
+			</button>
+		</div>
+	</div>
+	<div class="border rounded overflow-hidden bg-white diff-result-frame-wrapper flex-grow-1 min-h-0">
+		<iframe id="diffReportFrame" class="w-100 h-100 border-0 d-block" style="min-height: 200px;"
+		        title="Diff report">
+		</iframe>
+	</div>
+</div>
+
+<div class="modal fade theme-aware" id="diffDownloadModal" tabindex="-1" aria-labelledby="diffDownloadModalLabel"
+     aria-hidden="true">
+	<div class="modal-dialog">
+		<div class="modal-content">
+			<div class="modal-header">
+				<h5 class="modal-title" id="diffDownloadModalLabel">Download diff report</h5>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			</div>
+			<div class="modal-body">
+				<p class="text-muted small mb-2">
+					Add optional key-value details to include in the report. Leave
+					empty to download without extra details.
+				</p>
+				<div id="diffDownloadKeyValues">
+					<div class="row g-2 mb-2 diff-download-row">
+						<div class="col-4">
+							<input type="text" class="form-control form-control-sm"
+							       placeholder="Key"/>
+						</div>
+						<div class="col">
+							<input type="text" class="form-control form-control-sm"
+							       placeholder="Value"/>
+						</div>
+						<div class="col-auto">
+							<button type="button"
+							        class="btn btn-outline-secondary btn-sm diff-download-remove"
+							        title="Remove row">
+								&times;
+							</button>
 						</div>
 					</div>
+				</div>
+				<button type="button" class="btn btn-link btn-sm p-0" id="diffDownloadAddRow">+ Add another</button>
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+				<button type="button" class="btn btn-primary" id="diffDownloadConfirm">Download</button>
+			</div>
+		</div>
+	</div>
+</div>
+</div>
 
-					@section Scripts {
-						<script src="~/js/history-db.js" asp-append-version="true"></script>
-						<script>window.DiffCheckConfig = { maxFileSizeMb: @(Model.MaxFileSizeMb) };</script>
-						<script src="~/js/index.js" asp-append-version="true"></script>
-					}
+@section Scripts {
+	<script src="~/js/history-db.js" asp-append-version="true"></script>
+	<script>window.DiffCheckConfig = { maxFileSizeMb: @(Model.MaxFileSizeMb) };</script>
+	<script src="~/js/index.js" asp-append-version="true"></script>
+}

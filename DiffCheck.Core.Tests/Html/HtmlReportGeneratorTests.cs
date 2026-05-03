@@ -1,6 +1,5 @@
 using DiffCheck.Html;
 using DiffCheck.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DiffCheck.Core.Tests.Html;
 
@@ -15,10 +14,10 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("<!DOCTYPE html>"));
-		Assert.IsTrue(html.Contains("<html"));
-		Assert.IsTrue(html.Contains("Diff Report"));
-		Assert.IsTrue(html.Contains("</body>"));
+		Assert.Contains("<!DOCTYPE html>", html);
+		Assert.Contains("<html", html);
+		Assert.Contains("Diff Report", html);
+		Assert.Contains("</body>", html);
 	}
 
 	[TestMethod]
@@ -29,8 +28,8 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result, "left.csv", "right.csv");
 
-		Assert.IsTrue(html.Contains("left.csv"));
-		Assert.IsTrue(html.Contains("right.csv"));
+		Assert.Contains("left.csv", html);
+		Assert.Contains("right.csv", html);
 	}
 
 	[TestMethod]
@@ -47,11 +46,11 @@ public class HtmlReportGeneratorTests
 			rightFileSize: 2048
 		);
 
-		Assert.IsTrue(html.Contains("1 KB"));
-		Assert.IsTrue(html.Contains("2 KB"));
-		Assert.IsTrue(html.Contains("rows"));
-		Assert.IsTrue(html.Contains("columns"));
-		Assert.IsTrue(html.Contains("cells"));
+		Assert.Contains("1 KB", html);
+		Assert.Contains("2 KB", html);
+		Assert.Contains("rows", html);
+		Assert.Contains("columns", html);
+		Assert.Contains("cells", html);
 	}
 
 	[TestMethod]
@@ -62,7 +61,7 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result, theme: "dark");
 
-		Assert.IsTrue(html.Contains("data-theme=\"dark\""));
+		Assert.Contains("data-theme=\"dark\"", html);
 	}
 
 	[TestMethod]
@@ -73,16 +72,16 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("tools-curtain"));
-		Assert.IsTrue(html.Contains("tools-toggle"));
-		Assert.IsTrue(html.Contains("Hide unchanged columns"));
-		Assert.IsTrue(html.Contains("hide-unchanged-cols"));
-		Assert.IsTrue(html.Contains("Highlight changed rows"));
-		Assert.IsTrue(html.Contains("highlight-rows"));
-		Assert.IsTrue(html.Contains("Highlight changed cells"));
-		Assert.IsTrue(html.Contains("highlight-cells"));
-		Assert.IsTrue(html.Contains("Whole value cell diff"));
-		Assert.IsTrue(html.Contains("whole-value-diff"));
+		Assert.Contains("tools-curtain", html);
+		Assert.Contains("tools-toggle", html);
+		Assert.Contains("Hide unchanged columns", html);
+		Assert.Contains("hide-unchanged-cols", html);
+		Assert.Contains("Highlight changed rows", html);
+		Assert.Contains("highlight-rows", html);
+		Assert.Contains("Highlight changed cells", html);
+		Assert.Contains("highlight-cells", html);
+		Assert.Contains("Whole value cell diff", html);
+		Assert.Contains("whole-value-diff", html);
 	}
 
 	[TestMethod]
@@ -93,12 +92,12 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("view-btn"));
-		Assert.IsTrue(html.Contains("data-view=\"table\""));
-		Assert.IsTrue(html.Contains("data-view=\"text\""));
-		Assert.IsTrue(html.Contains("id=\"view-table\""));
-		Assert.IsTrue(html.Contains("id=\"view-text\""));
-		Assert.IsTrue(html.Contains("text-diff"));
+		Assert.Contains("view-btn", html);
+		Assert.Contains("data-view=\"table\"", html);
+		Assert.Contains("data-view=\"text\"", html);
+		Assert.Contains("id=\"view-table\"", html);
+		Assert.Contains("id=\"view-text\"", html);
+		Assert.Contains("text-diff", html);
 	}
 
 	[TestMethod]
@@ -109,10 +108,10 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("diff-grid"));
-		Assert.IsTrue(html.Contains("window.diffData"));
-		Assert.IsTrue(html.Contains("\"c\":"));
-		Assert.IsTrue(html.Contains("row-unchanged"));
+		Assert.Contains("diff-grid", html);
+		Assert.Contains("window.diffData", html);
+		Assert.Contains("\"c\":", html);
+		Assert.Contains("row-unchanged", html);
 	}
 
 	[TestMethod]
@@ -123,12 +122,10 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(
-			html.Contains("text-line-unchanged")
-				|| html.Contains("text-line-added")
-				|| html.Contains("text-line-removed")
-				|| html.Contains("text-line-modified")
-		);
+		Assert.Contains("text-line-unchanged", html);
+		Assert.Contains("text-line-added", html);
+		Assert.Contains("text-line-removed", html);
+		Assert.Contains("text-line-modified", html);
 	}
 
 	[TestMethod]
@@ -139,17 +136,17 @@ public class HtmlReportGeneratorTests
 
 		var html = generator.Generate(result);
 
-		Assert.IsTrue(html.Contains("id=\"tools-curtain\""));
-		Assert.IsTrue(html.Contains("id=\"tools-panel\""));
-		Assert.IsTrue(html.Contains("id=\"diff-grid\""));
-		Assert.IsTrue(html.Contains("id=\"view-table\""));
-		Assert.IsTrue(html.Contains("id=\"view-text\""));
-		Assert.IsTrue(html.Contains("id=\"text-diff-content\""));
-		Assert.IsTrue(html.Contains("id=\"autosize-columns-btn\""));
-		Assert.IsTrue(html.Contains("id=\"hide-unchanged-cols\""));
-		Assert.IsTrue(html.Contains("id=\"highlight-rows\""));
-		Assert.IsTrue(html.Contains("id=\"highlight-cells\""));
-		Assert.IsTrue(html.Contains("id=\"whole-value-diff\""));
+		Assert.Contains("id=\"tools-curtain\"", html);
+		Assert.Contains("id=\"tools-panel\"", html);
+		Assert.Contains("id=\"diff-grid\"", html);
+		Assert.Contains("id=\"view-table\"", html);
+		Assert.Contains("id=\"view-text\"", html);
+		Assert.Contains("id=\"text-diff-content\"", html);
+		Assert.Contains("id=\"autosize-columns-btn\"", html);
+		Assert.Contains("id=\"hide-unchanged-cols\"", html);
+		Assert.Contains("id=\"highlight-rows\"", html);
+		Assert.Contains("id=\"highlight-cells\"", html);
+		Assert.Contains("id=\"whole-value-diff\"", html);
 	}
 
 	private static DiffResult CreateSimpleDiffResult()

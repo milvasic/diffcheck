@@ -8,14 +8,9 @@ namespace DiffCheck.Html;
 /// <summary>
 /// Generates HTML reports from diff results with color-coded differences.
 /// </summary>
-public sealed class HtmlReportGenerator
+public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 {
-	private readonly HtmlReportOptions _options;
-
-	public HtmlReportGenerator(HtmlReportOptions? options = null)
-	{
-		_options = options ?? new HtmlReportOptions();
-	}
+	private readonly HtmlReportOptions _options = options ?? new HtmlReportOptions();
 
 	/// <summary>
 	/// Generates an HTML report from a diff result.
@@ -121,10 +116,7 @@ public sealed class HtmlReportGenerator
 		sb.AppendLine("    </aside>");
 		sb.AppendLine("    <div class=\"main-content\">");
 		sb.AppendLine("      <div class=\"container\">");
-		var generatedAt = DateTime.Now.ToString(
-			"yyyy-MM-dd HH:mm",
-			System.Globalization.CultureInfo.InvariantCulture
-		);
+		var generatedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm", CultureInfo.InvariantCulture);
 		// sb.AppendLine("        <h1>Diff Report</h1>");
 
 		{
@@ -1068,9 +1060,6 @@ h1 {{ margin-top: 0; color: #333; }}
 			return true;
 
 		// Booleans
-		if (bool.TryParse(left, out var b1) && bool.TryParse(right, out var b2) && b1 == b2)
-			return true;
-
-		return false;
+		return bool.TryParse(left, out var b1) && bool.TryParse(right, out var b2) && b1 == b2;
 	}
 }

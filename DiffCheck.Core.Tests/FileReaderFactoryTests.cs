@@ -1,6 +1,3 @@
-using DiffCheck;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
-
 namespace DiffCheck.Core.Tests;
 
 [TestClass]
@@ -11,7 +8,7 @@ public class FileReaderFactoryTests
 	{
 		var reader = FileReaderFactory.GetReader("data.csv");
 		Assert.IsNotNull(reader);
-		Assert.IsTrue(reader.SupportedExtensions.Contains(".csv"));
+		Assert.Contains(".csv", reader.SupportedExtensions);
 	}
 
 	[TestMethod]
@@ -26,7 +23,7 @@ public class FileReaderFactoryTests
 	{
 		var reader = FileReaderFactory.GetReader("data.xlsx");
 		Assert.IsNotNull(reader);
-		Assert.IsTrue(reader.SupportedExtensions.Contains(".xlsx"));
+		Assert.Contains(".xlsx", reader.SupportedExtensions);
 	}
 
 	[TestMethod]

@@ -151,6 +151,13 @@
 		});
 	};
 
+	ChipInput.prototype.commitPendingInput = function () {
+		var pending = (this.input.value || "").trim();
+		if (!pending) return;
+		this.addRaw(pending);
+		this.input.value = "";
+	};
+
 	// Initialize chip inputs
 	var keyColumnsChip = new ChipInput(
 		document.getElementById("keyColumnsChipContainer"),
@@ -236,6 +243,9 @@
 	}
 
 	function checkAndSubmit() {
+		keyColumnsChip.commitPendingInput();
+		columnMappingsChip.commitPendingInput();
+
 		if (!leftInput.files?.length || !rightInput.files?.length) return;
 
 		var errorEl = document.getElementById("compareError");
@@ -643,6 +653,8 @@
 			return;
 		}
 		var fd = new FormData();
+		window._diffcheckKeyColumnsChip.commitPendingInput();
+		window._diffcheckColumnMappingsChip.commitPendingInput();
 		fd.append("name", name);
 		fd.append("keyColumnsRaw", document.getElementById("keyColumnsRaw").value || "");
 		fd.append("columnMappingsRaw", document.getElementById("columnMappingsRaw").value || "");

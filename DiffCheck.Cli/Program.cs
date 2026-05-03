@@ -6,10 +6,10 @@ using DiffCheck.Profiles;
 var leftArg = new Argument<FileInfo>("left") { Description = "Path to the left file." };
 var rightArg = new Argument<FileInfo>("right") { Description = "Path to the right file." };
 
-var outputOption = new Option<FileInfo>("--output", ["-o"])
+var outputOption = new Option<FileInfo>("--output", "-o")
 {
 	Description = "Path for the output HTML report.",
-	DefaultValueFactory = x => new FileInfo("diff-report.html"),
+	DefaultValueFactory = _ => new FileInfo("diff-report.html"),
 };
 
 var columnMapOption = new Option<string[]>("--column-map")
@@ -78,7 +78,7 @@ var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an
 // Subcommand: list-profiles
 var listProfilesCommand = new Command("list-profiles", "List all saved comparison profiles.");
 listProfilesCommand.SetAction(
-	(parseResult) =>
+	(_) =>
 	{
 		var store = new ProfileStore(ProfileStore.DefaultCliDirectory);
 		var profiles = store.List();
@@ -102,8 +102,8 @@ rootCommand.SetAction(
 			var leftFilePath = parseResult.GetValue(leftArg)!.FullName;
 			var rightFilePath = parseResult.GetValue(rightArg)!.FullName;
 			var outputPath = parseResult.GetValue(outputOption)!.FullName;
-			var mapStrings = parseResult.GetValue(columnMapOption) ?? Array.Empty<string>();
-			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? Array.Empty<string>();
+			var mapStrings = parseResult.GetValue(columnMapOption) ?? [];
+			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? [];
 			var profileName = parseResult.GetValue(profileOption);
 			var saveProfileName = parseResult.GetValue(saveProfileOption);
 			var caseInsensitive = parseResult.GetValue(caseInsensitiveOption);
@@ -128,7 +128,7 @@ rootCommand.SetAction(
 				profileOptions = profile.Options;
 			}
 
-			IReadOnlyList<ColumnMapping>? columnMappings = null;
+			IReadOnlyList<ColumnMapping>? columnMappings;
 			if (mapStrings.Length > 0)
 			{
 				var list = new List<ColumnMapping>();
@@ -157,16 +157,14 @@ rootCommand.SetAction(
 				var list = new List<string>();
 				foreach (var s in keyStrings)
 				{
-					foreach (
-						var part in s.Split(
-							',',
-							StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
-						)
-					)
-					{
-						if (part.Length > 0)
-							list.Add(part);
-					}
+					list.AddRange(
+						s.Split(
+								',',
+								StringSplitOptions.RemoveEmptyEntries
+									| StringSplitOptions.TrimEntries
+							)
+							.Where(part => part.Length > 0)
+					);
 				}
 				if (list.Count > 0)
 					keyColumns = list;

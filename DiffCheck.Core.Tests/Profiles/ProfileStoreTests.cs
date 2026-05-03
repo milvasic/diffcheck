@@ -1,6 +1,5 @@
 using DiffCheck.Models;
 using DiffCheck.Profiles;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DiffCheck.Core.Tests.Profiles;
 
@@ -39,11 +38,11 @@ public class ProfileStoreTests
 		Assert.IsNotNull(loaded);
 		Assert.AreEqual(profile.Name, loaded.Name);
 		CollectionAssert.AreEqual(profile.KeyColumns!.ToList(), loaded.KeyColumns!.ToList());
-		Assert.AreEqual(2, loaded.ColumnMappings!.Count);
-		Assert.AreEqual("Name", loaded.ColumnMappings[0].LeftHeader);
-		Assert.AreEqual("FullName", loaded.ColumnMappings[0].RightHeader);
-		Assert.AreEqual("Dept", loaded.ColumnMappings[1].LeftHeader);
-		Assert.AreEqual("Department", loaded.ColumnMappings[1].RightHeader);
+		Assert.HasCount(2, loaded.ColumnMappings!);
+		Assert.AreEqual("Name", loaded.ColumnMappings![0].LeftHeader);
+		Assert.AreEqual("FullName", loaded.ColumnMappings![0].RightHeader);
+		Assert.AreEqual("Dept", loaded.ColumnMappings![1].LeftHeader);
+		Assert.AreEqual("Department", loaded.ColumnMappings![1].RightHeader);
 	}
 
 	[TestMethod]
@@ -68,7 +67,7 @@ public class ProfileStoreTests
 
 		var names = _store.List();
 
-		Assert.AreEqual(2, names.Count);
+		Assert.HasCount(2, names);
 		Assert.AreEqual("alpha", names[0]);
 		Assert.AreEqual("beta", names[1]);
 	}
@@ -77,18 +76,18 @@ public class ProfileStoreTests
 	public void List_EmptyWhenDirectoryDoesNotExist()
 	{
 		var names = _store.List();
-		Assert.AreEqual(0, names.Count);
+		Assert.IsEmpty(names);
 	}
 
 	[TestMethod]
 	public async Task Delete_RemovesProfile()
 	{
 		await _store.SaveAsync(new ComparisonProfile("to-delete", null, null));
-		Assert.AreEqual(1, _store.List().Count);
+		Assert.HasCount(1, _store.List());
 
 		await _store.DeleteAsync("to-delete");
 
-		Assert.AreEqual(0, _store.List().Count);
+		Assert.IsEmpty(_store.List());
 		Assert.IsNull(await _store.LoadAsync("to-delete"));
 	}
 
@@ -139,7 +138,7 @@ public class ProfileStoreTests
 		var loaded = await _store.LoadAsync("p");
 
 		Assert.IsNotNull(loaded);
-		CollectionAssert.AreEqual(new[] { "NewKey" }, loaded.KeyColumns!.ToList());
+		CollectionAssert.AreEqual((string[])["NewKey"], loaded.KeyColumns!.ToList());
 	}
 
 	[TestMethod]
@@ -159,8 +158,8 @@ public class ProfileStoreTests
 
 		Assert.IsNotNull(loaded);
 		Assert.IsNotNull(loaded.Options);
-		Assert.AreEqual(false, loaded.Options.CaseSensitive);
-		Assert.AreEqual(true, loaded.Options.TrimWhitespace);
+		Assert.IsFalse(loaded.Options.CaseSensitive);
+		Assert.IsTrue(loaded.Options.TrimWhitespace);
 		Assert.AreEqual(0.001, loaded.Options.NumericTolerance);
 		Assert.AreEqual(0.7, loaded.Options.MatchThreshold);
 	}
@@ -168,7 +167,7 @@ public class ProfileStoreTests
 	[TestMethod]
 	public async Task SaveAndLoad_WithNullOptions_RoundTrip()
 	{
-		var profile = new ComparisonProfile("no-opts", null, null, null);
+		var profile = new ComparisonProfile("no-opts", null, null);
 
 		await _store.SaveAsync(profile);
 		var loaded = await _store.LoadAsync("no-opts");

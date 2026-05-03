@@ -1,4 +1,3 @@
-using DiffCheck;
 using DiffCheck.Models;
 using DiffCheck.Profiles;
 using Microsoft.AspNetCore.Mvc;
@@ -6,24 +5,13 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace DiffCheck.Web.Pages;
 
-public class IndexModel : PageModel
+public class IndexModel(
+	DiffCheckService diffCheckService,
+	UploadLimits uploadLimits,
+	ProfileStore profileStore
+) : PageModel
 {
-	private readonly DiffCheckService _diffCheckService;
-	private readonly UploadLimits _uploadLimits;
-	private readonly ProfileStore _profileStore;
-
-	public IndexModel(
-		DiffCheckService diffCheckService,
-		UploadLimits uploadLimits,
-		ProfileStore profileStore
-	)
-	{
-		_diffCheckService = diffCheckService;
-		_uploadLimits = uploadLimits;
-		_profileStore = profileStore;
-	}
-
-	public long MaxFileSizeMb => _uploadLimits.MaxFileSizeBytes / (1024 * 1024);
+	public long MaxFileSizeMb => uploadLimits.MaxFileSizeBytes / (1024 * 1024);
 
 	public string? DiffReportHtml { get; set; }
 	public string? LeftFileName { get; set; }
@@ -67,7 +55,7 @@ public class IndexModel : PageModel
 		if (leftFile.Length == 0 || rightFile.Length == 0)
 			return new JsonResult(new { error = "One or both files are empty." });
 
-		var maxBytes = _uploadLimits.MaxFileSizeBytes;
+		var maxBytes = uploadLimits.MaxFileSizeBytes;
 		if (leftFile.Length > maxBytes || rightFile.Length > maxBytes)
 			return new JsonResult(new { error = $"Each file must be under {MaxFileSizeMb} MB." });
 
@@ -108,14 +96,14 @@ public class IndexModel : PageModel
 				numericToleranceRaw,
 				matchThresholdRaw
 			);
-			var result = await _diffCheckService.CompareAsync(
+			var result = await diffCheckService.CompareAsync(
 				leftPath,
 				rightPath,
 				columnMappings,
 				keyColumns,
 				comparisonOptions
 			);
-			var html = _diffCheckService.GenerateHtml(
+			var html = diffCheckService.GenerateHtml(
 				result,
 				leftFile.FileName,
 				rightFile.FileName,
@@ -170,7 +158,7 @@ public class IndexModel : PageModel
 			return Page();
 		}
 
-		var maxBytes = _uploadLimits.MaxFileSizeBytes;
+		var maxBytes = uploadLimits.MaxFileSizeBytes;
 		if (leftFile.Length > maxBytes || rightFile.Length > maxBytes)
 		{
 			ErrorMessage = $"Each file must be under {MaxFileSizeMb} MB.";
@@ -204,15 +192,15 @@ public class IndexModel : PageModel
 			var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
 			var viewPref = Request.Headers["X-View"].FirstOrDefault() ?? "table";
 
-			IReadOnlyList<ColumnMapping>? columnMappings = ParseColumnMappings(columnMappingsRaw);
-			IReadOnlyList<string>? keyColumns = ParseKeyColumns(keyColumnsRaw);
+			var columnMappings = ParseColumnMappings(columnMappingsRaw);
+			var keyColumns = ParseKeyColumns(keyColumnsRaw);
 			var comparisonOptions = BuildComparisonOptions(
 				caseInsensitive,
 				trimWhitespace,
 				numericToleranceRaw,
 				matchThresholdRaw
 			);
-			var result = await _diffCheckService.CompareAsync(
+			var result = await diffCheckService.CompareAsync(
 				leftPath,
 				rightPath,
 				columnMappings,
@@ -221,7 +209,7 @@ public class IndexModel : PageModel
 			);
 			LeftFileName = leftFile.FileName;
 			RightFileName = rightFile.FileName;
-			DiffReportHtml = _diffCheckService.GenerateHtml(
+			DiffReportHtml = diffCheckService.GenerateHtml(
 				result,
 				leftFile.FileName,
 				rightFile.FileName,
@@ -250,9 +238,9 @@ public class IndexModel : PageModel
 
 	public IActionResult OnGetProfiles()
 	{
-		var names = _profileStore.List();
+		var names = profileStore.List();
 		var profiles = names
-			.Select(name => _profileStore.LoadAsync(name).GetAwaiter().GetResult())
+			.Select(name => profileStore.LoadAsync(name).GetAwaiter().GetResult())
 			.OfType<ComparisonProfile>()
 			.Select(p => new
 			{
@@ -303,7 +291,7 @@ public class IndexModel : PageModel
 				ParseColumnMappings(columnMappingsRaw),
 				options
 			);
-			await _profileStore.SaveAsync(profile);
+			await profileStore.SaveAsync(profile);
 			return new JsonResult(new { success = true });
 		}
 		catch (ArgumentException ex)
@@ -319,7 +307,7 @@ public class IndexModel : PageModel
 
 		try
 		{
-			await _profileStore.DeleteAsync(name.Trim());
+			await profileStore.DeleteAsync(name.Trim());
 			return new JsonResult(new { success = true });
 		}
 		catch (ArgumentException ex)
@@ -332,17 +320,12 @@ public class IndexModel : PageModel
 	{
 		if (string.IsNullOrWhiteSpace(raw))
 			return null;
-		var list = new List<string>();
-		foreach (
-			var token in raw.Split(
-				new[] { ',', '\n', '\r' },
+		var list = raw.Split(
+				[',', '\n', '\r'],
 				StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries
 			)
-		)
-		{
-			if (token.Length > 0)
-				list.Add(token);
-		}
+			.Where(token => token.Length > 0)
+			.ToList();
 		return list.Count == 0 ? null : list;
 	}
 

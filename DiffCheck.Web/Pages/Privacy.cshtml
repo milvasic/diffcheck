@@ -5,32 +5,43 @@
 }
 <h1>@ViewData["Title"]</h1>
 
-<p>DiffCheck.Web compares CSV and XLSX files in your browser and on the server. This page describes how data is handled.
+<p>
+	DiffCheck.Web compares CSV and XLSX files in your browser and on the server. This page describes how data is handled.
 </p>
 
 <h2 class="h6 mt-4">File comparison</h2>
-<p>When you compare two files, they are uploaded to the server, written to temporary files, and processed to produce a
+<p>
+	When you compare two files, they are uploaded to the server, written to temporary files, and processed to produce a
 	diff report. The temporary files are deleted immediately after the comparison. File contents and the generated
-	report are not stored on the server or used for any other purpose.</p>
+	report are not stored on the server or used for any other purpose.
+</p>
 
 <h2 class="h6 mt-4">Data stored in your browser</h2>
 <p>The following data is stored only in your browser (on your device) and is not sent to the server:</p>
 <ul>
-	<li><strong>Theme preference</strong> — Your choice of light or dark theme is saved in <code>localStorage</code> so
-		it persists across visits.</li>
-	<li><strong>Diff history</strong> — If you use “Add to history”, the report HTML, file names, summary counts, and
+	<li>
+		<strong>Theme preference</strong> — Your choice of light or dark theme is saved in <code>localStorage</code> so
+		it persists across visits.
+	</li>
+	<li>
+		<strong>Diff history</strong> — If you use “Add to history”, the report HTML, file names, summary counts, and
 		any tags you add are stored in IndexedDB. This data stays on your device. Clearing site data or browser storage
-		will remove it.</li>
+		will remove it.
+	</li>
 </ul>
 
 <h2 class="h6 mt-4">What is sent to the server</h2>
-<p>When you run a comparison, the server receives only the two files you upload and an optional theme header
+<p>
+	When you run a comparison, the server receives only the two files you upload and an optional theme header
 	(light/dark) so the report can be rendered in your preferred theme. No account, login, or personal data is required
-	or collected.</p>
+	or collected.
+</p>
 
 <h2 class="h6 mt-4">Third-party resources</h2>
-<p>This site loads Bootstrap and jQuery from the jsdelivr CDN. Those providers may collect or use data according to
-	their own policies. We do not add analytics or tracking scripts.</p>
+<p>
+	This site loads Bootstrap and jQuery from the jsdelivr CDN. Those providers may collect or use data according to
+	their own policies. We do not add analytics or tracking scripts.
+</p>
 
 <h2 class="h6 mt-4">Changes</h2>
 <p>This privacy policy may be updated. The current version applies to your use of the application.</p>

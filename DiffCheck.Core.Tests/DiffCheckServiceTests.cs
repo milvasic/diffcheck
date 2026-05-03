@@ -1,6 +1,4 @@
-using DiffCheck;
 using DiffCheck.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DiffCheck.Core.Tests;
 
@@ -14,11 +12,15 @@ public class DiffCheckServiceTests
 	public async Task CompareAsync_CsvFiles_ReturnsDiffResult()
 	{
 		var service = new DiffCheckService();
-		var result = await service.CompareAsync(GetPath("left.csv"), GetPath("right.csv"));
+		var result = await service.CompareAsync(
+			GetPath("left.csv"),
+			GetPath("right.csv"),
+			cancellationToken: TestContext.CancellationToken
+		);
 
 		Assert.IsNotNull(result);
-		Assert.IsTrue(result.Headers.Count > 0);
-		Assert.IsTrue(result.Rows.Count > 0);
+		Assert.IsNotEmpty(result.Headers);
+		Assert.IsNotEmpty(result.Rows);
 		Assert.AreEqual(3, result.LeftRowCount);
 		Assert.AreEqual(3, result.RightRowCount);
 	}
@@ -27,11 +29,15 @@ public class DiffCheckServiceTests
 	public async Task CompareAsync_XlsxFiles_ReturnsDiffResult()
 	{
 		var service = new DiffCheckService();
-		var result = await service.CompareAsync(GetPath("left.xlsx"), GetPath("right.xlsx"));
+		var result = await service.CompareAsync(
+			GetPath("left.xlsx"),
+			GetPath("right.xlsx"),
+			cancellationToken: TestContext.CancellationToken
+		);
 
 		Assert.IsNotNull(result);
-		Assert.IsTrue(result.Headers.Count > 0);
-		Assert.IsTrue(result.Rows.Count > 0);
+		Assert.IsNotEmpty(result.Headers);
+		Assert.IsNotEmpty(result.Rows);
 	}
 
 	[TestMethod]
@@ -42,16 +48,17 @@ public class DiffCheckServiceTests
 
 		try
 		{
-			var result = await service.CompareAndSaveHtmlAsync(
+			await service.CompareAndSaveHtmlAsync(
 				GetPath("left.csv"),
 				GetPath("right.csv"),
-				outputPath
+				outputPath,
+				cancellationToken: TestContext.CancellationToken
 			);
 
 			Assert.IsTrue(File.Exists(outputPath));
-			var html = await File.ReadAllTextAsync(outputPath);
-			Assert.IsTrue(html.Contains("Diff Report"));
-			Assert.IsTrue(html.Contains("<!DOCTYPE html>"));
+			var html = await File.ReadAllTextAsync(outputPath, TestContext.CancellationToken);
+			Assert.Contains("Diff Report", html);
+			Assert.Contains("<!DOCTYPE html>", html);
 		}
 		finally
 		{
@@ -63,8 +70,8 @@ public class DiffCheckServiceTests
 	[TestMethod]
 	public void Compare_DataTables_ReturnsDiffResult()
 	{
-		var left = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>> { new[] { "1" } });
-		var right = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>> { new[] { "1" } });
+		var left = new DataTable(["A"], new List<IReadOnlyList<string>> { new[] { "1" } });
+		var right = new DataTable(["A"], new List<IReadOnlyList<string>> { new[] { "1" } });
 
 		var service = new DiffCheckService();
 		var result = service.Compare(left, right);
@@ -79,7 +86,13 @@ public class DiffCheckServiceTests
 		var service = new DiffCheckService();
 		await Assert.ThrowsExactlyAsync<ArgumentException>(async () =>
 		{
-			await service.CompareAsync(GetPath("left.csv"), "file.xyz");
+			await service.CompareAsync(
+				GetPath("left.csv"),
+				"file.xyz",
+				cancellationToken: TestContext.CancellationToken
+			);
 		});
 	}
+
+	public required TestContext TestContext { get; set; }
 }

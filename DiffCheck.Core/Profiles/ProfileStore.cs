@@ -10,7 +10,7 @@ namespace DiffCheck.Profiles;
 /// </summary>
 public sealed class ProfileStore
 {
-	private static readonly Regex ValidName = new(@"^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
+	private static readonly Regex ValidName = new("^[a-zA-Z0-9_-]+$", RegexOptions.Compiled);
 	private static readonly JsonSerializerOptions JsonOptions = new()
 	{
 		PropertyNamingPolicy = JsonNamingPolicy.CamelCase,

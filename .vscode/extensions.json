@@ -1,3 +1,7 @@
 {
-	"recommendations": ["csharpier.csharpier-vscode", "ms-dotnettools.csdevkit"]
+	"recommendations": [
+		"ms-dotnettools.csharp",
+		"jetbrains.resharper-code",
+		"csharpier.csharpier-vscode"
+	]
 }

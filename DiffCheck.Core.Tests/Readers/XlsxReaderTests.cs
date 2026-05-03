@@ -1,5 +1,4 @@
 using DiffCheck.Readers;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 namespace DiffCheck.Core.Tests.Readers;
 
@@ -15,11 +14,11 @@ public class XlsxReaderTests
 		var reader = new XlsxReader();
 		var path = GetPath("left.xlsx");
 
-		var result = await reader.ReadAsync(path);
+		var result = await reader.ReadAsync(path, TestContext.CancellationToken);
 
 		Assert.IsNotNull(result);
-		Assert.IsTrue(result.Headers.Count > 0);
-		Assert.IsTrue(result.Rows.Count > 0);
+		Assert.IsNotEmpty(result.Headers);
+		Assert.IsNotEmpty(result.Rows);
 	}
 
 	[TestMethod]
@@ -28,7 +27,7 @@ public class XlsxReaderTests
 		var reader = new XlsxReader();
 		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
 		{
-			await reader.ReadAsync(GetPath("nonexistent.xlsx"));
+			await reader.ReadAsync(GetPath("nonexistent.xlsx"), TestContext.CancellationToken);
 		});
 	}
 
@@ -38,7 +37,9 @@ public class XlsxReaderTests
 		var reader = new XlsxReader();
 		var extensions = reader.SupportedExtensions.ToList();
 
-		Assert.IsTrue(extensions.Contains(".xlsx"));
-		Assert.IsTrue(extensions.Contains(".xlsm"));
+		Assert.Contains(".xlsx", extensions);
+		Assert.Contains(".xlsm", extensions);
 	}
+
+	public required TestContext TestContext { get; set; }
 }

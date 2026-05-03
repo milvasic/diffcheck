@@ -1,6 +1,35 @@
 <Solution>
+	<Folder Name="/root/">
+		<File Path=".csharpierrc.json" />
+		<File Path=".dockerignore" />
+		<File Path=".gitignore" />
+		<File Path=".prettierrc.json" />
+		<File Path="AGENTS.md" />
+		<File Path="demo.png" />
+		<File Path="docker-compose.yml" />
+		<File Path="dotnet-tools.json" />
+		<File Path="global.json" />
+		<File Path="PLANNING.md" />
+		<File Path="PLANNING.UX.md" />
+		<File Path="README.md" />
+	</Folder>
+	<Folder Name="/root/.github/" />
+	<Folder Name="/root/.github/workflows/">
+		<File Path=".github\workflows\docker-publish.yml" />
+	</Folder>
+	<Folder Name="/root/.husky/">
+		<File Path=".husky\pre-commit" />
+		<File Path=".husky\task-runner.json" />
+	</Folder>
+	<Folder Name="/root/.vscode/">
+		<File Path=".vscode\extensions.json" />
+		<File Path=".vscode\launch.json" />
+		<File Path=".vscode\settings.json" />
+		<File Path=".vscode\tasks.json" />
+	</Folder>
+
+	<Project Path="DiffCheck.Cli/DiffCheck.Cli.csproj" />
 	<Project Path="DiffCheck.Core/DiffCheck.Core.csproj" />
 	<Project Path="DiffCheck.Core.Tests/DiffCheck.Core.Tests.csproj" />
-	<Project Path="DiffCheck.Cli/DiffCheck.Cli.csproj" />
 	<Project Path="DiffCheck.Web/DiffCheck.Web.csproj" />
 </Solution>
