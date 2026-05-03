@@ -141,9 +141,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 			);
 			sb.AppendLine("          </div>");
 			sb.AppendLine("          <div class=\"file-info-block\">");
-			sb.AppendLine(
-				$"            <div class=\"file-name\"><strong>Generated:</strong></div>"
-			);
+			sb.AppendLine("            <div class=\"file-name\"><strong>Generated:</strong></div>");
 			sb.AppendLine($"            <div class=\"file-stats\">{EscapeHtml(generatedAt)}</div>");
 			sb.AppendLine("          </div>");
 			sb.AppendLine("        </div>");
@@ -924,7 +922,7 @@ h1 {{ margin-top: 0; color: #333; }}
 
 	private static string FormatFileSize(long bytes)
 	{
-		string[] sizes = { "B", "KB", "MB", "GB" };
+		string[] sizes = ["B", "KB", "MB", "GB"];
 		var order = 0;
 		var size = (double)bytes;
 		while (size >= 1024 && order < sizes.Length - 1)

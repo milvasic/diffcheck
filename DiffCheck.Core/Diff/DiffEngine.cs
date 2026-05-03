@@ -10,7 +10,7 @@ namespace DiffCheck.Diff;
 public sealed class DiffEngine
 {
 	// Bounded parallelism: cap at the logical CPU count so we don't over-subscribe.
-	private static readonly ParallelOptions s_parallelOptions = new()
+	private static readonly ParallelOptions ParallelOptions = new()
 	{
 		MaxDegreeOfParallelism = Environment.ProcessorCount,
 	};
@@ -133,7 +133,7 @@ public sealed class DiffEngine
 		Parallel.For(
 			0,
 			rightIndexed.Count,
-			s_parallelOptions,
+			ParallelOptions,
 			rightIdx =>
 			{
 				var (rightRow, rightOrigIdx) = rightIndexed[rightIdx];
@@ -155,15 +155,19 @@ public sealed class DiffEngine
 					var isReordered = leftOrigIdx != rightOrigIdx;
 
 					DiffRowStatus status;
-					if (!isModified && isReordered)
+					switch (isModified)
 					{
-						status = DiffRowStatus.Reordered;
-						cells = MarkCellsReordered(cells);
+						case false when isReordered:
+							status = DiffRowStatus.Reordered;
+							cells = MarkCellsReordered(cells);
+							break;
+						case true:
+							status = DiffRowStatus.Modified;
+							break;
+						default:
+							status = DiffRowStatus.Unchanged;
+							break;
 					}
-					else if (isModified)
-						status = DiffRowStatus.Modified;
-					else
-						status = DiffRowStatus.Unchanged;
 
 					row = new DiffRow(0, status, cells, leftOrigIdx, rightOrigIdx);
 				}
@@ -186,7 +190,7 @@ public sealed class DiffEngine
 		Parallel.For(
 			0,
 			unmatchedLeft.Count,
-			s_parallelOptions,
+			ParallelOptions,
 			j =>
 			{
 				var i = unmatchedLeft[j];
@@ -202,8 +206,7 @@ public sealed class DiffEngine
 					0,
 					DiffRowStatus.Removed,
 					cells,
-					leftOrigIdx,
-					null
+					leftOrigIdx
 				);
 			}
 		);
@@ -239,8 +242,8 @@ public sealed class DiffEngine
 		// Order so added rows appear at their right index, removed at their left index.
 		// At same position: removed first, then matched, then added.
 		var orderedRows = diffRows
-			.OrderBy(r => GetSortPosition(r))
-			.ThenBy(r => GetSortType(r))
+			.OrderBy(GetSortPosition)
+			.ThenBy(GetSortType)
 			.Select(
 				(r, i) => new DiffRow(i + 1, r.Status, r.Cells, r.LeftRowIndex, r.RightRowIndex)
 			)
@@ -287,7 +290,7 @@ public sealed class DiffEngine
 	)
 	{
 		if (keyColumns == null || keyColumns.Count == 0)
-			return Array.Empty<string>();
+			return [];
 		var headerSet = new HashSet<string>(headers, StringComparer.OrdinalIgnoreCase);
 		var result = new List<string>();
 		foreach (var col in keyColumns)
@@ -352,7 +355,7 @@ public sealed class DiffEngine
 	/// because approximate numeric matching requires range-based queries rather than exact hash lookups.
 	/// </summary>
 	private static bool CanUseContentIndex(ComparisonOptions options) =>
-		!(options.NumericTolerance.HasValue && options.NumericTolerance.Value > 0.0);
+		options.NumericTolerance is not > 0.0;
 
 	/// <summary>
 	/// Normalizes a cell value to the canonical form used as the content-index key.
@@ -566,7 +569,7 @@ public sealed class DiffEngine
 			var r = rightHeaders[i];
 			if (string.IsNullOrEmpty(r))
 				continue;
-			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			var canonical = rightToCanonical.GetValueOrDefault(r, r);
 			rightColIndex[canonical] = i;
 		}
 
@@ -579,13 +582,13 @@ public sealed class DiffEngine
 			if (string.IsNullOrEmpty(h) || !seen.Add(h))
 				continue;
 			headers.Add(h);
-			headerRenames.Add(leftToRightName.TryGetValue(h, out var rightName) ? rightName : null);
+			headerRenames.Add(leftToRightName.GetValueOrDefault(h));
 		}
 		foreach (var r in rightHeaders)
 		{
 			if (string.IsNullOrEmpty(r))
 				continue;
-			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			var canonical = rightToCanonical.GetValueOrDefault(r, r);
 			if (seen.Add(canonical))
 			{
 				headers.Add(canonical);
@@ -615,7 +618,7 @@ public sealed class DiffEngine
 			var header = headers[i];
 			var value = string.Empty;
 			if (row != null && colIndex.TryGetValue(header, out var idx) && idx < row.Count)
-				value = row[idx] ?? string.Empty;
+				value = row[idx];
 
 			cells[i] = new DiffCell(
 				header,
@@ -673,10 +676,7 @@ public sealed class DiffEngine
 	/// <summary>Returns true when at least one cell in the array has Modified status.</summary>
 	private static bool HasModifiedCell(DiffCell[] cells)
 	{
-		for (var i = 0; i < cells.Length; i++)
-			if (cells[i].Status == DiffCellStatus.Modified)
-				return true;
-		return false;
+		return cells.Any(t => t.Status == DiffCellStatus.Modified);
 	}
 
 	/// <summary>
