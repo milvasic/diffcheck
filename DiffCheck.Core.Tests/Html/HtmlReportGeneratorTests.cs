@@ -151,14 +151,25 @@ public class HtmlReportGeneratorTests
 
 	private static DiffResult CreateSimpleDiffResult()
 	{
-		var headers = new List<string> { "A", "B" };
-		var cells = new List<DiffCell>
-		{
-			new("A", "1", "1", "1", DiffCellStatus.Unchanged),
-			new("B", "2", "2", "2", DiffCellStatus.Unchanged),
-		};
-		var row = new DiffRow(1, DiffRowStatus.Unchanged, cells, 1, 1);
-		var summary = new DiffSummary(0, 0, 0, 1, 0);
-		return new DiffResult(headers, new List<DiffRow> { row }, summary, 1, 2, 1, 2);
+		return new DiffResult(
+			["A", "B"],
+			[
+				new DiffRow(
+					1,
+					DiffRowStatus.Unchanged,
+					[
+						new DiffCell("A", "1", "1", "1", DiffCellStatus.Unchanged),
+						new DiffCell("B", "2", "2", "2", DiffCellStatus.Unchanged),
+					],
+					1,
+					1
+				),
+			],
+			new DiffSummary(0, 0, 0, 1),
+			1,
+			2,
+			1,
+			2
+		);
 	}
 }
