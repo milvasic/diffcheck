@@ -6,45 +6,47 @@
 
 <h1>@ViewData["Title"]</h1>
 
-<p>Use this page as a quick guide for comparing files with DiffCheck.Web.</p>
+<div class="d-flex flex-column flex-grow-1 min-h-0 overflow-auto">
+	<p>Use this page as a quick guide for comparing files with DiffCheck.Web.</p>
 
-<h2 class="h6 mt-4">1) Start a comparison</h2>
-<ol>
-	<li>Open the <a asp-page="/Index">Home</a> page.</li>
-	<li>Drop or select your left and right files.</li>
-	<li>Supported formats: <code>.csv</code>, <code>.txt</code>, <code>.xlsx</code>, <code>.xlsm</code>.</li>
-	<li>Click compare (or rerun) to generate the report.</li>
-</ol>
+	<h2 class="h6 mt-4">1) Start a comparison</h2>
+	<ol>
+		<li>Open the <a asp-page="/Index">Home</a> page.</li>
+		<li>Drop or select your left and right files.</li>
+		<li>Supported formats: <code>.csv</code>, <code>.txt</code>, <code>.xlsx</code>, <code>.xlsm</code>.</li>
+		<li>Click compare (or rerun) to generate the report.</li>
+	</ol>
 
-<h2 class="h6 mt-4">2) Configure matching and normalization</h2>
-<ul>
-	<li><strong>Aa</strong> enables case-insensitive comparison.</li>
-	<li><strong>Trim</strong> removes leading/trailing whitespace before comparison.</li>
-	<li><strong>Tolerance</strong> sets numeric tolerance for value differences.</li>
-	<li><strong>Threshold</strong> controls row matching sensitivity for reordered rows.</li>
-	<li><strong>Keys</strong> lets you specify key columns used to match rows.</li>
-	<li><strong>Maps</strong> lets you map headers between files using <code>Left:Right</code>.</li>
-</ul>
+	<h2 class="h6 mt-4">2) Configure matching and normalization</h2>
+	<ul>
+		<li><strong>Aa</strong> enables case-insensitive comparison.</li>
+		<li><strong>Trim</strong> removes leading/trailing whitespace before comparison.</li>
+		<li><strong>Tolerance</strong> sets numeric tolerance for value differences.</li>
+		<li><strong>Threshold</strong> controls row matching sensitivity for reordered rows.</li>
+		<li><strong>Keys</strong> lets you specify key columns used to match rows.</li>
+		<li><strong>Maps</strong> lets you map headers between files using <code>Left:Right</code>.</li>
+	</ul>
 
-<h2 class="h6 mt-4">3) Work with the diff result</h2>
-<ul>
-	<li>Use <strong>Fullscreen</strong> for focused review.</li>
-	<li>Use <strong>Download</strong> to export the HTML report.</li>
-	<li>Use <strong>Download with details</strong> to include extra key-value metadata.</li>
-	<li>Use <strong>Add to history</strong> to save the current run in your browser.</li>
-</ul>
+	<h2 class="h6 mt-4">3) Work with the diff result</h2>
+	<ul>
+		<li>Use <strong>Fullscreen</strong> for focused review.</li>
+		<li>Use <strong>Download</strong> to export the HTML report.</li>
+		<li>Use <strong>Download with details</strong> to include extra key-value metadata.</li>
+		<li>Use <strong>Add to history</strong> to save the current run in your browser.</li>
+	</ul>
 
-<h2 class="h6 mt-4">4) Manage saved runs</h2>
-<ul>
-	<li>Open <a asp-page="/History">History</a> to view saved reports.</li>
-	<li>Search by file names or tags.</li>
-	<li>Open, tag, download, or delete individual saved runs.</li>
-	<li>Use <strong>Clear all history</strong> to remove all saved runs from your browser.</li>
-</ul>
+	<h2 class="h6 mt-4">4) Manage saved runs</h2>
+	<ul>
+		<li>Open <a asp-page="/History">History</a> to view saved reports.</li>
+		<li>Search by file names or tags.</li>
+		<li>Open, tag, download, or delete individual saved runs.</li>
+		<li>Use <strong>Clear all history</strong> to remove all saved runs from your browser.</li>
+	</ul>
 
-<h2 class="h6 mt-4">Notes</h2>
-<ul>
-	<li>Files are uploaded only for comparison and temporary processing.</li>
-	<li>Theme preference and history are stored in your browser.</li>
-	<li>See <a asp-page="/Privacy">Privacy</a> for full data-handling details.</li>
-</ul>
+	<h2 class="h6 mt-4">Notes</h2>
+	<ul>
+		<li>Files are uploaded only for comparison and temporary processing.</li>
+		<li>Theme preference and history are stored in your browser.</li>
+		<li>See <a asp-page="/Privacy">Privacy</a> for full data-handling details.</li>
+	</ul>
+</div>
