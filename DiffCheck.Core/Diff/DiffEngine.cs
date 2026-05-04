@@ -1,3 +1,4 @@
+using System.Globalization;
 using DiffCheck.Models;
 
 namespace DiffCheck.Diff;
@@ -8,6 +9,12 @@ namespace DiffCheck.Diff;
 /// </summary>
 public sealed class DiffEngine
 {
+	// Bounded parallelism: cap at the logical CPU count so we don't over-subscribe.
+	private static readonly ParallelOptions ParallelOptions = new()
+	{
+		MaxDegreeOfParallelism = Environment.ProcessorCount,
+	};
+
 	/// <summary>
 	/// Compares two data tables.
 	/// </summary>
@@ -40,30 +47,35 @@ public sealed class DiffEngine
 		var leftIndexed = left.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
 		var rightIndexed = right.Rows.Select((row, i) => (Row: row, OriginalIndex: i + 1)).ToList();
 
-		// When key columns are specified, match by key (O(1) lookup per row) instead of content-based (O(n) per row)
+		// When key columns are specified, match by key (O(1) lookup per row).
 		var keyColumnsFiltered = FilterKeyColumns(keyColumns, headers, leftColIndex, rightColIndex);
 		Dictionary<string, Queue<int>>? leftKeyToIndices =
 			keyColumnsFiltered.Count > 0
 				? BuildLeftKeyMultimap(leftIndexed, keyColumnsFiltered, leftColIndex, opts)
 				: null;
 
-		var diffRows = new List<DiffRow>();
-		var leftMatched = new HashSet<int>();
-		var added = 0;
-		var removed = 0;
-		var modified = 0;
-		var unchanged = 0;
-		var reordered = 0;
-		var displayIndex = 1;
+		// When no key columns, build an inverted content index for O(n·cols) matching
+		// instead of the O(n²·cols) linear scan — provided NumericTolerance is not
+		// positive (positive tolerance requires range-based matching).
+		Dictionary<string, List<int>>? contentIndex =
+			leftKeyToIndices == null && CanUseContentIndex(opts)
+				? BuildContentIndex(leftIndexed, headers, leftColIndex, opts)
+				: null;
 
-		// Process right rows in original order to preserve output sequence
+		// ── Phase 1: Sequential matching ─────────────────────────────────────
+		// Determine the left-row index paired with each right row.  Sequential
+		// order is required so that duplicate keys are consumed in document order.
+		var pairings = new int?[rightIndexed.Count]; // rightIdx → leftIdx (null = unmatched)
+		var leftMatched = new HashSet<int>(rightIndexed.Count);
+
 		for (var rightIdx = 0; rightIdx < rightIndexed.Count; rightIdx++)
 		{
-			var (rightRow, rightOrigIdx) = rightIndexed[rightIdx];
+			var (rightRow, _) = rightIndexed[rightIdx];
 
-			int? bestLeft = null;
+			int? bestLeft;
 			if (leftKeyToIndices != null)
 			{
+				// O(1) hash-map lookup on key columns.
 				var rightKey = GetRowKey(rightRow, keyColumnsFiltered, rightColIndex, opts);
 				if (leftKeyToIndices.TryGetValue(rightKey, out var queue) && queue.Count > 0)
 				{
@@ -71,10 +83,24 @@ public sealed class DiffEngine
 					if (queue.Count == 0)
 						leftKeyToIndices.Remove(rightKey);
 				}
+				else
+					bestLeft = null;
+			}
+			else if (contentIndex != null)
+			{
+				// Inverted-index accelerated content match.
+				bestLeft = FindBestMatchWithIndex(
+					rightRow,
+					contentIndex,
+					leftMatched,
+					headers,
+					rightColIndex,
+					opts
+				);
 			}
 			else
 			{
-				// Find best matching left row (>= 50% columns match)
+				// Fallback: O(n²·cols) linear scan (only when NumericTolerance > 0).
 				bestLeft = FindBestMatch(
 					rightRow,
 					leftIndexed,
@@ -87,89 +113,137 @@ public sealed class DiffEngine
 			}
 
 			if (bestLeft.HasValue)
-			{
-				var (leftRow, leftOrigIdx) = leftIndexed[bestLeft.Value];
 				leftMatched.Add(bestLeft.Value);
+			pairings[rightIdx] = bestLeft;
+		}
 
-				var cells = CompareCells(
-					headers,
-					leftRow,
-					rightRow,
-					leftColIndex,
-					rightColIndex,
-					opts
-				);
-				var cellStatus = GetRowCellStatus(cells);
-				var isReordered = leftOrigIdx != rightOrigIdx;
+		// Collect unmatched left row indices for the Removed pass.
+		var unmatchedLeft = new List<int>(Math.Max(0, leftIndexed.Count - leftMatched.Count));
+		for (var i = 0; i < leftIndexed.Count; i++)
+			if (!leftMatched.Contains(i))
+				unmatchedLeft.Add(i);
 
-				DiffRowStatus status;
-				if (cellStatus == DiffCellStatus.Unchanged && isReordered)
+		// ── Phase 2: Parallel cell comparisons ───────────────────────────────
+		// Each row comparison is data-independent, so all rows can be processed
+		// in parallel.  Results are stored at pre-assigned array slots to avoid
+		// any shared mutable state.
+		var totalRows = rightIndexed.Count + unmatchedLeft.Count;
+		var diffRows = new DiffRow[totalRows];
+
+		Parallel.For(
+			0,
+			rightIndexed.Count,
+			ParallelOptions,
+			rightIdx =>
+			{
+				var (rightRow, rightOrigIdx) = rightIndexed[rightIdx];
+				var leftIdx = pairings[rightIdx];
+
+				DiffRow row;
+				if (leftIdx.HasValue)
 				{
-					status = DiffRowStatus.Reordered;
-					reordered++;
-				}
-				else if (cellStatus == DiffCellStatus.Modified)
-				{
-					status = DiffRowStatus.Modified;
-					modified++;
+					var (leftRow, leftOrigIdx) = leftIndexed[leftIdx.Value];
+					var cells = CompareCells(
+						headers,
+						leftRow,
+						rightRow,
+						leftColIndex,
+						rightColIndex,
+						opts
+					);
+					var isModified = HasModifiedCell(cells);
+					var isReordered = leftOrigIdx != rightOrigIdx;
+
+					DiffRowStatus status;
+					switch (isModified)
+					{
+						case false when isReordered:
+							status = DiffRowStatus.Reordered;
+							cells = MarkCellsReordered(cells);
+							break;
+						case true:
+							status = DiffRowStatus.Modified;
+							break;
+						default:
+							status = DiffRowStatus.Unchanged;
+							break;
+					}
+
+					row = new DiffRow(0, status, cells, leftOrigIdx, rightOrigIdx);
 				}
 				else
 				{
-					status = DiffRowStatus.Unchanged;
-					unchanged++;
+					var cells = BuildCells(
+						headers,
+						null,
+						rightRow,
+						rightColIndex,
+						DiffCellStatus.Added
+					);
+					row = new DiffRow(0, DiffRowStatus.Added, cells, null, rightOrigIdx);
 				}
 
-				// For reordered rows, mark cells as Reordered for display
-				if (status == DiffRowStatus.Reordered)
-				{
-					cells = cells
-						.Select(c => new DiffCell(
-							c.Header,
-							c.LeftValue,
-							c.RightValue,
-							c.DisplayValue,
-							DiffCellStatus.Reordered
-						))
-						.ToList();
-				}
-
-				diffRows.Add(new DiffRow(displayIndex++, status, cells, leftOrigIdx, rightOrigIdx));
+				diffRows[rightIdx] = row;
 			}
-			else
+		);
+
+		Parallel.For(
+			0,
+			unmatchedLeft.Count,
+			ParallelOptions,
+			j =>
 			{
+				var i = unmatchedLeft[j];
+				var (leftRow, leftOrigIdx) = leftIndexed[i];
 				var cells = BuildCells(
 					headers,
+					leftRow,
 					null,
-					rightRow,
-					rightColIndex,
-					DiffCellStatus.Added
+					leftColIndex,
+					DiffCellStatus.Removed
 				);
-				diffRows.Add(
-					new DiffRow(displayIndex++, DiffRowStatus.Added, cells, null, rightOrigIdx)
+				diffRows[rightIndexed.Count + j] = new DiffRow(
+					0,
+					DiffRowStatus.Removed,
+					cells,
+					leftOrigIdx
 				);
-				added++;
+			}
+		);
+
+		// ── Phase 3: Count, sort, and assemble the result ────────────────────
+		var added = 0;
+		var removed = 0;
+		var modified = 0;
+		var unchanged = 0;
+		var reordered = 0;
+		foreach (var r in diffRows)
+		{
+			switch (r.Status)
+			{
+				case DiffRowStatus.Added:
+					added++;
+					break;
+				case DiffRowStatus.Removed:
+					removed++;
+					break;
+				case DiffRowStatus.Modified:
+					modified++;
+					break;
+				case DiffRowStatus.Unchanged:
+					unchanged++;
+					break;
+				case DiffRowStatus.Reordered:
+					reordered++;
+					break;
 			}
 		}
 
-		// Remaining unmatched left rows -> Removed
-		for (var leftIdx = 0; leftIdx < leftIndexed.Count; leftIdx++)
-		{
-			if (leftMatched.Contains(leftIdx))
-				continue;
-
-			var (leftRow, leftOrigIdx) = leftIndexed[leftIdx];
-			var cells = BuildCells(headers, leftRow, null, leftColIndex, DiffCellStatus.Removed);
-			diffRows.Add(
-				new DiffRow(displayIndex++, DiffRowStatus.Removed, cells, leftOrigIdx, null)
-			);
-			removed++;
-		}
-
-		// Order so added rows appear at their right index, removed at their left index
-		// At same position: removed first, then matched, then added
+		// Order so added rows appear at their right index, removed at their left index.
+		// At same position: removed first, then matched, then added.
 		var orderedRows = diffRows
-			.OrderBy(r => GetSortPosition(r))
-			.ThenBy(r => GetSortType(r))
+			.OrderBy(GetSortPosition)
+			.ThenBy(GetSortType)
 			.Select(
 				(r, i) => new DiffRow(i + 1, r.Status, r.Cells, r.LeftRowIndex, r.RightRowIndex)
 			)
@@ -216,7 +290,7 @@ public sealed class DiffEngine
 	)
 	{
 		if (keyColumns == null || keyColumns.Count == 0)
-			return Array.Empty<string>();
+			return [];
 		var headerSet = new HashSet<string>(headers, StringComparer.OrdinalIgnoreCase);
 		var result = new List<string>();
 		foreach (var col in keyColumns)
@@ -273,6 +347,122 @@ public sealed class DiffEngine
 			parts[i] = val;
 		}
 		return string.Join(KeySeparator, parts);
+	}
+
+	/// <summary>
+	/// Returns true when the inverted content index can be used for matching.
+	/// It cannot be used when <paramref name="options"/> has a positive numeric tolerance,
+	/// because approximate numeric matching requires range-based queries rather than exact hash lookups.
+	/// </summary>
+	private static bool CanUseContentIndex(ComparisonOptions options) =>
+		options.NumericTolerance is not > 0.0;
+
+	/// <summary>
+	/// Normalizes a cell value to the canonical form used as the content-index key.
+	/// Must produce the same string for any two values that <see cref="ValuesAreEqual"/> considers equal
+	/// under the given options (trim, case, exact-numeric).
+	/// </summary>
+	private static string NormalizeForIndex(string value, ComparisonOptions options)
+	{
+		var v = options.TrimWhitespace ? value.Trim() : value;
+		if (!options.CaseSensitive)
+			v = v.ToUpperInvariant();
+		// When exact numeric tolerance is active (0.0), normalize numeric strings so that
+		// "1.0" and "1" (which both parse to the same double) hash to the same key.
+		if (
+			options.NumericTolerance is 0.0
+			&& double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out var d)
+			&& !double.IsNaN(d)
+			&& !double.IsInfinity(d)
+		)
+			v = d.ToString("R", CultureInfo.InvariantCulture);
+		return v;
+	}
+
+	/// <summary>
+	/// Builds an inverted index mapping each (header, normalizedValue) pair to the list of
+	/// left-row indices that contain that value.  Enables O(cols) candidate lookup per right
+	/// row instead of an O(n) linear scan over all left rows.
+	/// </summary>
+	private static Dictionary<string, List<int>> BuildContentIndex(
+		IReadOnlyList<(IReadOnlyList<string> Row, int OriginalIndex)> leftIndexed,
+		IReadOnlyList<string> headers,
+		IReadOnlyDictionary<string, int> leftColIndex,
+		ComparisonOptions options
+	)
+	{
+		// Capacity hint: at most one distinct key per left row (common case where values are unique).
+		// The dictionary will grow automatically for high-cardinality data.
+		var index = new Dictionary<string, List<int>>(leftIndexed.Count, StringComparer.Ordinal);
+		for (var i = 0; i < leftIndexed.Count; i++)
+		{
+			var row = leftIndexed[i].Row;
+			foreach (var header in headers)
+			{
+				var val = GetValue(row, leftColIndex, header) ?? string.Empty;
+				var key = header + KeySeparator + NormalizeForIndex(val, options);
+				if (!index.TryGetValue(key, out var list))
+					index[key] = list = [];
+				list.Add(i);
+			}
+		}
+		return index;
+	}
+
+	/// <summary>
+	/// Finds the best-scoring unmatched left row for <paramref name="rightRow"/> using the
+	/// pre-built inverted content index.  Falls back to null when no candidate meets
+	/// <see cref="ComparisonOptions.MatchThreshold"/>.
+	/// Tie-breaking preserves the same first-lowest-index semantics as <see cref="FindBestMatch"/>.
+	/// </summary>
+	private static int? FindBestMatchWithIndex(
+		IReadOnlyList<string> rightRow,
+		Dictionary<string, List<int>> contentIndex,
+		HashSet<int> leftMatched,
+		IReadOnlyList<string> headers,
+		IReadOnlyDictionary<string, int> rightColIndex,
+		ComparisonOptions options
+	)
+	{
+		if (headers.Count == 0)
+			return null;
+
+		// Count how many headers agree between the right row and each candidate left row.
+		var hitCounts = new Dictionary<int, int>();
+		foreach (var header in headers)
+		{
+			var val = GetValue(rightRow, rightColIndex, header) ?? string.Empty;
+			var key = header + KeySeparator + NormalizeForIndex(val, options);
+			if (!contentIndex.TryGetValue(key, out var candidates))
+				continue;
+			foreach (var leftIdx in candidates)
+			{
+				if (!leftMatched.Contains(leftIdx))
+				{
+					hitCounts.TryGetValue(leftIdx, out var c);
+					hitCounts[leftIdx] = c + 1;
+				}
+			}
+		}
+
+		if (hitCounts.Count == 0)
+			return null;
+
+		// Iterate in ascending left-index order so ties resolve to the lowest index,
+		// matching the behaviour of the linear-scan FindBestMatch.
+		double bestScore = 0;
+		int? bestIdx = null;
+		var total = headers.Count;
+		foreach (var leftIdx in hitCounts.Keys.Order())
+		{
+			var score = (double)hitCounts[leftIdx] / total;
+			if (score >= options.MatchThreshold && score > bestScore)
+			{
+				bestScore = score;
+				bestIdx = leftIdx;
+			}
+		}
+		return bestIdx;
 	}
 
 	private static int? FindBestMatch(
@@ -379,7 +569,7 @@ public sealed class DiffEngine
 			var r = rightHeaders[i];
 			if (string.IsNullOrEmpty(r))
 				continue;
-			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			var canonical = rightToCanonical.GetValueOrDefault(r, r);
 			rightColIndex[canonical] = i;
 		}
 
@@ -392,13 +582,13 @@ public sealed class DiffEngine
 			if (string.IsNullOrEmpty(h) || !seen.Add(h))
 				continue;
 			headers.Add(h);
-			headerRenames.Add(leftToRightName.TryGetValue(h, out var rightName) ? rightName : null);
+			headerRenames.Add(leftToRightName.GetValueOrDefault(h));
 		}
 		foreach (var r in rightHeaders)
 		{
 			if (string.IsNullOrEmpty(r))
 				continue;
-			var canonical = rightToCanonical.TryGetValue(r, out var c) ? c : r;
+			var canonical = rightToCanonical.GetValueOrDefault(r, r);
 			if (seen.Add(canonical))
 			{
 				headers.Add(canonical);
@@ -409,7 +599,11 @@ public sealed class DiffEngine
 		return (headers, leftColIndex, rightColIndex, headerRenames);
 	}
 
-	private static IReadOnlyList<DiffCell> BuildCells(
+	/// <summary>
+	/// Builds a uniform-status cell array for a row that exists only on one side
+	/// (Added or Removed).
+	/// </summary>
+	private static DiffCell[] BuildCells(
 		IReadOnlyList<string> headers,
 		IReadOnlyList<string>? leftRow,
 		IReadOnlyList<string>? rightRow,
@@ -417,28 +611,31 @@ public sealed class DiffEngine
 		DiffCellStatus defaultStatus
 	)
 	{
-		var cells = new List<DiffCell>();
+		var cells = new DiffCell[headers.Count];
 		var row = defaultStatus == DiffCellStatus.Added ? rightRow : leftRow;
-		foreach (var header in headers)
+		for (var i = 0; i < headers.Count; i++)
 		{
+			var header = headers[i];
 			var value = string.Empty;
 			if (row != null && colIndex.TryGetValue(header, out var idx) && idx < row.Count)
-				value = row[idx] ?? string.Empty;
+				value = row[idx];
 
-			cells.Add(
-				new DiffCell(
-					header,
-					defaultStatus == DiffCellStatus.Added ? null : value,
-					defaultStatus == DiffCellStatus.Removed ? null : value,
-					value,
-					defaultStatus
-				)
+			cells[i] = new DiffCell(
+				header,
+				defaultStatus == DiffCellStatus.Added ? null : value,
+				defaultStatus == DiffCellStatus.Removed ? null : value,
+				value,
+				defaultStatus
 			);
 		}
 		return cells;
 	}
 
-	private static IReadOnlyList<DiffCell> CompareCells(
+	/// <summary>
+	/// Compares corresponding cells from the left and right rows and returns a
+	/// fixed-size array of <see cref="DiffCell"/> objects.
+	/// </summary>
+	private static DiffCell[] CompareCells(
 		IReadOnlyList<string> headers,
 		IReadOnlyList<string> leftRow,
 		IReadOnlyList<string> rightRow,
@@ -447,9 +644,10 @@ public sealed class DiffEngine
 		ComparisonOptions options
 	)
 	{
-		var cells = new List<DiffCell>();
-		foreach (var header in headers)
+		var cells = new DiffCell[headers.Count];
+		for (var i = 0; i < headers.Count; i++)
 		{
+			var header = headers[i];
 			var leftVal = GetValue(leftRow, leftColIndex, header);
 			var rightVal = GetValue(rightRow, rightColIndex, header);
 
@@ -470,15 +668,35 @@ public sealed class DiffEngine
 				display = $"{leftStr} → {rightStr}";
 			}
 
-			cells.Add(new DiffCell(header, leftStr, rightStr, display, status));
+			cells[i] = new DiffCell(header, leftStr, rightStr, display, status);
 		}
 		return cells;
 	}
 
-	private static DiffCellStatus GetRowCellStatus(IReadOnlyList<DiffCell> cells)
+	/// <summary>Returns true when at least one cell in the array has Modified status.</summary>
+	private static bool HasModifiedCell(DiffCell[] cells)
 	{
-		var hasModified = cells.Any(c => c.Status == DiffCellStatus.Modified);
-		return hasModified ? DiffCellStatus.Modified : DiffCellStatus.Unchanged;
+		return cells.Any(t => t.Status == DiffCellStatus.Modified);
+	}
+
+	/// <summary>
+	/// Returns a new array where every cell's status is set to <see cref="DiffCellStatus.Reordered"/>.
+	/// </summary>
+	private static DiffCell[] MarkCellsReordered(DiffCell[] cells)
+	{
+		var result = new DiffCell[cells.Length];
+		for (var i = 0; i < cells.Length; i++)
+		{
+			var c = cells[i];
+			result[i] = new DiffCell(
+				c.Header,
+				c.LeftValue,
+				c.RightValue,
+				c.DisplayValue,
+				DiffCellStatus.Reordered
+			);
+		}
+		return result;
 	}
 
 	private static string? GetValue(
@@ -504,18 +722,8 @@ public sealed class DiffEngine
 
 		if (
 			options.NumericTolerance.HasValue
-			&& double.TryParse(
-				l,
-				System.Globalization.NumberStyles.Any,
-				System.Globalization.CultureInfo.InvariantCulture,
-				out var lNum
-			)
-			&& double.TryParse(
-				r,
-				System.Globalization.NumberStyles.Any,
-				System.Globalization.CultureInfo.InvariantCulture,
-				out var rNum
-			)
+			&& double.TryParse(l, NumberStyles.Any, CultureInfo.InvariantCulture, out var lNum)
+			&& double.TryParse(r, NumberStyles.Any, CultureInfo.InvariantCulture, out var rNum)
 		)
 		{
 			return Math.Abs(lNum - rNum) <= options.NumericTolerance.Value;

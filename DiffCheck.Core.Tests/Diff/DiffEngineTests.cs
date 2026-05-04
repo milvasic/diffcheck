@@ -154,10 +154,9 @@ public class DiffEngineTests
 				["2"],
 			]
 		);
-		var mappings = new[] { new ColumnMapping("A", "B") };
 
 		var engine = new DiffCheckDiffEngine();
-		var result = engine.Compare(left, right, mappings);
+		var result = engine.Compare(left, right, [new("A", "B")]);
 
 		Assert.HasCount(1, result.Headers);
 		Assert.AreEqual("A", result.Headers[0]);
@@ -212,10 +211,9 @@ public class DiffEngineTests
 				["4", "Dave"], // added
 			]
 		);
-		var keyColumns = new[] { "ID" };
 
 		var engine = new DiffCheckDiffEngine();
-		var result = engine.Compare(left, right, keyColumns: keyColumns);
+		var result = engine.Compare(left, right, keyColumns: ["ID"]);
 
 		Assert.HasCount(4, result.Rows); // removed, unchanged, modified, added
 		Assert.AreEqual(1, result.Summary.UnchangedRows); // ID 1
@@ -476,7 +474,7 @@ public class DiffEngineTests
 				["DEF", "999"], // key differs in case, value changed
 			]
 		);
-		var keyColumns = new[] { "ID" };
+		string[] keyColumns = ["ID"];
 
 		var engine = new DiffCheckDiffEngine();
 		var sensitive = engine.Compare(left, right, keyColumns: keyColumns);
@@ -494,5 +492,115 @@ public class DiffEngineTests
 		// Case-insensitive: keys match; abc+ABC unchanged on value, def+DEF value changed
 		Assert.AreEqual(1, insensitive.Summary.UnchangedRows);
 		Assert.AreEqual(1, insensitive.Summary.ModifiedRows);
+	}
+
+	// ── Inverted content-index path ───────────────────────────────────────────
+
+	[TestMethod]
+	public void Compare_ContentIndex_SameResultAsLinearScan_DefaultOptions()
+	{
+		// Large-ish table exercised without key columns so the inverted-index path
+		// (NumericTolerance == 0.0, the default) is taken.
+		string[] headers = ["ID", "Name", "Score"];
+		var left = new DataTable(
+			headers,
+			[
+				["1", "Alice", "90"],
+				["2", "Bob", "80"],
+				["3", "Carol", "70"],
+				["4", "Dave", "60"],
+			]
+		);
+		var right = new DataTable(
+			headers,
+			[
+				["1", "Alice", "90"], // unchanged
+				["2", "Bob", "85"], // modified Score
+				["5", "Eve", "55"], // added (new ID)
+			]
+		);
+
+		var engine = new DiffCheckDiffEngine();
+		// Without key columns → inverted-index path (default options: NumericTolerance = 0.0)
+		var result = engine.Compare(left, right);
+
+		Assert.AreEqual(1, result.Summary.UnchangedRows); // ID 1
+		Assert.AreEqual(1, result.Summary.ModifiedRows); // ID 2
+		Assert.AreEqual(1, result.Summary.AddedRows); // ID 5
+		// IDs 3 & 4 are unmatched left rows → Removed
+		Assert.AreEqual(2, result.Summary.RemovedRows);
+
+		// Verify row-level matching: ID 2 row must be Modified (Score changed 80→85)
+		var modifiedRow = result.Rows.SingleOrDefault(r => r.Status == DiffRowStatus.Modified);
+		Assert.IsNotNull(modifiedRow);
+		var scoreCell = modifiedRow.Cells.Single(c => c.Header == "Score");
+		Assert.AreEqual("80", scoreCell.LeftValue);
+		Assert.AreEqual("85", scoreCell.RightValue);
+
+		// ID 3 and ID 4 must be the two Removed rows
+		var removedIds = result
+			.Rows.Where(r => r.Status == DiffRowStatus.Removed)
+			.Select(r => r.Cells.Single(c => c.Header == "ID").LeftValue)
+			.OrderBy(id => id)
+			.ToList();
+		CollectionAssert.AreEqual((string[])["3", "4"], removedIds);
+	}
+
+	[TestMethod]
+	public void Compare_ContentIndex_NormalizesNumericStrings()
+	{
+		// "1.0" and "1" are numerically equal (default NumericTolerance = 0.0).
+		// The inverted index must hash them to the same key so the rows are matched.
+		var left = new DataTable(
+			["ID", "Val"],
+			[
+				["1.0", "hello"],
+			]
+		);
+		var right = new DataTable(
+			["ID", "Val"],
+			[
+				["1", "hello"],
+			]
+		);
+
+		var engine = new DiffCheckDiffEngine();
+		var result = engine.Compare(left, right); // no key columns → inverted-index path
+
+		// Both cells compare as equal under NumericTolerance=0.0 → row should be Unchanged
+		Assert.AreEqual(1, result.Summary.UnchangedRows);
+		Assert.AreEqual(0, result.Summary.AddedRows);
+		Assert.AreEqual(0, result.Summary.RemovedRows);
+	}
+
+	[TestMethod]
+	public void Compare_PositiveNumericTolerance_FallsBackToLinearScan()
+	{
+		// With NumericTolerance > 0 the inverted-index cannot be used; the engine
+		// must fall back to the O(n²) scan and still produce the correct result.
+		var left = new DataTable(
+			["ID", "Price"],
+			[
+				["1", "10.00"],
+				["2", "20.00"],
+			]
+		);
+		var right = new DataTable(
+			["ID", "Price"],
+			[
+				["1", "10.005"], // within 0.01 tolerance → unchanged
+				["2", "21.00"], // outside 0.01 tolerance → modified
+			]
+		);
+
+		var engine = new DiffCheckDiffEngine();
+		var result = engine.Compare(
+			left,
+			right,
+			options: new ComparisonOptions { NumericTolerance = 0.01 }
+		);
+
+		Assert.AreEqual(1, result.Summary.UnchangedRows); // row 1
+		Assert.AreEqual(1, result.Summary.ModifiedRows); // row 2
 	}
 }
