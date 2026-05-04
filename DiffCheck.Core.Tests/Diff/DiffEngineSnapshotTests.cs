@@ -10,7 +10,7 @@ using DiffCheckDiffEngine = DiffCheck.Diff.DiffEngine;
 namespace DiffCheck.Core.Tests.Diff;
 
 [TestClass]
-public sealed class DiffEngineBenchmarkSnapshotTests : VerifyBase
+public sealed class DiffEngineSnapshotTests : VerifyBase
 {
 	private static readonly IReadOnlyList<string> KeyColumns = ["C1"];
 	private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -27,6 +27,8 @@ public sealed class DiffEngineBenchmarkSnapshotTests : VerifyBase
 	[TestMethod]
 	[DataRow(1_000)]
 	[DataRow(10_000)]
+	[DataRow(100_000)]
+	[DataRow(1_000_000)]
 	public Task Compare_WithKeys_MatchesSnapshot(int rowCount)
 	{
 		var snapshot = BuildScenarioSnapshot(
