@@ -152,17 +152,11 @@ dotnet test DiffCheck.Core.Tests
 dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngine*Benchmarks*"
 ```
 
-Benchmark suites included:
+`DiffEngineScaleBenchmarks` compares all three matching strategies across dataset sizes (1k, 10k rows × 10 columns):
 
-- `DiffEngineScaleBenchmarks` — large datasets (50k, 100k, 150k rows × 10 columns)
-- `DiffEngineBeforeAfterBenchmarks` — before/after proxy comparison (linear scan vs content index)
-
-Example commands:
-
-```bash
-dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngineScaleBenchmarks*"
-dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngineBeforeAfterBenchmarks*"
-```
+- **Linear scan** (baseline) — `NumericTolerance > 0` forces a full row-by-row scan
+- **Content index** — default path; builds a hash index for O(1) row lookup
+- **Key columns lookup** — fastest when a unique key column is available
 
 ### Formatting
 

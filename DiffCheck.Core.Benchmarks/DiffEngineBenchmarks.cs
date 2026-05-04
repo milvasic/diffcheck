@@ -11,43 +11,8 @@ public class DiffEngineScaleBenchmarks
 {
 	private static readonly IReadOnlyList<string> KeyColumns = ["C1"];
 
-	private DataTable _leftNoKeys = null!;
-	private DataTable _rightNoKeys = null!;
-	private DiffEngine _engine = null!;
-
-	[Params(
-		10_000 /*, 100_000, 200_000*/
-	)]
-	public int RowCount { get; set; }
-
-	[GlobalSetup]
-	public void GlobalSetup()
-	{
-		_engine = new DiffEngine();
-		(_leftNoKeys, _rightNoKeys) = BenchmarkData.BuildDataSet(RowCount);
-	}
-
-	[Benchmark(Baseline = true, Description = "No keys, content index (NumericTolerance = 0)")]
-	public DiffSummary Compare_NoKeys_ContentIndex()
-	{
-		var result = _engine.Compare(_leftNoKeys, _rightNoKeys);
-		return result.Summary;
-	}
-
-	[Benchmark(Description = "Key columns lookup")]
-	public DiffSummary Compare_WithKeys()
-	{
-		var result = _engine.Compare(_leftNoKeys, _rightNoKeys, keyColumns: KeyColumns);
-		return result.Summary;
-	}
-}
-
-[MemoryDiagnoser]
-[SimpleJob(launchCount: 1, warmupCount: 1, iterationCount: 3)]
-public class DiffEngineBeforeAfterBenchmarks
-{
-	private DataTable _leftNoKeys = null!;
-	private DataTable _rightNoKeys = null!;
+	private DataTable _left = null!;
+	private DataTable _right = null!;
 	private DiffEngine _engine = null!;
 
 	[Params(1_000, 10_000)]
@@ -56,25 +21,28 @@ public class DiffEngineBeforeAfterBenchmarks
 	[GlobalSetup]
 	public void GlobalSetup()
 	{
-		_engine = new DiffEngine();
-		(_leftNoKeys, _rightNoKeys) = BenchmarkData.BuildDataSet(RowCount);
+		_engine = new();
+		(_left, _right) = BenchmarkData.BuildDataSet(RowCount);
 	}
 
-	[Benchmark(Baseline = true, Description = "Before proxy: linear scan (NumericTolerance > 0)")]
+	[Benchmark(Baseline = true, Description = "Linear scan (NumericTolerance > 0)")]
 	public DiffSummary Compare_NoKeys_LinearFallback()
 	{
-		var result = _engine.Compare(
-			_leftNoKeys,
-			_rightNoKeys,
-			options: new ComparisonOptions { NumericTolerance = 0.0001 }
-		);
+		var result = _engine.Compare(_left, _right, options: new() { NumericTolerance = 0.0001 });
 		return result.Summary;
 	}
 
-	[Benchmark(Description = "After: content index (NumericTolerance = 0)")]
+	[Benchmark(Description = "No keys, content index (NumericTolerance = 0)")]
 	public DiffSummary Compare_NoKeys_ContentIndex()
 	{
-		var result = _engine.Compare(_leftNoKeys, _rightNoKeys);
+		var result = _engine.Compare(_left, _right);
+		return result.Summary;
+	}
+
+	[Benchmark(Description = "Key columns lookup")]
+	public DiffSummary Compare_WithKeys()
+	{
+		var result = _engine.Compare(_left, _right, keyColumns: KeyColumns);
 		return result.Summary;
 	}
 }
@@ -109,7 +77,7 @@ internal static class BenchmarkData
 			rightRows.Add(CreateBaseRow(id));
 		}
 
-		return (new DataTable(Headers, leftRows), new DataTable(Headers, rightRows));
+		return (new(Headers, leftRows), new(Headers, rightRows));
 	}
 
 	private static string[] CreateBaseRow(int id)
