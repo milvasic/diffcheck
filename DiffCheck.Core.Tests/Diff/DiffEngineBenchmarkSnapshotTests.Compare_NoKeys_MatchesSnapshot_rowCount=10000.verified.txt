@@ -1,0 +1,325 @@
+﻿{
+  Scenario: Compare_NoKeys,
+  Input: {
+    Headers: [
+      C1,
+      C2,
+      C3,
+      C4,
+      C5,
+      C6,
+      C7,
+      C8,
+      C9,
+      C10
+    ],
+    LeftRowCount: 10000,
+    RightRowCount: 10000,
+    LeftDataSha256: 85251009E101B90D12582CC2247D6A5D903E5D69EC7A7F7B93B353A0A63C6056,
+    RightDataSha256: 3E931E3D3AD62C089A2B807233C24FFA1A485B7EF153DD0F7D06F6BC52DCDD90,
+    LeftFirstRows: [
+      [
+        1,
+        Name_1,
+        Category_1,
+        Region_1,
+        13,
+        0.125,
+        Status_1,
+        Code_1,
+        Flag_1,
+        Notes_1
+      ],
+      [
+        2,
+        Name_2,
+        Category_2,
+        Region_2,
+        26,
+        0.250,
+        Status_2,
+        Code_2,
+        Flag_0,
+        Notes_2
+      ],
+      [
+        3,
+        Name_3,
+        Category_3,
+        Region_3,
+        39,
+        0.375,
+        Status_3,
+        Code_3,
+        Flag_1,
+        Notes_3
+      ]
+    ],
+    RightFirstRows: [
+      [
+        1,
+        Name_1,
+        Category_1,
+        Region_1,
+        13,
+        0.125,
+        Status_1,
+        Code_1,
+        Flag_1,
+        Notes_1_changed
+      ],
+      [
+        2,
+        Name_2,
+        Category_2,
+        Region_2,
+        26,
+        0.250,
+        Status_2,
+        Code_2,
+        Flag_0,
+        Notes_2
+      ],
+      [
+        3,
+        Name_3,
+        Category_3,
+        Region_3,
+        39,
+        0.375,
+        Status_3,
+        Code_3,
+        Flag_1,
+        Notes_3
+      ]
+    ],
+    LeftLastRows: [
+      [
+        9998,
+        Name_998,
+        Category_48,
+        Region_18,
+        9974,
+        1249.750,
+        Status_2,
+        Code_7,
+        Flag_0,
+        Notes_16
+      ],
+      [
+        9999,
+        Name_999,
+        Category_49,
+        Region_19,
+        9987,
+        1249.875,
+        Status_3,
+        Code_8,
+        Flag_1,
+        Notes_17
+      ],
+      [
+        10000,
+        Name_0,
+        Category_0,
+        Region_0,
+        0,
+        1250.000,
+        Status_4,
+        Code_9,
+        Flag_0,
+        Notes_18
+      ]
+    ],
+    RightLastRows: [
+      [
+        10998,
+        Name_998,
+        Category_48,
+        Region_18,
+        2974,
+        1374.750,
+        Status_1,
+        Code_37,
+        Flag_0,
+        Notes_4
+      ],
+      [
+        10999,
+        Name_999,
+        Category_49,
+        Region_19,
+        2987,
+        1374.875,
+        Status_2,
+        Code_38,
+        Flag_1,
+        Notes_5
+      ],
+      [
+        11000,
+        Name_0,
+        Category_0,
+        Region_0,
+        3000,
+        1375.000,
+        Status_3,
+        Code_39,
+        Flag_0,
+        Notes_6
+      ]
+    ]
+  },
+  Output: {
+    Headers: [
+      C1,
+      C2,
+      C3,
+      C4,
+      C5,
+      C6,
+      C7,
+      C8,
+      C9,
+      C10
+    ],
+    Summary: {
+      AddedRows: 1000,
+      RemovedRows: 1000,
+      ModifiedRows: 1800,
+      UnchangedRows: 7200,
+      ReorderedRows: 0,
+      TotalRows: 11000,
+      HasDifferences: true
+    },
+    RowCount: 11000,
+    RowsSha256: 718734A17FD6A6EE69000C79F63CECD51F3C8507D907235AEA07F8DEA48BD973,
+    FirstRows: [
+      {
+        RowIndex: 1,
+        Status: Modified,
+        LeftRowIndex: 1,
+        RightRowIndex: 1,
+        ChangedHeaders: [
+          C10
+        ]
+      },
+      {
+        RowIndex: 2,
+        Status: Unchanged,
+        LeftRowIndex: 2,
+        RightRowIndex: 2
+      },
+      {
+        RowIndex: 3,
+        Status: Unchanged,
+        LeftRowIndex: 3,
+        RightRowIndex: 3
+      },
+      {
+        RowIndex: 4,
+        Status: Unchanged,
+        LeftRowIndex: 4,
+        RightRowIndex: 4
+      },
+      {
+        RowIndex: 5,
+        Status: Unchanged,
+        LeftRowIndex: 5,
+        RightRowIndex: 5
+      }
+    ],
+    LastRows: [
+      {
+        RowIndex: 10996,
+        Status: Added,
+        LeftRowIndex: null,
+        RightRowIndex: 9998,
+        ChangedHeaders: [
+          C1,
+          C2,
+          C3,
+          C4,
+          C5,
+          C6,
+          C7,
+          C8,
+          C9,
+          C10
+        ]
+      },
+      {
+        RowIndex: 10997,
+        Status: Removed,
+        LeftRowIndex: 9999,
+        RightRowIndex: null,
+        ChangedHeaders: [
+          C1,
+          C2,
+          C3,
+          C4,
+          C5,
+          C6,
+          C7,
+          C8,
+          C9,
+          C10
+        ]
+      },
+      {
+        RowIndex: 10998,
+        Status: Added,
+        LeftRowIndex: null,
+        RightRowIndex: 9999,
+        ChangedHeaders: [
+          C1,
+          C2,
+          C3,
+          C4,
+          C5,
+          C6,
+          C7,
+          C8,
+          C9,
+          C10
+        ]
+      },
+      {
+        RowIndex: 10999,
+        Status: Removed,
+        LeftRowIndex: 10000,
+        RightRowIndex: null,
+        ChangedHeaders: [
+          C1,
+          C2,
+          C3,
+          C4,
+          C5,
+          C6,
+          C7,
+          C8,
+          C9,
+          C10
+        ]
+      },
+      {
+        RowIndex: 11000,
+        Status: Added,
+        LeftRowIndex: null,
+        RightRowIndex: 10000,
+        ChangedHeaders: [
+          C1,
+          C2,
+          C3,
+          C4,
+          C5,
+          C6,
+          C7,
+          C8,
+          C9,
+          C10
+        ]
+      }
+    ]
+  }
+}

@@ -16,4 +16,15 @@
 	<ItemGroup>
 		<ProjectReference Include="..\DiffCheck.Core\DiffCheck.Core.csproj" />
 	</ItemGroup>
+
+	<ItemGroup>
+		<!--
+			Reuse deterministic test fixture data for benchmark scenarios from tests without introducing
+			a project reference from benchmarks to the test assembly.
+		-->
+		<Compile
+			Include="..\DiffCheck.Core.Tests\TestData\MockTestData.cs"
+			Link="TestData\MockTestData.cs"
+		/>
+	</ItemGroup>
 </Project>

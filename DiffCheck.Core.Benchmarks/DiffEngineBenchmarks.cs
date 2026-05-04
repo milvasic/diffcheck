@@ -1,5 +1,5 @@
-using System.Globalization;
 using BenchmarkDotNet.Attributes;
+using DiffCheck.Core.Tests.TestData;
 using DiffCheck.Diff;
 using DiffCheck.Models;
 
@@ -22,7 +22,7 @@ public class DiffEngineScaleBenchmarks
 	public void GlobalSetup()
 	{
 		_engine = new();
-		(_left, _right) = BenchmarkData.BuildDataSet(RowCount);
+		(_left, _right) = MockTestData.BuildDataSet(RowCount);
 	}
 
 	[Benchmark(Baseline = true, Description = "Linear scan (NumericTolerance > 0)")]
@@ -44,73 +44,5 @@ public class DiffEngineScaleBenchmarks
 	{
 		var result = _engine.Compare(_left, _right, keyColumns: KeyColumns);
 		return result.Summary;
-	}
-}
-
-internal static class BenchmarkData
-{
-	internal static readonly string[] Headers = [.. Enumerable.Range(1, 10).Select(i => $"C{i}")];
-
-	internal static (DataTable Left, DataTable Right) BuildDataSet(int rowCount)
-	{
-		var leftRows = new List<IReadOnlyList<string>>(rowCount);
-		var rightRows = new List<IReadOnlyList<string>>(rowCount);
-
-		var removedStart = rowCount * 9 / 10;
-		for (var i = 0; i < rowCount; i++)
-		{
-			var id = i + 1;
-			var leftRow = CreateBaseRow(id);
-			leftRows.Add(leftRow);
-
-			if (i >= removedStart)
-				continue;
-
-			var rightRow = i % 5 == 0 ? CreateModifiedRow(leftRow) : leftRow;
-			rightRows.Add(rightRow);
-		}
-
-		var addedCount = rowCount - removedStart;
-		for (var i = 0; i < addedCount; i++)
-		{
-			var id = rowCount + i + 1;
-			rightRows.Add(CreateBaseRow(id));
-		}
-
-		return (new(Headers, leftRows), new(Headers, rightRows));
-	}
-
-	private static string[] CreateBaseRow(int id)
-	{
-		return
-		[
-			id.ToString(CultureInfo.InvariantCulture),
-			$"Name_{id % 1000}",
-			$"Category_{id % 50}",
-			$"Region_{id % 20}",
-			(id * 13 % 10000).ToString(CultureInfo.InvariantCulture),
-			(id * 0.125).ToString("0.000", CultureInfo.InvariantCulture),
-			$"Status_{id % 7}",
-			$"Code_{id % 97}",
-			$"Flag_{id % 2}",
-			$"Notes_{id % 23}",
-		];
-	}
-
-	private static string[] CreateModifiedRow(string[] baseRow)
-	{
-		return
-		[
-			baseRow[0],
-			baseRow[1],
-			baseRow[2],
-			baseRow[3],
-			baseRow[4],
-			baseRow[5],
-			baseRow[6],
-			baseRow[7],
-			baseRow[8],
-			baseRow[9] + "_changed",
-		];
 	}
 }

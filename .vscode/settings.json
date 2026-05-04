@@ -13,5 +13,6 @@
 		"dotnet test": true,
 		"dotnet tool": true,
 		"dotnet csharpier": true
-	}
+	},
+	"makefile.configureOnOpen": false
 }

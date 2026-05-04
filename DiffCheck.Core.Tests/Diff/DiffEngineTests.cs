@@ -1,6 +1,7 @@
-using DiffCheck.Diff;
 using DiffCheck.Models;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+// Alias required because the 'DiffEngine' NuGet package (pulled in transitively by Verify.MSTest)
+// declares a 'DiffEngine' namespace that conflicts with our DiffCheck.Diff.DiffEngine class.
+using DiffCheckDiffEngine = DiffCheck.Diff.DiffEngine;
 
 namespace DiffCheck.Core.Tests.Diff;
 
@@ -11,15 +12,21 @@ public class DiffEngineTests
 	public void Compare_IdenticalTables_ReturnsUnchangedRows()
 	{
 		var left = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" }, new[] { "3", "4" } }
+			["A", "B"],
+			[
+				["1", "2"],
+				["3", "4"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" }, new[] { "3", "4" } }
+			["A", "B"],
+			[
+				["1", "2"],
+				["3", "4"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right);
 
 		Assert.AreEqual(2, result.Summary.UnchangedRows);
@@ -37,15 +44,20 @@ public class DiffEngineTests
 	public void Compare_AddedRow_DetectsAdded()
 	{
 		var left = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" } }
+			["A", "B"],
+			[
+				["1", "2"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" }, new[] { "3", "4" } }
+			["A", "B"],
+			[
+				["1", "2"],
+				["3", "4"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right);
 
 		Assert.AreEqual(1, result.Summary.AddedRows);
@@ -57,15 +69,20 @@ public class DiffEngineTests
 	public void Compare_RemovedRow_DetectsRemoved()
 	{
 		var left = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" }, new[] { "3", "4" } }
+			["A", "B"],
+			[
+				["1", "2"],
+				["3", "4"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" } }
+			["A", "B"],
+			[
+				["1", "2"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right);
 
 		Assert.AreEqual(1, result.Summary.RemovedRows);
@@ -77,15 +94,19 @@ public class DiffEngineTests
 	public void Compare_ModifiedCell_DetectsModified()
 	{
 		var left = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "2" } }
+			["A", "B"],
+			[
+				["1", "2"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "99" } }
+			["A", "B"],
+			[
+				["1", "99"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right);
 
 		Assert.AreEqual(1, result.Summary.ModifiedRows);
@@ -95,8 +116,8 @@ public class DiffEngineTests
 	[TestMethod]
 	public void Compare_NullLeft_ThrowsArgumentNullException()
 	{
-		var right = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>>());
-		var engine = new DiffEngine();
+		var right = new DataTable(["A"], []);
+		var engine = new DiffCheckDiffEngine();
 		Assert.ThrowsExactly<ArgumentNullException>(() =>
 		{
 			engine.Compare(null!, right);
@@ -106,8 +127,8 @@ public class DiffEngineTests
 	[TestMethod]
 	public void Compare_NullRight_ThrowsArgumentNullException()
 	{
-		var left = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>>());
-		var engine = new DiffEngine();
+		var left = new DataTable(["A"], []);
+		var engine = new DiffCheckDiffEngine();
 		Assert.ThrowsExactly<ArgumentNullException>(() =>
 		{
 			engine.Compare(left, null!);
@@ -120,19 +141,25 @@ public class DiffEngineTests
 		// Left has "A", right has "B" - same data. Without mapping: 2 columns (A, B), both sides differ.
 		// With mapping (A, B): one column "A", values compared from left A and right B -> unchanged.
 		var left = new DataTable(
-			new[] { "A" },
-			new List<IReadOnlyList<string>> { new[] { "1" }, new[] { "2" } }
+			["A"],
+			[
+				["1"],
+				["2"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "B" },
-			new List<IReadOnlyList<string>> { new[] { "1" }, new[] { "2" } }
+			["B"],
+			[
+				["1"],
+				["2"],
+			]
 		);
 		var mappings = new[] { new ColumnMapping("A", "B") };
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right, mappings);
 
-		Assert.AreEqual(1, result.Headers.Count);
+		Assert.HasCount(1, result.Headers);
 		Assert.AreEqual("A", result.Headers[0]);
 		Assert.AreEqual(2, result.Summary.UnchangedRows);
 		Assert.AreEqual(0, result.Summary.ModifiedRows);
@@ -142,15 +169,25 @@ public class DiffEngineTests
 	[TestMethod]
 	public void Compare_WithColumnMapping_WithoutMapping_ShowsTwoColumns()
 	{
-		var left = new DataTable(new[] { "A" }, new List<IReadOnlyList<string>> { new[] { "1" } });
-		var right = new DataTable(new[] { "B" }, new List<IReadOnlyList<string>> { new[] { "1" } });
+		var left = new DataTable(
+			["A"],
+			[
+				["1"],
+			]
+		);
+		var right = new DataTable(
+			["B"],
+			[
+				["1"],
+			]
+		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right);
 
-		Assert.AreEqual(2, result.Headers.Count);
-		Assert.IsTrue(result.Headers.Contains("A"));
-		Assert.IsTrue(result.Headers.Contains("B"));
+		Assert.HasCount(2, result.Headers);
+		Assert.Contains("A", result.Headers);
+		Assert.Contains("B", result.Headers);
 		// No mapping: A and B are different columns, so no column values match between rows -> row is not matched (Added + Removed)
 		Assert.AreEqual(1, result.Summary.AddedRows);
 		Assert.AreEqual(1, result.Summary.RemovedRows);
@@ -160,29 +197,27 @@ public class DiffEngineTests
 	public void Compare_WithKeyColumns_MatchesRowsByKey()
 	{
 		var left = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>>
-			{
-				new[] { "1", "Alice" },
-				new[] { "2", "Bob" },
-				new[] { "3", "Carol" },
-			}
+			["ID", "Name"],
+			[
+				["1", "Alice"],
+				["2", "Bob"],
+				["3", "Carol"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>>
-			{
-				new[] { "1", "Alice" },
-				new[] { "2", "Robert" }, // modified
-				new[] { "4", "Dave" }, // added
-			}
+			["ID", "Name"],
+			[
+				["1", "Alice"],
+				["2", "Robert"], // modified
+				["4", "Dave"], // added
+			]
 		);
 		var keyColumns = new[] { "ID" };
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right, keyColumns: keyColumns);
 
-		Assert.AreEqual(4, result.Rows.Count); // removed, unchanged, modified, added
+		Assert.HasCount(4, result.Rows); // removed, unchanged, modified, added
 		Assert.AreEqual(1, result.Summary.UnchangedRows); // ID 1
 		Assert.AreEqual(1, result.Summary.ModifiedRows); // ID 2
 		Assert.AreEqual(1, result.Summary.AddedRows); // ID 4
@@ -193,16 +228,22 @@ public class DiffEngineTests
 	public void Compare_WithKeyColumns_SameResultAsContentMatch_WhenKeysUnique()
 	{
 		var left = new DataTable(
-			new[] { "ID", "V" },
-			new List<IReadOnlyList<string>> { new[] { "1", "a" }, new[] { "2", "b" } }
+			["ID", "V"],
+			[
+				["1", "a"],
+				["2", "b"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "V" },
-			new List<IReadOnlyList<string>> { new[] { "1", "a" }, new[] { "2", "b" } }
+			["ID", "V"],
+			[
+				["1", "a"],
+				["2", "b"],
+			]
 		);
 
-		var engine = new DiffEngine();
-		var withKeys = engine.Compare(left, right, keyColumns: new[] { "ID" });
+		var engine = new DiffCheckDiffEngine();
+		var withKeys = engine.Compare(left, right, keyColumns: ["ID"]);
 		var withoutKeys = engine.Compare(left, right);
 
 		Assert.AreEqual(withoutKeys.Summary.UnchangedRows, withKeys.Summary.UnchangedRows);
@@ -216,15 +257,21 @@ public class DiffEngineTests
 	public void Compare_DefaultOptions_SameResultAsNoOptions()
 	{
 		var left = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "hello" }, new[] { "2", "world" } }
+			["A", "B"],
+			[
+				["1", "hello"],
+				["2", "world"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B" },
-			new List<IReadOnlyList<string>> { new[] { "1", "hello" }, new[] { "2", "changed" } }
+			["A", "B"],
+			[
+				["1", "hello"],
+				["2", "changed"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var withDefault = engine.Compare(left, right, options: ComparisonOptions.Default);
 		var withNull = engine.Compare(left, right);
 
@@ -237,15 +284,19 @@ public class DiffEngineTests
 	{
 		// Use 2 columns so match score for case-sensitive row is 1/2 = 0.5 (still paired)
 		var left = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "Hello" } }
+			["ID", "Name"],
+			[
+				["1", "Hello"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "HELLO" } }
+			["ID", "Name"],
+			[
+				["1", "HELLO"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var sensitive = engine.Compare(left, right);
 		var insensitive = engine.Compare(
 			left,
@@ -263,15 +314,19 @@ public class DiffEngineTests
 	{
 		// ID column matches (1==1) giving 50% score, so row is paired; Name column differs in case
 		var left = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "abc" } }
+			["ID", "Name"],
+			[
+				["1", "abc"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "ABC" } }
+			["ID", "Name"],
+			[
+				["1", "ABC"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(left, right); // default: case-sensitive
 
 		Assert.AreEqual(1, result.Summary.ModifiedRows);
@@ -282,15 +337,19 @@ public class DiffEngineTests
 	{
 		// ID column provides stable 50% match so row is always paired
 		var left = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "  hello  " } }
+			["ID", "Name"],
+			[
+				["1", "  hello  "],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Name" },
-			new List<IReadOnlyList<string>> { new[] { "1", "hello" } }
+			["ID", "Name"],
+			[
+				["1", "hello"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var withTrim = engine.Compare(
 			left,
 			right,
@@ -307,15 +366,19 @@ public class DiffEngineTests
 	{
 		// ID column provides stable 50%+ match so rows are always paired
 		var left = new DataTable(
-			new[] { "ID", "Price" },
-			new List<IReadOnlyList<string>> { new[] { "1", "1.0" } }
+			["ID", "Price"],
+			[
+				["1", "1.0"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Price" },
-			new List<IReadOnlyList<string>> { new[] { "1", "1.0009" } } // diff = 0.0009
+			["ID", "Price"],
+			[
+				["1", "1.0009"], // diff = 0.0009
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var withinTolerance = engine.Compare(
 			left,
 			right,
@@ -343,15 +406,19 @@ public class DiffEngineTests
 	public void Compare_NumericTolerance_NonNumericValuesUseStringCompare()
 	{
 		var left = new DataTable(
-			new[] { "Tag" },
-			new List<IReadOnlyList<string>> { new[] { "alpha" } }
+			["Tag"],
+			[
+				["alpha"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "Tag" },
-			new List<IReadOnlyList<string>> { new[] { "alpha" } }
+			["Tag"],
+			[
+				["alpha"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var result = engine.Compare(
 			left,
 			right,
@@ -367,15 +434,19 @@ public class DiffEngineTests
 		// Row with 1 of 4 columns matching = 25% match score.
 		// Default threshold 0.5 would NOT match them; lowered to 0.2 should match.
 		var left = new DataTable(
-			new[] { "A", "B", "C", "D" },
-			new List<IReadOnlyList<string>> { new[] { "same", "x", "y", "z" } }
+			["A", "B", "C", "D"],
+			[
+				["same", "x", "y", "z"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "A", "B", "C", "D" },
-			new List<IReadOnlyList<string>> { new[] { "same", "1", "2", "3" } }
+			["A", "B", "C", "D"],
+			[
+				["same", "1", "2", "3"],
+			]
 		);
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var defaultThreshold = engine.Compare(left, right); // 1/4 = 25% < 50% → not matched
 		var lowThreshold = engine.Compare(
 			left,
@@ -392,20 +463,22 @@ public class DiffEngineTests
 	public void Compare_CaseInsensitiveKeyColumns_MatchesRowsRegardlessOfCase()
 	{
 		var left = new DataTable(
-			new[] { "ID", "Value" },
-			new List<IReadOnlyList<string>> { new[] { "abc", "100" }, new[] { "def", "200" } }
+			["ID", "Value"],
+			[
+				["abc", "100"],
+				["def", "200"],
+			]
 		);
 		var right = new DataTable(
-			new[] { "ID", "Value" },
-			new List<IReadOnlyList<string>>
-			{
-				new[] { "ABC", "100" }, // key differs in case only
-				new[] { "DEF", "999" }, // key differs in case, value changed
-			}
+			["ID", "Value"],
+			[
+				["ABC", "100"], // key differs in case only
+				["DEF", "999"], // key differs in case, value changed
+			]
 		);
 		var keyColumns = new[] { "ID" };
 
-		var engine = new DiffEngine();
+		var engine = new DiffCheckDiffEngine();
 		var sensitive = engine.Compare(left, right, keyColumns: keyColumns);
 		var insensitive = engine.Compare(
 			left,
