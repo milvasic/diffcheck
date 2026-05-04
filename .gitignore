@@ -57,6 +57,7 @@ TestResults/
 publish/
 *.pubxml
 *.publishproj
+BenchmarkDotNet.Artifacts/
 
 # User-specific
 *.userprefs

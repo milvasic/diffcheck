@@ -60,12 +60,13 @@ Use the **Manual** page in the top navigation for a step-by-step usage guide.
 
 ## Project structure
 
-| Project                | Description                                          |
-| ---------------------- | ---------------------------------------------------- |
-| `DiffCheck.Core`       | Library: readers, diff engine, HTML report generator |
-| `DiffCheck.Cli`        | Command-line tool                                    |
-| `DiffCheck.Web`        | Razor Pages web app with file upload                 |
-| `DiffCheck.Core.Tests` | Unit tests (MSTest)                                  |
+| Project                     | Description                                          |
+| --------------------------- | ---------------------------------------------------- |
+| `DiffCheck.Core`            | Library: readers, diff engine, HTML report generator |
+| `DiffCheck.Cli`             | Command-line tool                                    |
+| `DiffCheck.Web`             | Razor Pages web app with file upload                 |
+| `DiffCheck.Core.Tests`      | Unit tests (MSTest)                                  |
+| `DiffCheck.Core.Benchmarks` | BenchmarkDotNet performance benchmarks               |
 
 ## Library usage
 
@@ -143,6 +144,24 @@ var result = await service.CompareAsync("a.xlsx", "b.xlsx");
 
 ```bash
 dotnet test DiffCheck.Core.Tests
+```
+
+### Run benchmarks
+
+```bash
+dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngine*Benchmarks*"
+```
+
+Benchmark suites included:
+
+- `DiffEngineScaleBenchmarks` — large datasets (50k, 100k, 150k rows × 10 columns)
+- `DiffEngineBeforeAfterBenchmarks` — before/after proxy comparison (linear scan vs content index)
+
+Example commands:
+
+```bash
+dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngineScaleBenchmarks*"
+dotnet run -c Release --project DiffCheck.Core.Benchmarks -- --filter "*DiffEngineBeforeAfterBenchmarks*"
 ```
 
 ### Formatting
