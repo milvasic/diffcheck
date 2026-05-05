@@ -203,7 +203,7 @@ rootCommand.SetAction(
 				columnMappings,
 				keyColumns,
 				comparisonOptions,
-				token
+				cancellationToken: token
 			);
 
 			Console.WriteLine($"Report saved to: {outputPath}");

@@ -1,5 +1,6 @@
 using DiffCheck.Models;
 using DiffCheck.Profiles;
+using DiffCheck.Web.Operations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -8,7 +9,8 @@ namespace DiffCheck.Web.Pages;
 public class IndexModel(
 	DiffCheckService diffCheckService,
 	UploadLimits uploadLimits,
-	ProfileStore profileStore
+	ProfileStore profileStore,
+	DiffOperationProgressStore progressStore
 ) : PageModel
 {
 	public long MaxFileSizeMb => uploadLimits.MaxFileSizeBytes / (1024 * 1024);
@@ -38,9 +40,32 @@ public class IndexModel(
 
 	public void OnGet() { }
 
+	public IActionResult OnGetProgress(string? operationId)
+	{
+		if (string.IsNullOrWhiteSpace(operationId))
+			return new JsonResult(new { found = false, error = "operationId is required." });
+
+		if (!progressStore.TryGet(operationId, out var status))
+			return new JsonResult(new { found = false });
+
+		return new JsonResult(
+			new
+			{
+				found = true,
+				stage = status.Stage,
+				percent = status.Percent,
+				message = status.Message,
+				isCompleted = status.IsCompleted,
+				isFailed = status.IsFailed,
+				error = status.Error,
+			}
+		);
+	}
+
 	public async Task<IActionResult> OnPostCompareAsync(
 		IFormFile? leftFile,
 		IFormFile? rightFile,
+		string? operationId,
 		string? columnMappingsRaw,
 		string? keyColumnsRaw,
 		bool caseInsensitive = false,
@@ -49,6 +74,8 @@ public class IndexModel(
 		string? matchThresholdRaw = null
 	)
 	{
+		var requestStartedAtUtc = DateTimeOffset.UtcNow;
+
 		if (leftFile == null || rightFile == null)
 			return new JsonResult(new { error = "Please provide both files." });
 
@@ -72,6 +99,10 @@ public class IndexModel(
 
 		string? leftPath = null;
 		string? rightPath = null;
+		var currentOperationId = string.IsNullOrWhiteSpace(operationId)
+			? Guid.NewGuid().ToString("N")
+			: operationId;
+		progressStore.Start(currentOperationId);
 
 		try
 		{
@@ -96,12 +127,14 @@ public class IndexModel(
 				numericToleranceRaw,
 				matchThresholdRaw
 			);
+
 			var result = await diffCheckService.CompareAsync(
 				leftPath,
 				rightPath,
 				columnMappings,
 				keyColumns,
-				comparisonOptions
+				comparisonOptions,
+				ReportFromCompare
 			);
 			var html = diffCheckService.GenerateHtml(
 				result,
@@ -110,20 +143,35 @@ public class IndexModel(
 				leftFile.Length,
 				rightFile.Length,
 				theme,
-				viewPref
+				viewPref,
+				progress => progressStore.Report(currentOperationId, progress),
+				requestStartedAtUtc
+			);
+
+			progressStore.Report(
+				currentOperationId,
+				new DiffOperationProgress(DiffOperationStage.Completed, 100, "Comparison complete")
 			);
 
 			return new JsonResult(
 				new
 				{
+					operationId = currentOperationId,
 					html,
 					leftFileName = leftFile.FileName,
 					rightFileName = rightFile.FileName,
 				}
 			);
+
+			void ReportFromCompare(DiffOperationProgress progress)
+			{
+				if (progress.Stage != DiffOperationStage.Completed)
+					progressStore.Report(currentOperationId, progress);
+			}
 		}
 		catch (Exception ex)
 		{
+			progressStore.Fail(currentOperationId, ex.Message);
 			return new JsonResult(new { error = ex.Message });
 		}
 		finally
@@ -146,6 +194,8 @@ public class IndexModel(
 		string? matchThresholdRaw = null
 	)
 	{
+		var requestStartedAtUtc = DateTimeOffset.UtcNow;
+
 		if (leftFile == null || rightFile == null)
 		{
 			ErrorMessage = "Please provide both files.";
@@ -216,7 +266,8 @@ public class IndexModel(
 				leftFile.Length,
 				rightFile.Length,
 				theme,
-				viewPref
+				viewPref,
+				requestStartedAtUtc: requestStartedAtUtc
 			);
 		}
 		catch (Exception ex)

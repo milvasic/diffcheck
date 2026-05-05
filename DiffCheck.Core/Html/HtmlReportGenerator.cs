@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +23,8 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 	/// <param name="rightFileSize">File size in bytes of the second file (optional).</param>
 	/// <param name="theme">Theme for the report: "light" or "dark". Default: "light".</param>
 	/// <param name="initialView">Initial active view: "table" or "text". Default: "table".</param>
+	/// <param name="progressCallback">Optional callback for generation progress in range 0..100.</param>
+	/// <param name="requestStartedAtUtc">Optional request start timestamp for end-to-end request duration display.</param>
 	/// <returns>HTML string.</returns>
 	public string Generate(
 		DiffResult result,
@@ -30,10 +33,15 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		long? leftFileSize = null,
 		long? rightFileSize = null,
 		string? theme = null,
-		string? initialView = null
+		string? initialView = null,
+		Action<int>? progressCallback = null,
+		DateTimeOffset? requestStartedAtUtc = null
 	)
 	{
 		ArgumentNullException.ThrowIfNull(result);
+		var generationStopwatch = Stopwatch.StartNew();
+		var progress = new ProgressReporter(progressCallback);
+		progress.Report(0);
 
 		var effectiveTheme = string.Equals(theme, "dark", StringComparison.OrdinalIgnoreCase)
 			? "dark"
@@ -43,7 +51,18 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 			? "text"
 			: "table";
 
-		var columnHasChanges = BuildColumnHasChanges(result);
+		var totalRows = result.Rows.Count;
+		var totalUnits = Math.Max(1, totalRows * 3);
+		var completedUnits = 0;
+
+		var columnHasChanges = BuildColumnHasChanges(
+			result,
+			() =>
+			{
+				completedUnits++;
+				progress.ReportByFraction(completedUnits, totalUnits);
+			}
+		);
 
 		var sb = new StringBuilder();
 		sb.AppendLine("<!DOCTYPE html>");
@@ -122,6 +141,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		{
 			var leftCells = result.LeftRowCount * result.LeftColumnCount;
 			var rightCells = result.RightRowCount * result.RightColumnCount;
+			const string diffDurationPlaceholder = "__DIFF_DURATION__";
 
 			sb.AppendLine("        <div class=\"file-info\">");
 			sb.AppendLine("          <div class=\"file-info-block\">");
@@ -143,6 +163,12 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 			sb.AppendLine("          <div class=\"file-info-block\">");
 			sb.AppendLine("            <div class=\"file-name\"><strong>Generated:</strong></div>");
 			sb.AppendLine($"            <div class=\"file-stats\">{EscapeHtml(generatedAt)}</div>");
+			sb.AppendLine("          </div>");
+			sb.AppendLine("          <div class=\"file-info-block\">");
+			sb.AppendLine(
+				"            <div class=\"file-name\"><strong>Diff duration:</strong></div>"
+			);
+			sb.AppendLine($"            <div class=\"file-stats\">{diffDurationPlaceholder}</div>");
 			sb.AppendLine("          </div>");
 			sb.AppendLine("        </div>");
 		}
@@ -169,7 +195,15 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		sb.AppendLine(
 			"          <div id=\"diff-grid\" class=\"diff-grid-container ag-theme-alpine\"></div>"
 		);
-		var diffDataJson = BuildGridDataJson(result, columnHasChanges);
+		var diffDataJson = BuildGridDataJson(
+			result,
+			columnHasChanges,
+			() =>
+			{
+				completedUnits++;
+				progress.ReportByFraction(completedUnits, totalUnits);
+			}
+		);
 		sb.AppendLine("          <script>");
 		sb.AppendLine("            window.diffData = " + diffDataJson + ";");
 		sb.AppendLine("          </script>");
@@ -177,7 +211,16 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 
 		sb.AppendLine("        <div id=\"view-text\" class=\"diff-view\" hidden>");
 		sb.AppendLine("          <pre class=\"text-diff\" id=\"text-diff-content\">");
-		sb.Append(BuildTextView(result));
+		sb.Append(
+			BuildTextView(
+				result,
+				() =>
+				{
+					completedUnits++;
+					progress.ReportByFraction(completedUnits, totalUnits);
+				}
+			)
+		);
 		sb.AppendLine("</pre>");
 		sb.AppendLine("        </div>");
 
@@ -191,10 +234,36 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		sb.AppendLine("</body>");
 		sb.AppendLine("</html>");
 
-		return sb.ToString();
+		progress.Report(100);
+		generationStopwatch.Stop();
+		var generationDurationText = FormatDuration(generationStopwatch.Elapsed);
+		var diffDurationText = generationDurationText;
+		if (requestStartedAtUtc.HasValue)
+		{
+			var elapsed = DateTimeOffset.UtcNow - requestStartedAtUtc.Value;
+			if (elapsed < TimeSpan.Zero)
+				elapsed = TimeSpan.Zero;
+			diffDurationText = FormatDuration(elapsed);
+		}
+		return sb.ToString()
+			.Replace("__DIFF_DURATION__", EscapeHtml(diffDurationText), StringComparison.Ordinal);
 	}
 
-	private static string BuildGridDataJson(DiffResult result, bool[] columnHasChanges)
+	private static string FormatDuration(TimeSpan duration)
+	{
+		if (duration.TotalSeconds < 1)
+			return $"{Math.Max(1, (int)Math.Round(duration.TotalMilliseconds))} ms";
+
+		return duration.TotalMinutes < 1
+			? $"{duration.TotalSeconds:F2} s"
+			: $"{(int)duration.TotalMinutes}m {duration.Seconds:D2}s";
+	}
+
+	private static string BuildGridDataJson(
+		DiffResult result,
+		bool[] columnHasChanges,
+		Action? rowProcessed = null
+	)
 	{
 		// Compact JSON structure to minimize report size.
 		// Root object: { h: headers[], c: columnHasChanges[], r: rows[] }
@@ -242,6 +311,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 				cells,
 			};
 			rows.Add(rowEntry);
+			rowProcessed?.Invoke();
 		}
 
 		var root = new Dictionary<string, object?>
@@ -283,7 +353,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 			_ => 0,
 		};
 
-	private static bool[] BuildColumnHasChanges(DiffResult result)
+	private static bool[] BuildColumnHasChanges(DiffResult result, Action? rowProcessed = null)
 	{
 		var n = result.Headers.Count;
 		var hasChanges = new bool[n];
@@ -295,11 +365,12 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 				if (s != DiffCellStatus.Unchanged && s != DiffCellStatus.Reordered)
 					hasChanges[i] = true;
 			}
+			rowProcessed?.Invoke();
 		}
 		return hasChanges;
 	}
 
-	private static string BuildTextView(DiffResult result)
+	private static string BuildTextView(DiffResult result, Action? rowProcessed = null)
 	{
 		var sb = new StringBuilder();
 		foreach (var row in result.Rows)
@@ -330,6 +401,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 				var line = string.Join("\t", row.Cells.Select(c => c.DisplayValue));
 				sb.AppendLine($"<span class=\"{lineClass}\">{prefix} {EscapeHtml(line)}</span>");
 			}
+			rowProcessed?.Invoke();
 		}
 		return sb.ToString();
 	}
@@ -748,6 +820,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		long? leftFileSize = null,
 		long? rightFileSize = null,
 		string? theme = null,
+		Action<int>? progressCallback = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -757,9 +830,67 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 			rightFilePath,
 			leftFileSize,
 			rightFileSize,
-			theme
+			theme,
+			progressCallback: percent => progressCallback?.Invoke((int)Math.Floor(percent * 0.9))
 		);
-		await File.WriteAllTextAsync(outputPath, html, cancellationToken);
+
+		var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
+		try
+		{
+			const int chunkSize = 16 * 1024;
+			var totalChars = Math.Max(1, html.Length);
+			for (var i = 0; i < html.Length; i += chunkSize)
+			{
+				cancellationToken.ThrowIfCancellationRequested();
+				var len = Math.Min(chunkSize, html.Length - i);
+				await writer.WriteAsync(html.AsMemory(i, len), cancellationToken);
+				var writePercent = (int)Math.Floor((i + len) * 100d / totalChars);
+				var combinedPercent = 90 + (int)Math.Floor(writePercent * 0.1);
+				progressCallback?.Invoke(Math.Min(100, combinedPercent));
+			}
+
+			await writer.FlushAsync(cancellationToken);
+			progressCallback?.Invoke(100);
+		}
+		finally
+		{
+			await writer.DisposeAsync();
+		}
+	}
+
+	private sealed class ProgressReporter(Action<int>? callback)
+	{
+		private int _nextThreshold;
+
+		public void ReportByFraction(int completed, int total)
+		{
+			var percent = (int)Math.Floor(completed * 100d / Math.Max(1, total));
+			Report(percent);
+		}
+
+		public void Report(int percent)
+		{
+			if (callback == null)
+				return;
+
+			var clamped = Math.Clamp(percent, 0, 100);
+			if (clamped < _nextThreshold && clamped < 100)
+				return;
+
+			if (clamped == 100)
+			{
+				callback(100);
+				_nextThreshold = 101;
+				return;
+			}
+
+			var snapped = clamped - (clamped % 5);
+			if (snapped < _nextThreshold)
+				return;
+
+			callback(snapped);
+			_nextThreshold = snapped + 5;
+		}
 	}
 
 	private string GetStyles()

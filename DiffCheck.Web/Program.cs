@@ -1,4 +1,5 @@
 using DiffCheck.Web.Extensions;
+using DiffCheck.Web.Operations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +7,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddUploadLimits().AddProfiles();
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<DiffCheck.DiffCheckService>();
+builder.Services.AddSingleton<DiffOperationProgressStore>();
 
 var app = builder.Build();
 

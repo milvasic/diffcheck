@@ -230,6 +230,101 @@
 
 	restoreOptionsFromStorage();
 
+	var progressPollTimer = null;
+	var stageOrder = ["ReadingLeftFile", "ReadingRightFile", "Comparing", "GeneratingReport"];
+
+	function getStageIndex(stageName) {
+		return stageOrder.indexOf(stageName);
+	}
+
+	function resetOverlayStages() {
+		document.querySelectorAll("#loadingStageList .loading-stage-item").forEach(function (item) {
+			item.classList.remove("is-active", "is-complete");
+		});
+	}
+
+	function setOverlayStageState(stageName, percent) {
+		if (!stageName) return;
+		var currentIdx = getStageIndex(stageName);
+		if (stageName === "Completed") {
+			currentIdx = stageOrder.length - 1;
+			percent = 100;
+		}
+		if (currentIdx < 0) return;
+
+		document.querySelectorAll("#loadingStageList .loading-stage-item").forEach(function (item) {
+			item.classList.remove("is-active", "is-complete");
+			var itemIdx = getStageIndex(item.getAttribute("data-stage"));
+			if (itemIdx < 0) return;
+			if (itemIdx < currentIdx) {
+				item.classList.add("is-complete");
+				return;
+			}
+			if (itemIdx === currentIdx) {
+				if ((Number(percent) || 0) >= 100) item.classList.add("is-complete");
+				else item.classList.add("is-active");
+			}
+		});
+	}
+
+	function resetOverlayProgress() {
+		var message = document.getElementById("loadingOverlayMessage");
+		var wrapper = document.getElementById("loadingOverlayProgress");
+		var bar = document.getElementById("loadingOverlayProgressBar");
+		resetOverlayStages();
+		if (message) message.textContent = "Preparing comparison...";
+		if (wrapper) wrapper.setAttribute("aria-valuenow", "0");
+		if (bar) {
+			bar.style.width = "0%";
+			bar.textContent = "0%";
+		}
+	}
+
+	function setOverlayProgress(percent, messageText, stageName) {
+		var clamped = Math.max(0, Math.min(100, Number(percent) || 0));
+		var message = document.getElementById("loadingOverlayMessage");
+		var wrapper = document.getElementById("loadingOverlayProgress");
+		var bar = document.getElementById("loadingOverlayProgressBar");
+		setOverlayStageState(stageName, clamped);
+		if (message && messageText) message.textContent = messageText;
+		if (wrapper) wrapper.setAttribute("aria-valuenow", String(clamped));
+		if (bar) {
+			bar.style.width = clamped + "%";
+			bar.textContent = clamped + "%";
+		}
+	}
+
+	function stopProgressPolling() {
+		if (progressPollTimer) {
+			clearInterval(progressPollTimer);
+			progressPollTimer = null;
+		}
+	}
+
+	function startProgressPolling(operationId, onFailed) {
+		stopProgressPolling();
+		progressPollTimer = setInterval(function () {
+			fetch("?handler=Progress&operationId=" + encodeURIComponent(operationId), {
+				cache: "no-store",
+			})
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					if (!data || !data.found) return;
+					setOverlayProgress(data.percent, data.message, data.stage);
+					if (data.isFailed) {
+						stopProgressPolling();
+						if (typeof onFailed === "function") {
+							onFailed(data.error || data.message || "Comparison failed");
+						}
+					}
+					if (data.isCompleted) stopProgressPolling();
+				})
+				.catch(function () {});
+		}, 250);
+	}
+
 	// ── Form submit / file drop ─────────────────────────────────────────
 
 	form.addEventListener("submit", function (e) {
@@ -265,11 +360,23 @@
 		saveOptionsToStorage();
 		var overlay = document.getElementById("loadingOverlay");
 		var errorEl = document.getElementById("compareError");
+		resetOverlayProgress();
 		overlay.classList.remove("d-none");
 		overlay.classList.add("d-flex");
 		errorEl.classList.add("d-none");
 
 		var formData = new FormData(form);
+		var operationId =
+			typeof crypto !== "undefined" && crypto.randomUUID
+				? crypto.randomUUID()
+				: "op-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+		formData.append("operationId", operationId);
+		startProgressPolling(operationId, function (message) {
+			overlay.classList.add("d-none");
+			overlay.classList.remove("d-flex");
+			errorEl.textContent = message;
+			errorEl.classList.remove("d-none");
+		});
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
 		try {
@@ -287,6 +394,8 @@
 				return r.json();
 			})
 			.then(function (data) {
+				stopProgressPolling();
+				setOverlayProgress(100, "Comparison complete", "Completed");
 				overlay.classList.add("d-none");
 				overlay.classList.remove("d-flex");
 				if (data.error) {
@@ -317,6 +426,7 @@
 				}
 			})
 			.catch(function (err) {
+				stopProgressPolling();
 				overlay.classList.add("d-none");
 				overlay.classList.remove("d-flex");
 				errorEl.textContent = "Error: " + (err.message || "Comparison failed");

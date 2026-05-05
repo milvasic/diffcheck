@@ -20,8 +20,30 @@
 	      style="min-height: 80px;">
 		<div class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center rounded"
 		     id="loadingOverlay" style="z-index: 10; min-height: 120px;">
-			<div class="spinner-border text-primary" role="status">
-				<span class="visually-hidden">Comparing...</span>
+			<div class="d-flex flex-column align-items-center gap-2" style="min-width: 260px;">
+				<ul class="loading-stage-list" id="loadingStageList" aria-label="Comparison stages">
+					<li class="loading-stage-item" data-stage="ReadingLeftFile">
+						<span class="loading-stage-circle" aria-hidden="true"></span>
+						<span class="loading-stage-label">Left</span>
+					</li>
+					<li class="loading-stage-item" data-stage="ReadingRightFile">
+						<span class="loading-stage-circle" aria-hidden="true"></span>
+						<span class="loading-stage-label">Right</span>
+					</li>
+					<li class="loading-stage-item" data-stage="Comparing">
+						<span class="loading-stage-circle" aria-hidden="true"></span>
+						<span class="loading-stage-label">Compare</span>
+					</li>
+					<li class="loading-stage-item" data-stage="GeneratingReport">
+						<span class="loading-stage-circle" aria-hidden="true"></span>
+						<span class="loading-stage-label">Report</span>
+					</li>
+				</ul>
+				<div class="small text-muted" id="loadingOverlayMessage">Preparing comparison...</div>
+				<div class="progress w-100" role="progressbar" aria-label="Comparison progress" aria-valuemin="0"
+				     aria-valuemax="100" aria-valuenow="0" id="loadingOverlayProgress">
+					<div id="loadingOverlayProgressBar" class="progress-bar" style="width: 0%;">0%</div>
+				</div>
 			</div>
 		</div>
 		<div class="row g-3 mb-2">

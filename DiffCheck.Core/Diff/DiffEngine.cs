@@ -23,17 +23,22 @@ public sealed class DiffEngine
 	/// <param name="columnMappings">Optional pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional list of column names to match rows by (faster than content-based matching).</param>
 	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
+	/// <param name="progressCallback">Optional callback for compare-stage progress in range 0..100.</param>
 	/// <returns>The diff result.</returns>
 	public DiffResult Compare(
 		DataTable left,
 		DataTable right,
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
 		IReadOnlyList<string>? keyColumns = null,
-		ComparisonOptions? options = null
+		ComparisonOptions? options = null,
+		Action<int>? progressCallback = null
 	)
 	{
 		ArgumentNullException.ThrowIfNull(left);
 		ArgumentNullException.ThrowIfNull(right);
+
+		var progress = new ProgressReporter(progressCallback);
+		progress.Report(0);
 
 		var opts = options ?? ComparisonOptions.Default;
 
@@ -67,6 +72,15 @@ public sealed class DiffEngine
 		// order is required so that duplicate keys are consumed in document order.
 		var pairings = new int?[rightIndexed.Count]; // rightIdx → leftIdx (null = unmatched)
 		var leftMatched = new HashSet<int>(rightIndexed.Count);
+		var totalWorkUnits = Math.Max(
+			1,
+			rightIndexed.Count
+				+ rightIndexed.Count
+				+ leftIndexed.Count
+				+ rightIndexed.Count
+				+ leftIndexed.Count
+		);
+		var completedWorkUnits = 0;
 
 		for (var rightIdx = 0; rightIdx < rightIndexed.Count; rightIdx++)
 		{
@@ -115,13 +129,19 @@ public sealed class DiffEngine
 			if (bestLeft.HasValue)
 				leftMatched.Add(bestLeft.Value);
 			pairings[rightIdx] = bestLeft;
+			var done = Interlocked.Increment(ref completedWorkUnits);
+			progress.ReportByFraction(done, totalWorkUnits);
 		}
 
 		// Collect unmatched left row indices for the Removed pass.
 		var unmatchedLeft = new List<int>(Math.Max(0, leftIndexed.Count - leftMatched.Count));
 		for (var i = 0; i < leftIndexed.Count; i++)
+		{
 			if (!leftMatched.Contains(i))
 				unmatchedLeft.Add(i);
+			var done = Interlocked.Increment(ref completedWorkUnits);
+			progress.ReportByFraction(done, totalWorkUnits);
+		}
 
 		// ── Phase 2: Parallel cell comparisons ───────────────────────────────
 		// Each row comparison is data-independent, so all rows can be processed
@@ -184,6 +204,8 @@ public sealed class DiffEngine
 				}
 
 				diffRows[rightIdx] = row;
+				var done = Interlocked.Increment(ref completedWorkUnits);
+				progress.ReportByFraction(done, totalWorkUnits);
 			}
 		);
 
@@ -208,6 +230,8 @@ public sealed class DiffEngine
 					cells,
 					leftOrigIdx
 				);
+				var done = Interlocked.Increment(ref completedWorkUnits);
+				progress.ReportByFraction(done, totalWorkUnits);
 			}
 		);
 
@@ -237,6 +261,8 @@ public sealed class DiffEngine
 					reordered++;
 					break;
 			}
+			completedWorkUnits++;
+			progress.ReportByFraction(completedWorkUnits, totalWorkUnits);
 		}
 
 		// Order so added rows appear at their right index, removed at their left index.
@@ -250,6 +276,7 @@ public sealed class DiffEngine
 			.ToList();
 
 		var summary = new DiffSummary(added, removed, modified, unchanged, reordered);
+		progress.Report(100);
 		return new DiffResult(
 			headers,
 			orderedRows,
@@ -260,6 +287,45 @@ public sealed class DiffEngine
 			rightColumnCount: right.Headers.Count,
 			columnHeaderRenames: headerRenames
 		);
+	}
+
+	private sealed class ProgressReporter(Action<int>? callback)
+	{
+		private readonly Lock _gate = new();
+		private int _nextThreshold;
+
+		public void ReportByFraction(int completed, int total)
+		{
+			var percent = (int)Math.Floor(completed * 100d / Math.Max(1, total));
+			Report(percent);
+		}
+
+		public void Report(int percent)
+		{
+			if (callback == null)
+				return;
+
+			var clamped = Math.Clamp(percent, 0, 100);
+			lock (_gate)
+			{
+				if (clamped < _nextThreshold && clamped < 100)
+					return;
+
+				if (clamped == 100)
+				{
+					callback(100);
+					_nextThreshold = 101;
+					return;
+				}
+
+				var snapped = clamped - (clamped % 5);
+				if (snapped < _nextThreshold)
+					return;
+
+				callback(snapped);
+				_nextThreshold = snapped + 5;
+			}
+		}
 	}
 
 	private static int GetSortPosition(DiffRow r)

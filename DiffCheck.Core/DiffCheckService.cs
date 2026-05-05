@@ -50,6 +50,7 @@ public sealed class DiffCheckService
 	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
 	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
+	/// <param name="progressCallback">Optional callback invoked as operation stages complete.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result.</returns>
 	/// <exception cref="ArgumentException">Thrown when file format is not supported.</exception>
@@ -59,9 +60,14 @@ public sealed class DiffCheckService
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
 		IReadOnlyList<string>? keyColumns = null,
 		ComparisonOptions? options = null,
+		Action<DiffOperationProgress>? progressCallback = null,
 		CancellationToken cancellationToken = default
 	)
 	{
+		progressCallback?.Invoke(
+			new DiffOperationProgress(DiffOperationStage.Starting, 0, "Preparing comparison")
+		);
+
 		var leftReader =
 			_leftReader
 			?? FileReaderFactory.GetReader(leftFilePath)
@@ -78,10 +84,74 @@ public sealed class DiffCheckService
 				nameof(rightFilePath)
 			);
 
-		var left = await leftReader.ReadAsync(leftFilePath, cancellationToken);
-		var right = await rightReader.ReadAsync(rightFilePath, cancellationToken);
+		progressCallback?.Invoke(
+			new DiffOperationProgress(
+				DiffOperationStage.ReadingLeftFile,
+				0,
+				"Reading left file: 0%"
+			)
+		);
+		var left = await leftReader.ReadAsync(
+			leftFilePath,
+			percent =>
+				progressCallback?.Invoke(
+					new DiffOperationProgress(
+						DiffOperationStage.ReadingLeftFile,
+						percent,
+						$"Reading left file: {percent}%"
+					)
+				),
+			cancellationToken
+		);
 
-		return _diffEngine.Compare(left, right, columnMappings, keyColumns, options);
+		progressCallback?.Invoke(
+			new DiffOperationProgress(
+				DiffOperationStage.ReadingRightFile,
+				0,
+				"Reading right file: 0%"
+			)
+		);
+		var right = await rightReader.ReadAsync(
+			rightFilePath,
+			percent =>
+				progressCallback?.Invoke(
+					new DiffOperationProgress(
+						DiffOperationStage.ReadingRightFile,
+						percent,
+						$"Reading right file: {percent}%"
+					)
+				),
+			cancellationToken
+		);
+
+		progressCallback?.Invoke(
+			new DiffOperationProgress(
+				DiffOperationStage.Comparing,
+				0,
+				"Comparing rows and cells: 0%"
+			)
+		);
+		var result = _diffEngine.Compare(
+			left,
+			right,
+			columnMappings,
+			keyColumns,
+			options,
+			percent =>
+				progressCallback?.Invoke(
+					new DiffOperationProgress(
+						DiffOperationStage.Comparing,
+						percent,
+						$"Comparing rows and cells: {percent}%"
+					)
+				)
+		);
+
+		progressCallback?.Invoke(
+			new DiffOperationProgress(DiffOperationStage.Completed, 100, "Comparison complete")
+		);
+
+		return result;
 	}
 
 	/// <summary>
@@ -112,6 +182,7 @@ public sealed class DiffCheckService
 	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
 	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
 	/// <param name="options">Optional normalization and matching options. Defaults preserve the original behavior.</param>
+	/// <param name="progressCallback">Optional callback invoked as operation stages complete.</param>
 	/// <param name="cancellationToken">Cancellation token.</param>
 	/// <returns>The diff result (for further use if needed).</returns>
 	public async Task<DiffResult> CompareAndSaveHtmlAsync(
@@ -121,6 +192,7 @@ public sealed class DiffCheckService
 		IReadOnlyList<ColumnMapping>? columnMappings = null,
 		IReadOnlyList<string>? keyColumns = null,
 		ComparisonOptions? options = null,
+		Action<DiffOperationProgress>? progressCallback = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -130,7 +202,15 @@ public sealed class DiffCheckService
 			columnMappings,
 			keyColumns,
 			options,
+			ReportFromCompare,
 			cancellationToken
+		);
+		progressCallback?.Invoke(
+			new DiffOperationProgress(
+				DiffOperationStage.GeneratingReport,
+				0,
+				"Generating HTML report: 0%"
+			)
 		);
 		var leftSize = new FileInfo(leftFilePath).Length;
 		var rightSize = new FileInfo(rightFilePath).Length;
@@ -142,9 +222,26 @@ public sealed class DiffCheckService
 			leftSize,
 			rightSize,
 			theme: null,
+			progressCallback: percent =>
+				progressCallback?.Invoke(
+					new DiffOperationProgress(
+						DiffOperationStage.GeneratingReport,
+						percent,
+						$"Generating HTML report: {percent}%"
+					)
+				),
 			cancellationToken
 		);
+		progressCallback?.Invoke(
+			new DiffOperationProgress(DiffOperationStage.Completed, 100, "Report saved")
+		);
 		return result;
+
+		void ReportFromCompare(DiffOperationProgress progress)
+		{
+			if (progress.Stage != DiffOperationStage.Completed)
+				progressCallback?.Invoke(progress);
+		}
 	}
 
 	/// <summary>
@@ -159,6 +256,8 @@ public sealed class DiffCheckService
 	/// <param name="initialView">
 	/// Initial active view in the report: "table" or "text". Default: "table".
 	/// </param>
+	/// <param name="progressCallback">Optional callback for report-generation progress in range 0..100.</param>
+	/// <param name="requestStartedAtUtc">Optional request start timestamp used to compute end-to-end request duration.</param>
 	/// <returns>HTML string.</returns>
 	public string GenerateHtml(
 		DiffResult result,
@@ -167,9 +266,19 @@ public sealed class DiffCheckService
 		long? leftFileSize = null,
 		long? rightFileSize = null,
 		string? theme = null,
-		string? initialView = null
+		string? initialView = null,
+		Action<DiffOperationProgress>? progressCallback = null,
+		DateTimeOffset? requestStartedAtUtc = null
 	)
 	{
+		progressCallback?.Invoke(
+			new DiffOperationProgress(
+				DiffOperationStage.GeneratingReport,
+				0,
+				"Generating HTML report: 0%"
+			)
+		);
+
 		return _htmlGenerator.Generate(
 			result,
 			leftFilePath,
@@ -177,7 +286,16 @@ public sealed class DiffCheckService
 			leftFileSize,
 			rightFileSize,
 			theme,
-			initialView
+			initialView,
+			percent =>
+				progressCallback?.Invoke(
+					new DiffOperationProgress(
+						DiffOperationStage.GeneratingReport,
+						percent,
+						$"Generating HTML report: {percent}%"
+					)
+				),
+			requestStartedAtUtc
 		);
 	}
 
@@ -203,6 +321,7 @@ public sealed class DiffCheckService
 			leftFileSize,
 			rightFileSize,
 			theme,
+			progressCallback: null,
 			cancellationToken
 		);
 	}

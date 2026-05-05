@@ -33,7 +33,10 @@ public class CsvReaderTests
 		var reader = new CsvReader();
 		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
 		{
-			await reader.ReadAsync(GetPath("nonexistent.csv"), TestContext.CancellationToken);
+			await reader.ReadAsync(
+				GetPath("nonexistent.csv"),
+				cancellationToken: TestContext.CancellationToken
+			);
 		});
 	}
 

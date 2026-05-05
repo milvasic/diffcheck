@@ -23,6 +23,7 @@ public sealed class XlsxReader : IFileReader
 
 	public Task<Models.DataTable> ReadAsync(
 		string filePath,
+		Action<int>? progressCallback = null,
 		CancellationToken cancellationToken = default
 	)
 	{
@@ -32,6 +33,8 @@ public sealed class XlsxReader : IFileReader
 			throw new FileNotFoundException("File not found.", filePath);
 
 		var path = Path.GetFullPath(filePath);
+		var reporter = new ProgressReporter(progressCallback);
+		reporter.Report(0);
 
 		using var workbook = new XLWorkbook(path);
 		var sheetCount = workbook.Worksheets.Count;
@@ -45,7 +48,10 @@ public sealed class XlsxReader : IFileReader
 		var usedRange = worksheet.RangeUsed();
 
 		if (usedRange == null)
+		{
+			reporter.Report(100);
 			return Task.FromResult(new Models.DataTable([], [], path));
+		}
 
 		var firstRow = usedRange.FirstRow();
 		var lastRow = usedRange.LastRow();
@@ -60,7 +66,12 @@ public sealed class XlsxReader : IFileReader
 		}
 
 		var rows = new List<IReadOnlyList<string>>();
-		for (var rowNum = firstRow.RowNumber() + 1; rowNum <= lastRow.RowNumber(); rowNum++)
+		var firstDataRow = firstRow.RowNumber() + 1;
+		var lastDataRow = lastRow.RowNumber();
+		var totalDataRows = Math.Max(1, lastDataRow - firstDataRow + 1);
+		var processedRows = 0;
+
+		for (var rowNum = firstDataRow; rowNum <= lastDataRow; rowNum++)
 		{
 			var rowValues = new List<string>();
 			for (var col = firstCol.ColumnNumber(); col <= lastCol.ColumnNumber(); col++)
@@ -69,9 +80,42 @@ public sealed class XlsxReader : IFileReader
 				rowValues.Add(GetCellValue(cell));
 			}
 			rows.Add(rowValues);
+			processedRows++;
+			reporter.Report((int)Math.Floor(processedRows * 100d / totalDataRows));
 		}
 
+		reporter.Report(100);
+
 		return Task.FromResult(new Models.DataTable(headers, rows, path));
+	}
+
+	private sealed class ProgressReporter(Action<int>? callback)
+	{
+		private int _nextThreshold;
+
+		public void Report(int percent)
+		{
+			if (callback == null)
+				return;
+
+			var clamped = Math.Clamp(percent, 0, 100);
+			if (clamped < _nextThreshold && clamped < 100)
+				return;
+
+			if (clamped == 100)
+			{
+				callback(100);
+				_nextThreshold = 101;
+				return;
+			}
+
+			var snapped = clamped - (clamped % 5);
+			if (snapped < _nextThreshold)
+				return;
+
+			callback(snapped);
+			_nextThreshold = snapped + 5;
+		}
 	}
 
 	private static string GetRawCellValue(IXLCell cell)

@@ -14,7 +14,7 @@ public class XlsxReaderTests
 		var reader = new XlsxReader();
 		var path = GetPath("left.xlsx");
 
-		var result = await reader.ReadAsync(path, TestContext.CancellationToken);
+		var result = await reader.ReadAsync(path, cancellationToken: TestContext.CancellationToken);
 
 		Assert.IsNotNull(result);
 		Assert.IsNotEmpty(result.Headers);
@@ -27,7 +27,10 @@ public class XlsxReaderTests
 		var reader = new XlsxReader();
 		await Assert.ThrowsExactlyAsync<FileNotFoundException>(async () =>
 		{
-			await reader.ReadAsync(GetPath("nonexistent.xlsx"), TestContext.CancellationToken);
+			await reader.ReadAsync(
+				GetPath("nonexistent.xlsx"),
+				cancellationToken: TestContext.CancellationToken
+			);
 		});
 	}
 
