@@ -10,7 +10,8 @@ public class IndexModel(
 	DiffCheckService diffCheckService,
 	UploadLimits uploadLimits,
 	ProfileStore profileStore,
-	DiffOperationProgressStore progressStore
+	DiffOperationProgressStore progressStore,
+	LongRunningDiffWarningSettings longRunningDiffWarningSettings
 ) : PageModel
 {
 	public long MaxFileSizeMb => uploadLimits.MaxFileSizeBytes / (1024 * 1024);
@@ -19,6 +20,7 @@ public class IndexModel(
 	public string? LeftFileName { get; set; }
 	public string? RightFileName { get; set; }
 	public string? ErrorMessage { get; set; }
+	public string? WarningMessage { get; set; }
 
 	/// <summary>Raw column mappings text (left:right per line) for repopulating the form.</summary>
 	public string? ColumnMappingsRaw { get; set; }
@@ -58,6 +60,7 @@ public class IndexModel(
 				isCompleted = status.IsCompleted,
 				isFailed = status.IsFailed,
 				error = status.Error,
+				warningMessage = status.WarningMessage,
 			}
 		);
 	}
@@ -119,23 +122,25 @@ public class IndexModel(
 			var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
 			var viewPref = Request.Headers["X-View"].FirstOrDefault() ?? "table";
 
-			IReadOnlyList<ColumnMapping>? columnMappings = ParseColumnMappings(columnMappingsRaw);
-			IReadOnlyList<string>? keyColumns = ParseKeyColumns(keyColumnsRaw);
+			var columnMappings = ParseColumnMappings(columnMappingsRaw);
+			var keyColumns = ParseKeyColumns(keyColumnsRaw);
 			var comparisonOptions = BuildComparisonOptions(
 				caseInsensitive,
 				trimWhitespace,
 				numericToleranceRaw,
 				matchThresholdRaw
 			);
-
-			var result = await diffCheckService.CompareAsync(
-				leftPath,
-				rightPath,
-				columnMappings,
-				keyColumns,
-				comparisonOptions,
-				ReportFromCompare
-			);
+			var warningOptions = BuildLongRunningWarningOptions();
+			var (result, longRunningDiffWarningAssessment) =
+				await diffCheckService.CompareWithWarningAssessmentAsync(
+					leftPath,
+					rightPath,
+					columnMappings,
+					keyColumns,
+					comparisonOptions,
+					ReportFromCompare,
+					warningOptions
+				);
 			var html = diffCheckService.GenerateHtml(
 				result,
 				leftFile.FileName,
@@ -160,6 +165,9 @@ public class IndexModel(
 					html,
 					leftFileName = leftFile.FileName,
 					rightFileName = rightFile.FileName,
+					warningMessage = BuildLongRunningWarningMessage(
+						longRunningDiffWarningAssessment
+					),
 				}
 			);
 
@@ -250,13 +258,18 @@ public class IndexModel(
 				numericToleranceRaw,
 				matchThresholdRaw
 			);
-			var result = await diffCheckService.CompareAsync(
-				leftPath,
-				rightPath,
-				columnMappings,
-				keyColumns,
-				comparisonOptions
-			);
+			var warningOptions = BuildLongRunningWarningOptions();
+			var (result, longRunningDiffWarningAssessment) =
+				await diffCheckService.CompareWithWarningAssessmentAsync(
+					leftPath,
+					rightPath,
+					columnMappings,
+					keyColumns,
+					comparisonOptions,
+					null,
+					warningOptions
+				);
+			WarningMessage = BuildLongRunningWarningMessage(longRunningDiffWarningAssessment);
 			LeftFileName = leftFile.FileName;
 			RightFileName = rightFile.FileName;
 			DiffReportHtml = diffCheckService.GenerateHtml(
@@ -390,7 +403,7 @@ public class IndexModel(
 			var trimmed = line.Trim();
 			if (trimmed.Length == 0)
 				continue;
-			var sep = trimmed.IndexOf(':') >= 0 ? ':' : ',';
+			var sep = trimmed.Contains(':') ? ':' : ',';
 			var idx = trimmed.IndexOf(sep);
 			if (idx < 0)
 				continue;
@@ -437,5 +450,28 @@ public class IndexModel(
 			NumericTolerance = tolerance,
 			MatchThreshold = threshold ?? ComparisonOptions.Default.MatchThreshold,
 		};
+	}
+
+	private LongRunningDiffWarningOptions? BuildLongRunningWarningOptions()
+	{
+		if (!longRunningDiffWarningSettings.Enabled)
+			return null;
+
+		return new LongRunningDiffWarningOptions
+		{
+			DataAmountThreshold = longRunningDiffWarningSettings.DataAmountThreshold,
+			ThresholdFactor = longRunningDiffWarningSettings.ThresholdFactor,
+		};
+	}
+
+	private static string? BuildLongRunningWarningMessage(
+		LongRunningDiffWarningAssessment warningAssessment
+	)
+	{
+		if (!warningAssessment.ShouldWarn)
+			return null;
+
+		return "Large dataset without key columns detected. This comparison may take longer. "
+			+ "Add one or more key columns to improve row matching performance.";
 	}
 }

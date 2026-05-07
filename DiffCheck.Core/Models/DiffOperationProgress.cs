@@ -19,8 +19,10 @@ public enum DiffOperationStage
 /// <param name="Stage">Current operation stage.</param>
 /// <param name="Percent">Completion percentage in range 0..100.</param>
 /// <param name="Message">Human-readable progress message.</param>
+/// <param name="WarningMessage">Optional warning surfaced immediately during execution.</param>
 public readonly record struct DiffOperationProgress(
 	DiffOperationStage Stage,
 	int Percent,
-	string Message
+	string Message,
+	string? WarningMessage = null
 );

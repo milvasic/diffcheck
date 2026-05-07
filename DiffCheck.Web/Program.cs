@@ -4,7 +4,7 @@ using DiffCheck.Web.Operations;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-builder.AddUploadLimits().AddProfiles();
+builder.AddUploadLimits().AddLongRunningDiffWarning().AddProfiles();
 builder.Services.AddRazorPages();
 builder.Services.AddScoped<DiffCheck.DiffCheckService>();
 builder.Services.AddSingleton<DiffOperationProgressStore>();

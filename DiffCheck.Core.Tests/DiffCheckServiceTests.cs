@@ -42,6 +42,106 @@ public class DiffCheckServiceTests
 	}
 
 	[TestMethod]
+	public async Task CompareWithWarningAssessmentAsync_NoKeysAndLargeData_ReturnsWarning()
+	{
+		var service = new DiffCheckService();
+		var result = await service.CompareWithWarningAssessmentAsync(
+			GetPath("left.csv"),
+			GetPath("right.csv"),
+			warningOptions: new LongRunningDiffWarningOptions
+			{
+				DataAmountThreshold = 1,
+				ThresholdFactor = 1.0,
+			},
+			cancellationToken: TestContext.CancellationToken
+		);
+
+		Assert.IsTrue(result.WarningAssessment.ShouldWarn);
+	}
+
+	[TestMethod]
+	public async Task CompareWithWarningAssessmentAsync_KeyColumnsProvided_DoesNotWarn()
+	{
+		var service = new DiffCheckService();
+		var result = await service.CompareWithWarningAssessmentAsync(
+			GetPath("left.csv"),
+			GetPath("right.csv"),
+			keyColumns: ["Name"],
+			warningOptions: new LongRunningDiffWarningOptions
+			{
+				DataAmountThreshold = 1,
+				ThresholdFactor = 1.0,
+			},
+			cancellationToken: TestContext.CancellationToken
+		);
+
+		Assert.IsFalse(result.WarningAssessment.ShouldWarn);
+	}
+
+	[TestMethod]
+	public async Task CompareWithWarningAssessmentAsync_AnyUnusableKeyColumns_ThrowsArgumentException()
+	{
+		var service = new DiffCheckService();
+
+		var ex = await Assert.ThrowsExactlyAsync<ArgumentException>(async () =>
+		{
+			_ = await service.CompareWithWarningAssessmentAsync(
+				GetPath("left.csv"),
+				GetPath("right.csv"),
+				keyColumns: ["ID", "MissingColumn"],
+				cancellationToken: TestContext.CancellationToken
+			);
+		});
+
+		Assert.Contains("unusable", ex.Message);
+		Assert.Contains("MissingColumn", ex.Message);
+		Assert.Contains("Detected columns", ex.Message);
+		Assert.Contains("Name, Age, City", ex.Message);
+	}
+
+	[TestMethod]
+	public async Task CompareWithWarningAssessmentAsync_InvalidColumnMapping_ThrowsArgumentException()
+	{
+		var service = new DiffCheckService();
+
+		var ex = await Assert.ThrowsExactlyAsync<ArgumentException>(async () =>
+		{
+			_ = await service.CompareWithWarningAssessmentAsync(
+				GetPath("left.csv"),
+				GetPath("right.csv"),
+				[new ColumnMapping("Name", "MissingRight")],
+				cancellationToken: TestContext.CancellationToken
+			);
+		});
+
+		Assert.Contains("column mappings", ex.Message);
+		Assert.Contains("Name:MissingRight", ex.Message);
+		Assert.Contains("Detected left columns", ex.Message);
+		Assert.Contains("Detected right columns", ex.Message);
+	}
+
+	[TestMethod]
+	public async Task CompareWithWarningAssessmentAsync_InvalidMappingAndKeys_ReturnsCombinedValidationError()
+	{
+		var service = new DiffCheckService();
+
+		var ex = await Assert.ThrowsExactlyAsync<ArgumentException>(async () =>
+		{
+			_ = await service.CompareWithWarningAssessmentAsync(
+				GetPath("left.csv"),
+				GetPath("right.csv"),
+				[new ColumnMapping("Name", "MissingRight")],
+				["MissingKey"],
+				cancellationToken: TestContext.CancellationToken
+			);
+		});
+
+		Assert.Contains("multiple issues", ex.Message);
+		Assert.Contains("column mappings", ex.Message);
+		Assert.Contains("provided key columns are unusable", ex.Message);
+	}
+
+	[TestMethod]
 	public async Task CompareAndSaveHtmlAsync_GeneratesHtmlFile()
 	{
 		var service = new DiffCheckService();
@@ -80,6 +180,67 @@ public class DiffCheckServiceTests
 
 		Assert.IsNotNull(result);
 		Assert.AreEqual(1, result.Summary.UnchangedRows);
+	}
+
+	[TestMethod]
+	public void Compare_DataTables_UnusableKeyColumn_ThrowsArgumentException()
+	{
+		var left = new DataTable(
+			["ID", "A"],
+			[
+				["1", "x"],
+			]
+		);
+		var right = new DataTable(
+			["ID", "A"],
+			[
+				["1", "x"],
+			]
+		);
+		var service = new DiffCheckService();
+
+		var ex = Assert.ThrowsExactly<ArgumentException>(() =>
+			service.Compare(left, right, keyColumns: ["ID", "Unknown"])
+		);
+
+		Assert.IsNotNull(ex);
+		Assert.Contains("Unknown", ex.Message);
+		Assert.Contains("Detected columns", ex.Message);
+		Assert.Contains("ID, A", ex.Message);
+	}
+
+	[TestMethod]
+	public void Compare_DataTables_DuplicateMappedRightColumn_ThrowsArgumentException()
+	{
+		var left = new DataTable(
+			["ID", "Name"],
+			[
+				["1", "Alice"],
+			]
+		);
+		var right = new DataTable(
+			["Identifier", "FullName"],
+			[
+				["1", "Alice"],
+			]
+		);
+		var service = new DiffCheckService();
+
+		var ex = Assert.ThrowsExactly<ArgumentException>(() =>
+			service.Compare(
+				left,
+				right,
+				columnMappings:
+				[
+					new ColumnMapping("ID", "Identifier"),
+					new ColumnMapping("Name", "Identifier"),
+				]
+			)
+		);
+
+		Assert.IsNotNull(ex);
+		Assert.Contains("Duplicate right columns in mappings", ex.Message);
+		Assert.Contains("Identifier", ex.Message);
 	}
 
 	[TestMethod]

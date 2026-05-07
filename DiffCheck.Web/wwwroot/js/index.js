@@ -232,6 +232,54 @@
 
 	var progressPollTimer = null;
 	var stageOrder = ["ReadingLeftFile", "ReadingRightFile", "Comparing", "GeneratingReport"];
+	var rerunBtn = document.getElementById("rerunBtn");
+	var keyColumnsInlineHint = document.getElementById("keyColumnsInlineHint");
+	var columnMappingsInlineHint = document.getElementById("columnMappingsInlineHint");
+
+	function refreshRerunButton(canRun, isBusy) {
+		if (!rerunBtn) return;
+		rerunBtn.classList.remove("d-none");
+		rerunBtn.disabled = !canRun || !!isBusy;
+	}
+
+	function hasBothFilesSelected() {
+		return !!(leftInput.files?.length && rightInput.files?.length);
+	}
+
+	function isKeyColumnValidationErrorMessage(message) {
+		if (typeof message !== "string") return false;
+		return message.toLowerCase().includes("provided key columns are unusable");
+	}
+
+	function isColumnMappingsValidationErrorMessage(message) {
+		if (typeof message !== "string") return false;
+		return message.toLowerCase().includes("column mappings are invalid");
+	}
+
+	function updateKeyColumnsInlineHint(message) {
+		if (!keyColumnsInlineHint) return;
+		if (isKeyColumnValidationErrorMessage(message)) {
+			keyColumnsInlineHint.classList.remove("d-none");
+			return;
+		}
+
+		keyColumnsInlineHint.classList.add("d-none");
+	}
+
+	function updateColumnMappingsInlineHint(message) {
+		if (!columnMappingsInlineHint) return;
+		if (isColumnMappingsValidationErrorMessage(message)) {
+			columnMappingsInlineHint.classList.remove("d-none");
+			return;
+		}
+
+		columnMappingsInlineHint.classList.add("d-none");
+	}
+
+	function updateValidationInlineHints(message) {
+		updateKeyColumnsInlineHint(message);
+		updateColumnMappingsInlineHint(message);
+	}
 
 	function getStageIndex(stageName) {
 		return stageOrder.indexOf(stageName);
@@ -271,12 +319,17 @@
 		var message = document.getElementById("loadingOverlayMessage");
 		var wrapper = document.getElementById("loadingOverlayProgress");
 		var bar = document.getElementById("loadingOverlayProgressBar");
+		var overlayWarning = document.getElementById("loadingOverlayWarning");
 		resetOverlayStages();
 		if (message) message.textContent = "Preparing comparison...";
 		if (wrapper) wrapper.setAttribute("aria-valuenow", "0");
 		if (bar) {
 			bar.style.width = "0%";
 			bar.textContent = "0%";
+		}
+		if (overlayWarning) {
+			overlayWarning.classList.add("d-none");
+			overlayWarning.textContent = "";
 		}
 	}
 
@@ -312,6 +365,11 @@
 				})
 				.then(function (data) {
 					if (!data || !data.found) return;
+					var overlayWarningEl = document.getElementById("loadingOverlayWarning");
+					if (overlayWarningEl && data.warningMessage) {
+						overlayWarningEl.textContent = data.warningMessage;
+						overlayWarningEl.classList.remove("d-none");
+					}
 					setOverlayProgress(data.percent, data.message, data.stage);
 					if (data.isFailed) {
 						stopProgressPolling();
@@ -341,29 +399,44 @@
 		keyColumnsChip.commitPendingInput();
 		columnMappingsChip.commitPendingInput();
 
-		if (!leftInput.files?.length || !rightInput.files?.length) return;
+		if (!hasBothFilesSelected()) {
+			refreshRerunButton(false, false);
+			return;
+		}
+
+		refreshRerunButton(true, true);
 
 		var errorEl = document.getElementById("compareError");
+		var warningEl = document.getElementById("compareWarning");
 		var leftSize = leftInput.files[0].size;
 		var rightSize = rightInput.files[0].size;
 		if (leftSize === 0 || rightSize === 0) {
 			errorEl.textContent = "One or both files are empty.";
 			errorEl.classList.remove("d-none");
+			updateValidationInlineHints(errorEl.textContent);
+			if (warningEl) warningEl.classList.add("d-none");
+			refreshRerunButton(true, false);
 			return;
 		}
 		if (leftSize > MAX_FILE_SIZE || rightSize > MAX_FILE_SIZE) {
 			errorEl.textContent = "Each file must be under " + MAX_FILE_SIZE_MB + " MB.";
 			errorEl.classList.remove("d-none");
+			updateValidationInlineHints(errorEl.textContent);
+			if (warningEl) warningEl.classList.add("d-none");
+			refreshRerunButton(true, false);
 			return;
 		}
 
 		saveOptionsToStorage();
 		var overlay = document.getElementById("loadingOverlay");
 		var errorEl = document.getElementById("compareError");
+		var warningEl = document.getElementById("compareWarning");
 		resetOverlayProgress();
 		overlay.classList.remove("d-none");
 		overlay.classList.add("d-flex");
 		errorEl.classList.add("d-none");
+		updateValidationInlineHints(null);
+		if (warningEl) warningEl.classList.add("d-none");
 
 		var formData = new FormData(form);
 		var operationId =
@@ -376,6 +449,8 @@
 			overlay.classList.remove("d-flex");
 			errorEl.textContent = message;
 			errorEl.classList.remove("d-none");
+			updateValidationInlineHints(message);
+			refreshRerunButton(true, false);
 		});
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
@@ -401,7 +476,20 @@
 				if (data.error) {
 					errorEl.textContent = data.error;
 					errorEl.classList.remove("d-none");
+					updateValidationInlineHints(data.error);
+					if (warningEl) warningEl.classList.add("d-none");
+					refreshRerunButton(true, false);
 					return;
+				}
+				updateValidationInlineHints(null);
+				refreshRerunButton(true, false);
+				if (warningEl) {
+					if (data.warningMessage) {
+						warningEl.textContent = data.warningMessage;
+						warningEl.classList.remove("d-none");
+					} else {
+						warningEl.classList.add("d-none");
+					}
 				}
 				var container = document.getElementById("diffResultContainer");
 				container.setAttribute("data-left-name", data.leftFileName || "");
@@ -417,8 +505,6 @@
 				});
 				var settingsBar = document.getElementById("settingsBar");
 				if (settingsBar) settingsBar.classList.add("settings-bar-compact");
-				var rerunBtn = document.getElementById("rerunBtn");
-				if (rerunBtn) rerunBtn.classList.remove("d-none");
 				var btn = document.getElementById("diffAddToHistoryBtn");
 				if (btn && btn._origHtml) {
 					btn.disabled = false;
@@ -431,6 +517,8 @@
 				overlay.classList.remove("d-flex");
 				errorEl.textContent = "Error: " + (err.message || "Comparison failed");
 				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(errorEl.textContent);
+				refreshRerunButton(true, false);
 			});
 	}
 
@@ -462,17 +550,19 @@
 
 		input.addEventListener("change", () => {
 			updateFileName(input, displayEl);
+			refreshRerunButton(hasBothFilesSelected(), false);
 			checkAndSubmit();
 		});
 	});
 
 	// Rerun button
-	var rerunBtn = document.getElementById("rerunBtn");
 	if (rerunBtn) {
 		rerunBtn.addEventListener("click", function () {
 			checkAndSubmit();
 		});
 	}
+
+	refreshRerunButton(hasBothFilesSelected(), false);
 
 	// Report is generated with theme from X-Theme header, so it renders correctly from the start.
 	// When user toggles theme, theme.js applies it to the iframe.
