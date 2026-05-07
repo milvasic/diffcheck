@@ -7,46 +7,80 @@
 <h1>@ViewData["Title"]</h1>
 
 <div class="d-flex flex-column flex-grow-1 min-h-0 overflow-auto">
-	<p>Use this page as a quick guide for comparing files with DiffCheck.Web.</p>
+	<p>Use this page as a complete guide to the features available in DiffCheck.Web.</p>
 
 	<h2 class="h6 mt-4">1) Start a comparison</h2>
 	<ol>
 		<li>Open the <a asp-page="/Index">Home</a> page.</li>
-		<li>Drop or select your left and right files.</li>
+		<li>Drop or browse for a left file and a right file.</li>
 		<li>Supported formats: <code>.csv</code>, <code>.txt</code>, <code>.xlsx</code>, <code>.xlsm</code>.</li>
-		<li>Click compare (or rerun) to generate the report.</li>
+		<li>Files must be non-empty and stay under the current upload limit.</li>
+		<li>As soon as both files are selected, DiffCheck starts comparing them automatically.</li>
+		<li>Use <strong>Rerun</strong> after changing settings to compare the same files again.</li>
 	</ol>
 
-	<h2 class="h6 mt-4">2) Configure matching and normalization</h2>
+	<h2 class="h6 mt-4">2) Watch progress while the app compares files</h2>
 	<ul>
-		<li><strong>Aa</strong> enables case-insensitive comparison.</li>
-		<li><strong>Trim</strong> removes leading/trailing whitespace before comparison.</li>
-		<li><strong>Tolerance</strong> sets numeric tolerance for value differences.</li>
-		<li><strong>Threshold</strong> controls row matching sensitivity for reordered rows.</li>
-		<li><strong>Keys</strong> lets you specify key columns used to match rows.</li>
-		<li><strong>Maps</strong> lets you map headers between files using <code>Left:Right</code>.</li>
+		<li>The progress overlay shows four stages: <strong>Left</strong>, <strong>Right</strong>, <strong>Compare</strong>, and <strong>Report</strong>.</li>
+		<li>The progress bar updates while the server reads the files, computes the diff, and builds the HTML report.</li>
+		<li>A warning banner may appear inside the progress overlay when the comparison is expected to be slow — for example, when comparing large files without any key columns defined.</li>
+		<li>If a comparison fails, the page shows the error without reloading.</li>
 	</ul>
 
-	<h2 class="h6 mt-4">3) Work with the diff result</h2>
+	<h2 class="h6 mt-4">3) Configure matching and normalization</h2>
 	<ul>
-		<li>Use <strong>Fullscreen</strong> for focused review.</li>
-		<li>Use <strong>Download</strong> to export the HTML report.</li>
-		<li>Use <strong>Download with details</strong> to include extra key-value metadata.</li>
-		<li>Use <strong>Add to history</strong> to save the current run in your browser.</li>
+		<li><strong>Aa</strong> switches to case-insensitive comparison.</li>
+		<li><strong>Trim</strong> removes leading and trailing whitespace before values are compared.</li>
+		<li><strong>Tolerance</strong> allows small numeric differences.</li>
+		<li><strong>Threshold</strong> controls how aggressively DiffCheck matches reordered rows by similarity.</li>
+		<li><strong>Keys</strong> lets you define key columns for row matching.</li>
+		<li><strong>Maps</strong> lets you map headers between files with <code>Left:Right</code> pairs.</li>
+		<li>Key and mapping inputs use chips, so you can add items with <kbd>Enter</kbd> or paste comma/newline-separated values.</li>
+		<li>Your current comparison settings are remembered in your browser for the next visit.</li>
 	</ul>
 
-	<h2 class="h6 mt-4">4) Manage saved runs</h2>
+	<h2 class="h6 mt-4">4) Save and reuse comparison profiles</h2>
 	<ul>
-		<li>Open <a asp-page="/History">History</a> to view saved reports.</li>
+		<li>Use the <strong>Profile</strong> dropdown to load a saved setup.</li>
+		<li><strong>Save profile</strong> stores the current keys, mappings, and comparison options under a name.</li>
+		<li><strong>Delete profile</strong> removes the selected saved profile.</li>
+		<li>Profiles are useful when you compare the same file layouts repeatedly.</li>
+	</ul>
+
+	<h2 class="h6 mt-4">5) Review the diff report</h2>
+	<ul>
+		<li>The report header shows the left file, right file, generated time, diff duration, and file stats.</li>
+		<li>The summary badges show counts for <strong>Added</strong>, <strong>Removed</strong>, <strong>Modified</strong>, <strong>Reordered</strong>, and <strong>Unchanged</strong> rows.</li>
+		<li>Use <strong>Table</strong> view for the grid layout or <strong>Text</strong> view for a text-based diff.</li>
+		<li>Use <strong>Autosize columns</strong> to resize the grid to fit content.</li>
+		<li>Use report options to hide unchanged columns, highlight changed rows, highlight changed cells, or switch to whole-value cell diffs.</li>
+		<li>Modified cells include character-level highlighting so you can see exactly what changed inside a value.</li>
+		<li>The report follows your light or dark theme preference.</li>
+	</ul>
+
+	<h2 class="h6 mt-4">6) Use report actions</h2>
+	<ul>
+		<li><strong>Fullscreen</strong> expands the current report for focused review.</li>
+		<li><strong>Download</strong> saves the generated HTML report as-is.</li>
+		<li><strong>Download with details</strong> lets you add custom key-value notes before exporting.</li>
+		<li><strong>Add to history</strong> saves the current run to your browser so you can reopen it later.</li>
+	</ul>
+
+	<h2 class="h6 mt-4">7) Manage saved runs in History</h2>
+	<ul>
+		<li>Open <a asp-page="/History">History</a> to browse saved reports.</li>
 		<li>Search by file names or tags.</li>
-		<li>Open, tag, download, or delete individual saved runs.</li>
-		<li>Use <strong>Clear all history</strong> to remove all saved runs from your browser.</li>
+		<li>Each saved run keeps file names, summary badges, tags, and the full HTML report.</li>
+		<li>Open a saved run, review it in fullscreen, download it again, or download it with extra details.</li>
+		<li>Add tags to organize runs, remove tags with one click, delete individual runs, or use <strong>Clear all history</strong>.</li>
+		<li>History is stored only in your browser and keeps the most recent 50 saved runs.</li>
 	</ul>
 
-	<h2 class="h6 mt-4">Notes</h2>
+	<h2 class="h6 mt-4">8) Theme, storage, and privacy</h2>
 	<ul>
-		<li>Files are uploaded only for comparison and temporary processing.</li>
-		<li>Theme preference and history are stored in your browser.</li>
-		<li>See <a asp-page="/Privacy">Privacy</a> for full data-handling details.</li>
+		<li>Use the moon/sun button in the top navigation to switch between light and dark themes.</li>
+		<li>Theme preference, saved history, tags, and comparison settings are stored in your browser.</li>
+		<li>Uploaded files are used only for comparison and temporary processing, then deleted from the server.</li>
+		<li>See <a asp-page="/Privacy">Privacy</a> for the full data-handling details.</li>
 	</ul>
 </div>
