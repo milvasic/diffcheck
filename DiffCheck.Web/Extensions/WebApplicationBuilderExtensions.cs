@@ -46,5 +46,51 @@ public static class WebApplicationBuilderExtensions
 
 			return builder;
 		}
+
+		public WebApplicationBuilder AddLongRunningDiffWarning()
+		{
+			ArgumentNullException.ThrowIfNull(builder);
+
+			var settings =
+				builder
+					.Configuration.GetSection("LongRunningDiffWarning")
+					.Get<LongRunningDiffWarningSettings>()
+				?? new LongRunningDiffWarningSettings();
+
+			if (
+				Environment.GetEnvironmentVariable("DIFFCHECK_LONG_RUNNING_WARNING_ENABLED")
+					is { } enabled
+				&& bool.TryParse(enabled, out var parsedEnabled)
+			)
+				settings.Enabled = parsedEnabled;
+
+			if (
+				Environment.GetEnvironmentVariable("DIFFCHECK_LONG_RUNNING_DATA_AMOUNT_THRESHOLD")
+					is { } threshold
+				&& double.TryParse(
+					threshold,
+					System.Globalization.NumberStyles.Any,
+					System.Globalization.CultureInfo.InvariantCulture,
+					out var parsedThreshold
+				)
+			)
+				settings.DataAmountThreshold = parsedThreshold;
+
+			if (
+				Environment.GetEnvironmentVariable("DIFFCHECK_LONG_RUNNING_THRESHOLD_FACTOR")
+					is { } factor
+				&& double.TryParse(
+					factor,
+					System.Globalization.NumberStyles.Any,
+					System.Globalization.CultureInfo.InvariantCulture,
+					out var parsedFactor
+				)
+			)
+				settings.ThresholdFactor = parsedFactor;
+
+			builder.Services.AddSingleton(settings);
+
+			return builder;
+		}
 	}
 }

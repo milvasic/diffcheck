@@ -14,10 +14,11 @@ public sealed class DiffOperationProgressStore
 		PruneExpired();
 		_states[operationId] = new ProgressState(
 			new DiffOperationProgress(DiffOperationStage.Starting, 0, "Preparing comparison"),
-			IsCompleted: false,
-			IsFailed: false,
-			Error: null,
-			UpdatedAtUtc: DateTime.UtcNow
+			false,
+			false,
+			null,
+			null,
+			DateTime.UtcNow
 		);
 	}
 
@@ -25,12 +26,17 @@ public sealed class DiffOperationProgressStore
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		PruneExpired();
+		var existingWarning = _states.TryGetValue(operationId, out var existing)
+			? existing.WarningMessage
+			: null;
+		var warningMessage = progress.WarningMessage ?? existingWarning;
 		_states[operationId] = new ProgressState(
 			progress,
-			IsCompleted: progress.Stage == DiffOperationStage.Completed,
-			IsFailed: false,
-			Error: null,
-			UpdatedAtUtc: DateTime.UtcNow
+			progress.Stage == DiffOperationStage.Completed,
+			false,
+			null,
+			warningMessage,
+			DateTime.UtcNow
 		);
 	}
 
@@ -39,12 +45,16 @@ public sealed class DiffOperationProgressStore
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		ArgumentNullException.ThrowIfNull(error);
 		PruneExpired();
+		var warningMessage = _states.TryGetValue(operationId, out var existing)
+			? existing.WarningMessage
+			: null;
 		_states[operationId] = new ProgressState(
 			new DiffOperationProgress(DiffOperationStage.Completed, 100, "Comparison failed"),
-			IsCompleted: true,
-			IsFailed: true,
-			Error: error,
-			UpdatedAtUtc: DateTime.UtcNow
+			true,
+			true,
+			error,
+			warningMessage,
+			DateTime.UtcNow
 		);
 	}
 
@@ -61,7 +71,8 @@ public sealed class DiffOperationProgressStore
 				state.Progress.Message,
 				state.IsCompleted,
 				state.IsFailed,
-				state.Error
+				state.Error,
+				state.WarningMessage
 			);
 			return true;
 		}
@@ -85,6 +96,7 @@ public sealed class DiffOperationProgressStore
 		bool IsCompleted,
 		bool IsFailed,
 		string? Error,
+		string? WarningMessage,
 		DateTime UpdatedAtUtc
 	);
 }
@@ -95,5 +107,6 @@ public readonly record struct DiffOperationStatus(
 	string Message,
 	bool IsCompleted,
 	bool IsFailed,
-	string? Error
+	string? Error,
+	string? WarningMessage
 );

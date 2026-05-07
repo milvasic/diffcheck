@@ -6,7 +6,7 @@
 
 <div class="index-page d-flex flex-column flex-grow-1 min-h-0 overflow-hidden">
 <div class="flex-shrink-0">
-	<div class="row mb-2 index-header" id="compareHeader">
+	<div class="row mb-4 index-header" id="compareHeader">
 		<div class="col">
 			<h1 class="h5 mb-1">Compare CSV & XLSX Files</h1>
 			<p class="text-muted small mb-0">
@@ -20,7 +20,7 @@
 	      style="min-height: 80px;">
 		<div class="position-absolute top-0 start-0 w-100 h-100 bg-white bg-opacity-75 d-none align-items-center justify-content-center rounded"
 		     id="loadingOverlay" style="z-index: 10; min-height: 120px;">
-			<div class="d-flex flex-column align-items-center gap-2" style="min-width: 260px;">
+			<div class="d-flex flex-column align-items-center gap-2 loading-overlay-content" style="min-width: 260px;">
 				<ul class="loading-stage-list" id="loadingStageList" aria-label="Comparison stages">
 					<li class="loading-stage-item" data-stage="ReadingLeftFile">
 						<span class="loading-stage-circle" aria-hidden="true"></span>
@@ -44,6 +44,7 @@
 				     aria-valuemax="100" aria-valuenow="0" id="loadingOverlayProgress">
 					<div id="loadingOverlayProgressBar" class="progress-bar" style="width: 0%;">0%</div>
 				</div>
+				<div class="alert alert-warning d-none w-100 py-2 px-3 small mb-0" id="loadingOverlayWarning" role="alert"></div>
 			</div>
 		</div>
 		<div class="row g-3 mb-2">
@@ -150,24 +151,26 @@
 			<div class="settings-bar-separator"></div>
 
 			<!-- Key columns chip input -->
-			<div class="settings-bar-group settings-bar-group-grow">
+			<div class="settings-bar-group settings-bar-group-grow settings-bar-group-keys">
 				<label class="settings-bar-label">Keys</label>
 				<div class="chip-input" id="keyColumnsChipContainer">
 					<input type="text" class="chip-input-field" placeholder="column + Enter"/>
 				</div>
 				<input type="hidden" name="keyColumnsRaw" id="keyColumnsRaw" value="@(Model.KeyColumnsRaw)"/>
+				<div class="form-text d-none" id="keyColumnsInlineHint">Fix key columns above, then click Rerun.</div>
 			</div>
 
 			<div class="settings-bar-separator"></div>
 
 			<!-- Column mappings chip input -->
-			<div class="settings-bar-group settings-bar-group-grow">
+			<div class="settings-bar-group settings-bar-group-grow settings-bar-group-maps">
 				<label class="settings-bar-label">Maps</label>
 				<div class="chip-input chip-input-pair" id="columnMappingsChipContainer">
 					<input type="text" class="chip-input-field" placeholder="Left:Right + Enter"/>
 				</div>
 				<textarea name="columnMappingsRaw" id="columnMappingsRaw"
 								class="d-none">@(Model.ColumnMappingsRaw)</textarea>
+				<div class="form-text d-none" id="columnMappingsInlineHint">Fix column mappings above, then click Rerun.</div>
 			</div>
 
 			<!-- Rerun button (visible after first comparison) -->
@@ -185,6 +188,7 @@
 		</div>
 
 		<div class="alert alert-danger d-none mt-2" id="compareError" role="alert"></div>
+		<div class="alert alert-warning mt-2 @(string.IsNullOrWhiteSpace(Model.WarningMessage) ? "d-none" : string.Empty)" id="compareWarning" role="alert">@(Model.WarningMessage)</div>
 	</form>
 </div>
 

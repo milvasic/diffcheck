@@ -153,6 +153,20 @@ body.d-flex.flex-column main {
 	content: "\2713";
 }
 
+.loading-overlay-content {
+	width: min(560px, 92vw);
+}
+
+#loadingOverlayWarning {
+	white-space: normal;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+#compareError {
+	white-space: pre-line;
+}
+
 /* Diff result fullscreen */
 #diffResultContainer.diff-result-fullscreen {
 	display: flex;
@@ -235,6 +249,36 @@ body.d-flex.flex-column main {
 	align-items: center;
 	gap: 0.35rem;
 	flex-wrap: nowrap;
+}
+
+.settings-bar-group-keys {
+	flex-wrap: wrap;
+	align-items: flex-start;
+}
+
+.settings-bar-group-maps {
+	flex-wrap: wrap;
+	align-items: flex-start;
+}
+
+.settings-bar-group-keys .chip-input {
+	flex: 1 1 14rem;
+}
+
+.settings-bar-group-maps .chip-input {
+	flex: 1 1 14rem;
+}
+
+#keyColumnsInlineHint {
+	flex-basis: 100%;
+	margin: 0.1rem 0 0 2rem;
+	color: #856404;
+}
+
+#columnMappingsInlineHint {
+	flex-basis: 100%;
+	margin: 0.1rem 0 0 2rem;
+	color: #856404;
 }
 
 .settings-bar-group-grow {
