@@ -39,6 +39,13 @@ dotnet run --project DiffCheck.Web/DiffCheck.Web.csproj
 docker compose up --build
 ```
 
+### Web environment variables
+
+| Variable                     | Default                  | Description                                     |
+| ---------------------------- | ------------------------ | ----------------------------------------------- |
+| `DIFFCHECK_MAX_FILE_SIZE_MB` | `25`                     | Per-file upload size limit in megabytes         |
+| `DIFFCHECK_PROFILES_DIR`     | `<contentRoot>/profiles` | Directory where server-side profiles are stored |
+
 ---
 
 ## Testing
@@ -61,6 +68,7 @@ Test files mirror the source structure:
 
 - `DiffCheck.Core.Tests/Diff/` → tests for `DiffCheck.Core/Diff/`
 - `DiffCheck.Core.Tests/Html/` → tests for `DiffCheck.Core/Html/`
+- `DiffCheck.Core.Tests/Profiles/` → tests for `DiffCheck.Core/Profiles/`
 - `DiffCheck.Core.Tests/Readers/` → tests for `DiffCheck.Core/Readers/`
 - `DiffCheck.Core.Tests/TestData/` → fixture CSV files used by reader tests
 
@@ -74,10 +82,10 @@ The project uses **CSharpier** for code formatting (configured in `.csharpierrc.
 
 ```bash
 # Format all files
-dotnet csharpier .
+dotnet csharpier format .
 
 # Format a single file
-dotnet csharpier DiffCheck.Core/Html/HtmlReportGenerator.cs
+dotnet csharpier format DiffCheck.Core/Html/HtmlReportGenerator.cs
 ```
 
 Run `dotnet tool restore` first if `csharpier` is not available.  
@@ -149,6 +157,5 @@ The JavaScript in the report depends on the element IDs listed below — do not 
 `PLANNING.md` tracks known findings and feature suggestions. After resolving a finding, remove it from the file.  
 Current open findings (as of last update):
 
-- **Medium** — Web upload validation lacks explicit file-size limits.
 - **Medium** — CLI does not enforce non-zero exit codes on failure.
 - **Low** — CLI README missing docs for `--column-map` and `--key-columns`.
