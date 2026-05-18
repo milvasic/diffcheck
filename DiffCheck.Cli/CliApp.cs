@@ -152,6 +152,38 @@ internal static class CliApp
 		);
 		rootCommand.Add(listProfilesCommand);
 
+		var shellArg = new Argument<string>("shell")
+		{
+			Description = "Shell to generate completions for: bash, zsh, or fish.",
+		};
+
+		var completionsCommand = new Command(
+			"completions",
+			"Print a shell completion script to stdout."
+		)
+		{
+			shellArg,
+		};
+		completionsCommand.SetAction((parseResult) =>
+		{
+			var shell = parseResult.GetValue(shellArg)!.ToLowerInvariant();
+			var script = shell switch
+			{
+				"bash" => CompletionScripts.Bash,
+				"zsh" => CompletionScripts.Zsh,
+				"fish" => CompletionScripts.Fish,
+				_ => null,
+			};
+			if (script is null)
+			{
+				Console.Error.WriteLine($"Unknown shell \"{shell}\". Supported: bash, zsh, fish.");
+				return 1;
+			}
+			Console.WriteLine(script);
+			return 0;
+		});
+		rootCommand.Add(completionsCommand);
+
 		rootCommand.SetAction(
 			async (parseResult, token) =>
 			{

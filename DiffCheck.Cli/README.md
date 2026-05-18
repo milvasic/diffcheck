@@ -18,6 +18,34 @@ dotnet pack
 dotnet tool install --global --add-source ./builds diffcheck
 ```
 
+## Shell Completions
+
+`diffcheck` can generate tab-completion scripts for bash, zsh, and fish.
+
+### Bash
+
+```bash
+diffcheck completions bash > /etc/bash_completion.d/diffcheck
+# or per-user:
+diffcheck completions bash >> ~/.bashrc && source ~/.bashrc
+```
+
+### Zsh
+
+```zsh
+diffcheck completions zsh > "${fpath[1]}/_diffcheck"
+# then reload completions:
+autoload -U compinit && compinit
+```
+
+### Fish
+
+```fish
+diffcheck completions fish > ~/.config/fish/completions/diffcheck.fish
+```
+
+After installation, `diffcheck --<Tab>` shows all flags and `diffcheck <Tab>` suggests subcommands.
+
 ## Usage
 
 ```bash
@@ -48,9 +76,10 @@ diffcheck <left> <right> [options]
 
 ### Subcommands
 
-| Subcommand      | Description                        |
-| --------------- | ---------------------------------- |
-| `list-profiles` | List all saved comparison profiles |
+| Subcommand              | Description                                           |
+| ----------------------- | ----------------------------------------------------- |
+| `list-profiles`         | List all saved comparison profiles                    |
+| `completions <shell>`   | Print a shell completion script (`bash`, `zsh`, `fish`) |
 
 ### Examples
 
