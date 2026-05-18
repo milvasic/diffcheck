@@ -1,4 +1,5 @@
 using System.CommandLine;
+using System.Diagnostics;
 using DiffCheck;
 using DiffCheck.Models;
 using DiffCheck.Profiles;
@@ -60,6 +61,11 @@ var matchThresholdOption = new Option<double?>("--match-threshold")
 		"Match threshold (0 to 1) for determining whether rows are considered a match based on similarity of key column values. Only applicable when key columns are specified. Default is 0.8.",
 };
 
+var openOption = new Option<bool>("--open")
+{
+	Description = "Open the generated HTML report in the system default browser after generation.",
+};
+
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
 {
 	leftArg,
@@ -73,6 +79,7 @@ var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an
 	trimWhitespaceOption,
 	numericToleranceOption,
 	matchThresholdOption,
+	openOption,
 };
 
 // Subcommand: list-profiles
@@ -110,6 +117,7 @@ rootCommand.SetAction(
 			var trimWhitespace = parseResult.GetValue(trimWhitespaceOption);
 			var numericTolerance = parseResult.GetValue(numericToleranceOption);
 			var matchThreshold = parseResult.GetValue(matchThresholdOption);
+			var openInBrowser = parseResult.GetValue(openOption);
 
 			// Load profile defaults (explicit CLI flags take precedence)
 			IReadOnlyList<ColumnMapping>? profileMappings = null;
@@ -207,6 +215,18 @@ rootCommand.SetAction(
 			);
 
 			Console.WriteLine($"Report saved to: {outputPath}");
+
+			if (openInBrowser)
+			{
+				try
+				{
+					Process.Start(new ProcessStartInfo { FileName = outputPath, UseShellExecute = true });
+				}
+				catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+				{
+					Console.WriteLine("Warning: could not open browser — no default handler registered.");
+				}
+			}
 
 			if (saveProfileName != null)
 			{
