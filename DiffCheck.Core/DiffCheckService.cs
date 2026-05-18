@@ -1,5 +1,6 @@
 using DiffCheck.Diff;
 using DiffCheck.Html;
+using DiffCheck.Json;
 using DiffCheck.Models;
 using DiffCheck.Readers;
 
@@ -520,6 +521,42 @@ public sealed class DiffCheckService
 			if (progress.Stage != DiffOperationStage.Completed)
 				progressCallback?.Invoke(progress);
 		}
+	}
+
+	/// <summary>
+	/// Compares two files and generates a JSON report.
+	/// </summary>
+	/// <param name="leftFilePath">Path to the first file.</param>
+	/// <param name="rightFilePath">Path to the second file.</param>
+	/// <param name="outputPath">Path for the output JSON file.</param>
+	/// <param name="columnMappings">Optional column pairs (left header, right header) to treat as the same column (e.g. renames).</param>
+	/// <param name="keyColumns">Optional column names to match rows by (faster than content-based matching).</param>
+	/// <param name="options">Optional normalization and matching options.</param>
+	/// <param name="progressCallback">Optional callback invoked as operation stages complete.</param>
+	/// <param name="cancellationToken">Cancellation token.</param>
+	/// <returns>The diff result.</returns>
+	public async Task<DiffResult> CompareAndSaveJsonAsync(
+		string leftFilePath,
+		string rightFilePath,
+		string outputPath,
+		IReadOnlyList<ColumnMapping>? columnMappings = null,
+		IReadOnlyList<string>? keyColumns = null,
+		ComparisonOptions? options = null,
+		Action<DiffOperationProgress>? progressCallback = null,
+		CancellationToken cancellationToken = default
+	)
+	{
+		var result = await CompareAsync(
+			leftFilePath,
+			rightFilePath,
+			columnMappings,
+			keyColumns,
+			options,
+			progressCallback,
+			cancellationToken
+		);
+		await DiffResultJsonSerializer.WriteToFileAsync(result, outputPath, cancellationToken);
+		return result;
 	}
 
 	/// <summary>
