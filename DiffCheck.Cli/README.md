@@ -45,6 +45,9 @@ diffcheck <left> <right> [options]
 | `--trim-whitespace`   |       | Strip leading/trailing whitespace before comparing                                        |                                                  |
 | `--numeric-tolerance` |       | Treat numbers as equal when their absolute difference is within this value (e.g. `0.001`) |                                                  |
 | `--match-threshold`   |       | Fraction of columns that must match for content-based row pairing (default: `0.5`)        |                                                  |
+| `--left-sheet`        |       | Sheet to read from the left XLSX file. Name (e.g. `"Summary"`) or 1-based index (e.g. `2`). Default: first sheet. XLSX only. |  |
+| `--right-sheet`       |       | Sheet to read from the right XLSX file. Name or 1-based index. Default: first sheet. XLSX only. |  |
+| `--all-sheets`        |       | Compare all sheets whose names exist in both XLSX files. Produces a multi-sheet HTML report or a JSON array. Cannot be combined with `--left-sheet` / `--right-sheet`. XLSX only. | |
 
 ### Subcommands
 
@@ -111,6 +114,18 @@ diffcheck old.csv new.csv --case-insensitive --trim-whitespace --save-profile ci
 
 # List all saved profiles
 diffcheck list-profiles
+
+# Read a specific named sheet from both files
+diffcheck v1.xlsx v2.xlsx --left-sheet "Summary" --right-sheet "Summary"
+
+# Read the second sheet from each file (1-based index)
+diffcheck v1.xlsx v2.xlsx --left-sheet 2 --right-sheet 2
+
+# Compare all matching sheets across both workbooks (multi-section HTML report)
+diffcheck v1.xlsx v2.xlsx --all-sheets
+
+# Compare all sheets and output a JSON array
+diffcheck v1.xlsx v2.xlsx --all-sheets --format json -o all-sheets.json
 ```
 
 ## JSON output schema
@@ -161,7 +176,7 @@ When `--format json` is used, the report is a JSON object with the following str
 ## Supported formats
 
 - `.csv`, `.txt` – CSV files
-- `.xlsx`, `.xlsm` – Excel workbooks (first sheet)
+- `.xlsx`, `.xlsm` – Excel workbooks (first sheet by default; use `--left-sheet` / `--right-sheet` for a specific sheet, or `--all-sheets` to compare every matching sheet)
 
 ## Requirements
 
