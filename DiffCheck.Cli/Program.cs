@@ -10,7 +10,13 @@ var rightArg = new Argument<FileInfo>("right") { Description = "Path to the righ
 var outputOption = new Option<FileInfo?>("--output", "-o")
 {
 	Description =
-		"Path for the output HTML report. Defaults to diff-report.html. Mutually exclusive with --summary.",
+		"Path for the output report. Defaults to diff-report.html (html format) or diff-report.json (json format). Mutually exclusive with --summary.",
+};
+
+var formatOption = new Option<string>("--format")
+{
+	Description = "Output format: html (default) or json.",
+	DefaultValueFactory = _ => "html",
 };
 
 var columnMapOption = new Option<string[]>("--column-map")
@@ -77,11 +83,12 @@ var failOnDiffOption = new Option<bool>("--fail-on-diff")
 	Description = "Exit with code 1 if any differences are found.",
 };
 
-var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
+var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate a diff report.")
 {
 	leftArg,
 	rightArg,
 	outputOption,
+	formatOption,
 	columnMapOption,
 	keyColumnsOption,
 	profileOption,
@@ -122,6 +129,7 @@ rootCommand.SetAction(
 			var leftFilePath = parseResult.GetValue(leftArg)!.FullName;
 			var rightFilePath = parseResult.GetValue(rightArg)!.FullName;
 			var outputFile = parseResult.GetValue(outputOption);
+			var format = (parseResult.GetValue(formatOption) ?? "html").ToLowerInvariant();
 			var mapStrings = parseResult.GetValue(columnMapOption) ?? [];
 			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? [];
 			var profileName = parseResult.GetValue(profileOption);
@@ -134,13 +142,20 @@ rootCommand.SetAction(
 			var summary = parseResult.GetValue(summaryOption);
 			var failOnDiff = parseResult.GetValue(failOnDiffOption);
 
+			if (format is not ("html" or "json"))
+			{
+				Console.Error.WriteLine($"Error: unsupported --format value \"{format}\". Supported: html, json.");
+				return 1;
+			}
+
 			if (summary && outputFile != null)
 			{
 				Console.Error.WriteLine("Error: --summary and --output/-o are mutually exclusive.");
 				return 1;
 			}
 
-			var outputPath = outputFile?.FullName ?? "diff-report.html";
+			var defaultOutputPath = format == "json" ? "diff-report.json" : "diff-report.html";
+			var outputPath = outputFile?.FullName ?? defaultOutputPath;
 
 			// Load profile defaults (explicit CLI flags take precedence)
 			IReadOnlyList<ColumnMapping>? profileMappings = null;
@@ -243,15 +258,31 @@ rootCommand.SetAction(
 				return failOnDiff && result.Summary.HasDifferences ? 1 : 0;
 			}
 
-			var diffResult = await service.CompareAndSaveHtmlAsync(
-				leftFilePath,
-				rightFilePath,
-				outputPath,
-				columnMappings,
-				keyColumns,
-				comparisonOptions,
-				cancellationToken: token
-			);
+			DiffResult diffResult;
+			if (format == "json")
+			{
+				diffResult = await service.CompareAndSaveJsonAsync(
+					leftFilePath,
+					rightFilePath,
+					outputPath,
+					columnMappings,
+					keyColumns,
+					comparisonOptions,
+					cancellationToken: token
+				);
+			}
+			else
+			{
+				diffResult = await service.CompareAndSaveHtmlAsync(
+					leftFilePath,
+					rightFilePath,
+					outputPath,
+					columnMappings,
+					keyColumns,
+					comparisonOptions,
+					cancellationToken: token
+				);
+			}
 
 			Console.WriteLine($"Report saved to: {outputPath}");
 
