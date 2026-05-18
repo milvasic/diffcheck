@@ -27,6 +27,12 @@
 		<None Include="README.md" Pack="true" PackagePath="\" />
 	</ItemGroup>
 
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleToAttribute">
+			<_Parameter1>DiffCheck.Cli.Tests</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+
 	<Target Name="DotnetToolInstall" AfterTargets="Pack">
 		<Exec
 			Command="dotnet tool install --global --interactive --add-source ./builds diffcheck"
