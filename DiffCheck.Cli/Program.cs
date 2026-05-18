@@ -7,10 +7,10 @@ using DiffCheck.Profiles;
 var leftArg = new Argument<FileInfo>("left") { Description = "Path to the left file." };
 var rightArg = new Argument<FileInfo>("right") { Description = "Path to the right file." };
 
-var outputOption = new Option<FileInfo>("--output", "-o")
+var outputOption = new Option<FileInfo?>("--output", "-o")
 {
-	Description = "Path for the output HTML report.",
-	DefaultValueFactory = _ => new FileInfo("diff-report.html"),
+	Description =
+		"Path for the output HTML report. Defaults to diff-report.html. Mutually exclusive with --summary.",
 };
 
 var columnMapOption = new Option<string[]>("--column-map")
@@ -66,6 +66,17 @@ var openOption = new Option<bool>("--open")
 	Description = "Open the generated HTML report in the system default browser after generation.",
 };
 
+var summaryOption = new Option<bool>("--summary")
+{
+	Description =
+		"Print diff counts to stdout (added=N removed=N modified=N reordered=N) without writing an HTML report. Mutually exclusive with --output/-o.",
+};
+
+var failOnDiffOption = new Option<bool>("--fail-on-diff")
+{
+	Description = "Exit with code 1 if any differences are found.",
+};
+
 var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an HTML diff report.")
 {
 	leftArg,
@@ -80,6 +91,8 @@ var rootCommand = new RootCommand("Compare two CSV or XLSX files and generate an
 	numericToleranceOption,
 	matchThresholdOption,
 	openOption,
+	summaryOption,
+	failOnDiffOption,
 };
 
 // Subcommand: list-profiles
@@ -108,7 +121,7 @@ rootCommand.SetAction(
 		{
 			var leftFilePath = parseResult.GetValue(leftArg)!.FullName;
 			var rightFilePath = parseResult.GetValue(rightArg)!.FullName;
-			var outputPath = parseResult.GetValue(outputOption)!.FullName;
+			var outputFile = parseResult.GetValue(outputOption);
 			var mapStrings = parseResult.GetValue(columnMapOption) ?? [];
 			var keyStrings = parseResult.GetValue(keyColumnsOption) ?? [];
 			var profileName = parseResult.GetValue(profileOption);
@@ -118,6 +131,16 @@ rootCommand.SetAction(
 			var numericTolerance = parseResult.GetValue(numericToleranceOption);
 			var matchThreshold = parseResult.GetValue(matchThresholdOption);
 			var openInBrowser = parseResult.GetValue(openOption);
+			var summary = parseResult.GetValue(summaryOption);
+			var failOnDiff = parseResult.GetValue(failOnDiffOption);
+
+			if (summary && outputFile != null)
+			{
+				Console.Error.WriteLine("Error: --summary and --output/-o are mutually exclusive.");
+				return 1;
+			}
+
+			var outputPath = outputFile?.FullName ?? "diff-report.html";
 
 			// Load profile defaults (explicit CLI flags take precedence)
 			IReadOnlyList<ColumnMapping>? profileMappings = null;
@@ -129,7 +152,7 @@ rootCommand.SetAction(
 				if (profile == null)
 				{
 					Console.Error.WriteLine($"Profile \"{profileName}\" not found.");
-					return;
+					return 1;
 				}
 				profileMappings = profile.ColumnMappings;
 				profileKeyColumns = profile.KeyColumns;
@@ -148,7 +171,7 @@ rootCommand.SetAction(
 						Console.Error.WriteLine(
 							$"Invalid column map \"{s}\". Use format LeftHeader:RightHeader (e.g. Name:FullName)."
 						);
-						return;
+						return 1;
 					}
 					list.Add(new ColumnMapping(s[..colon].Trim(), s[(colon + 1)..].Trim()));
 				}
@@ -204,7 +227,23 @@ rootCommand.SetAction(
 				comparisonOptions = profileOptions;
 			}
 
-			await service.CompareAndSaveHtmlAsync(
+			if (summary)
+			{
+				var result = await service.CompareAsync(
+					leftFilePath,
+					rightFilePath,
+					columnMappings,
+					keyColumns,
+					comparisonOptions,
+					cancellationToken: token
+				);
+				Console.WriteLine(
+					$"added={result.Summary.AddedRows} removed={result.Summary.RemovedRows} modified={result.Summary.ModifiedRows} reordered={result.Summary.ReorderedRows}"
+				);
+				return failOnDiff && result.Summary.HasDifferences ? 1 : 0;
+			}
+
+			var diffResult = await service.CompareAndSaveHtmlAsync(
 				leftFilePath,
 				rightFilePath,
 				outputPath,
@@ -239,10 +278,13 @@ rootCommand.SetAction(
 				await profileStore.SaveAsync(profile);
 				Console.WriteLine($"Profile \"{saveProfileName}\" saved.");
 			}
+
+			return failOnDiff && diffResult.Summary.HasDifferences ? 1 : 0;
 		}
 		catch (Exception ex)
 		{
 			Console.Error.WriteLine($"Error: {ex.Message}");
+			return 1;
 		}
 	}
 );
