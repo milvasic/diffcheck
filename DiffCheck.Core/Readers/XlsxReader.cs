@@ -9,14 +9,37 @@ namespace DiffCheck.Readers;
 public sealed class XlsxReader : IFileReader
 {
 	private readonly int _sheetIndex;
+	private readonly string? _sheetName;
 
 	/// <summary>
-	/// Creates a new XLSX reader.
+	/// Creates a new XLSX reader for the given zero-based sheet index (default: 0).
 	/// </summary>
-	/// <param name="sheetIndex">Zero-based index of the sheet to read. Default is 0 (first sheet).</param>
 	public XlsxReader(int sheetIndex = 0)
 	{
 		_sheetIndex = sheetIndex >= 0 ? sheetIndex : 0;
+		_sheetName = null;
+	}
+
+	/// <summary>
+	/// Creates a new XLSX reader that selects a sheet by name (case-insensitive).
+	/// </summary>
+	public XlsxReader(string sheetName)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(sheetName);
+		_sheetName = sheetName;
+		_sheetIndex = 0;
+	}
+
+	/// <summary>
+	/// Returns the names of all worksheets in the given XLSX workbook.
+	/// </summary>
+	public static IReadOnlyList<string> GetSheetNames(string filePath)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+		if (!File.Exists(filePath))
+			throw new FileNotFoundException("File not found.", filePath);
+		using var workbook = new XLWorkbook(Path.GetFullPath(filePath));
+		return workbook.Worksheets.Select(ws => ws.Name).ToList();
 	}
 
 	public IEnumerable<string> SupportedExtensions => [".xlsx", ".xlsm"];
@@ -38,13 +61,28 @@ public sealed class XlsxReader : IFileReader
 
 		using var workbook = new XLWorkbook(path);
 		var sheetCount = workbook.Worksheets.Count;
-		if (_sheetIndex >= sheetCount)
-			throw new ArgumentOutOfRangeException(
-				nameof(_sheetIndex),
-				$"Sheet index {_sheetIndex} is out of range. Workbook has {sheetCount} sheet(s)."
-			);
 
-		var worksheet = workbook.Worksheet(_sheetIndex + 1); // 1-based in ClosedXML
+		IXLWorksheet worksheet;
+		if (_sheetName != null)
+		{
+			worksheet =
+				workbook.Worksheets.FirstOrDefault(ws =>
+					string.Equals(ws.Name, _sheetName, StringComparison.OrdinalIgnoreCase)
+				)
+				?? throw new InvalidOperationException(
+					$"Sheet \"{_sheetName}\" not found in \"{Path.GetFileName(path)}\". "
+						+ $"Available sheets: {string.Join(", ", workbook.Worksheets.Select(ws => $"\"{ws.Name}\""))}."
+				);
+		}
+		else
+		{
+			if (_sheetIndex >= sheetCount)
+				throw new ArgumentOutOfRangeException(
+					nameof(_sheetIndex),
+					$"Sheet index {_sheetIndex} is out of range. Workbook has {sheetCount} sheet(s)."
+				);
+			worksheet = workbook.Worksheet(_sheetIndex + 1); // 1-based in ClosedXML
+		}
 		var usedRange = worksheet.RangeUsed();
 
 		if (usedRange == null)

@@ -1,8 +1,13 @@
 using System.CommandLine;
 using System.Diagnostics;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using DiffCheck;
+using DiffCheck.Html;
+using DiffCheck.Json;
 using DiffCheck.Models;
 using DiffCheck.Profiles;
+using DiffCheck.Readers;
 
 namespace DiffCheck.Cli;
 
@@ -110,6 +115,24 @@ internal static class CliApp
 			Description = "Exit with code 1 if the number of modified rows exceeds this value.",
 		};
 
+		var leftSheetOption = new Option<string?>("--left-sheet")
+		{
+			Description =
+				"Sheet to read from the left XLSX file. Accepts a sheet name (e.g. \"Summary\") or a 1-based index (e.g. 2). Defaults to the first sheet.",
+		};
+
+		var rightSheetOption = new Option<string?>("--right-sheet")
+		{
+			Description =
+				"Sheet to read from the right XLSX file. Accepts a sheet name (e.g. \"Summary\") or a 1-based index (e.g. 2). Defaults to the first sheet.",
+		};
+
+		var allSheetsOption = new Option<bool>("--all-sheets")
+		{
+			Description =
+				"Compare all sheets whose names exist in both XLSX files. Produces a multi-sheet HTML report (one section per sheet) or a JSON array. Cannot be combined with --left-sheet or --right-sheet. XLSX only.",
+		};
+
 		var rootCommand = new RootCommand(
 			"Compare two CSV or XLSX files and generate a diff report."
 		)
@@ -132,6 +155,9 @@ internal static class CliApp
 			maxAddedOption,
 			maxRemovedOption,
 			maxModifiedOption,
+			leftSheetOption,
+			rightSheetOption,
+			allSheetsOption,
 		};
 
 		var listProfilesCommand = new Command(
@@ -187,8 +213,22 @@ internal static class CliApp
 		rootCommand.SetAction(
 			async (parseResult, token) =>
 			{
-				var service = new DiffCheckService();
 				var profileStore = new ProfileStore(ProfileStore.DefaultCliDirectory);
+
+				static bool IsXlsx(string path)
+				{
+					var ext = Path.GetExtension(path).ToLowerInvariant();
+					return ext is ".xlsx" or ".xlsm";
+				}
+
+				static IFileReader CreateXlsxReader(string? sheetSpec)
+				{
+					if (sheetSpec == null)
+						return new XlsxReader();
+					if (int.TryParse(sheetSpec, out var idx))
+						return new XlsxReader(sheetIndex: idx - 1); // 1-based → 0-based
+					return new XlsxReader(sheetName: sheetSpec);
+				}
 
 				try
 				{
@@ -210,6 +250,9 @@ internal static class CliApp
 					var maxAdded = parseResult.GetValue(maxAddedOption);
 					var maxRemoved = parseResult.GetValue(maxRemovedOption);
 					var maxModified = parseResult.GetValue(maxModifiedOption);
+					var leftSheet = parseResult.GetValue(leftSheetOption);
+					var rightSheet = parseResult.GetValue(rightSheetOption);
+					var allSheets = parseResult.GetValue(allSheetsOption);
 
 					if (format is not ("html" or "json"))
 					{
@@ -223,6 +266,25 @@ internal static class CliApp
 					{
 						Console.Error.WriteLine(
 							"Error: --summary and --output/-o are mutually exclusive."
+						);
+						return 2;
+					}
+
+					if (allSheets && (leftSheet != null || rightSheet != null))
+					{
+						Console.Error.WriteLine(
+							"Error: --all-sheets cannot be combined with --left-sheet or --right-sheet."
+						);
+						return 2;
+					}
+
+					var isLeftXlsx = IsXlsx(leftFilePath);
+					var isRightXlsx = IsXlsx(rightFilePath);
+
+					if ((leftSheet != null || rightSheet != null || allSheets) && (!isLeftXlsx || !isRightXlsx))
+					{
+						Console.Error.WriteLine(
+							"Error: --left-sheet, --right-sheet, and --all-sheets are only supported for XLSX files."
 						);
 						return 2;
 					}
@@ -312,6 +374,152 @@ internal static class CliApp
 					else
 					{
 						comparisonOptions = profileOptions;
+					}
+
+					// --all-sheets: compare all matching sheets and write a multi-section report
+					if (allSheets)
+					{
+						if (summary)
+							Console.Error.WriteLine(
+								"Warning: --summary is ignored with --all-sheets."
+							);
+
+						var leftSheetNames = XlsxReader.GetSheetNames(leftFilePath);
+						var rightSheetNames = XlsxReader.GetSheetNames(rightFilePath);
+						var rightSet = new HashSet<string>(
+							rightSheetNames,
+							StringComparer.OrdinalIgnoreCase
+						);
+						var matchedSheets = leftSheetNames.Where(n => rightSet.Contains(n)).ToList();
+
+						var leftOnly = leftSheetNames
+							.Where(n => !rightSet.Contains(n))
+							.ToList();
+						var leftSet = new HashSet<string>(
+							leftSheetNames,
+							StringComparer.OrdinalIgnoreCase
+						);
+						var rightOnly = rightSheetNames.Where(n => !leftSet.Contains(n)).ToList();
+
+						if (leftOnly.Count > 0)
+							Console.WriteLine(
+								$"Note: sheets only in left file (skipped): {string.Join(", ", leftOnly)}"
+							);
+						if (rightOnly.Count > 0)
+							Console.WriteLine(
+								$"Note: sheets only in right file (skipped): {string.Join(", ", rightOnly)}"
+							);
+
+						if (matchedSheets.Count == 0)
+						{
+							Console.Error.WriteLine(
+								"Error: no sheet names match between the two files."
+							);
+							Console.Error.WriteLine(
+								$"  Left sheets:  {string.Join(", ", leftSheetNames)}"
+							);
+							Console.Error.WriteLine(
+								$"  Right sheets: {string.Join(", ", rightSheetNames)}"
+							);
+							return 2;
+						}
+
+						var sheetResults =
+							new List<(string SheetName, DiffResult Result)>(matchedSheets.Count);
+						// NOTE: each CompareAsync call re-opens both workbooks via XlsxReader.ReadAsync;
+						// for files with many matching sheets this is O(n) opens per file.
+						foreach (var sheetName in matchedSheets)
+						{
+							var sheetService = new DiffCheckService(
+								new XlsxReader(sheetName),
+								new XlsxReader(sheetName)
+							);
+							var sheetResult = await sheetService.CompareAsync(
+								leftFilePath,
+								rightFilePath,
+								columnMappings,
+								keyColumns,
+								comparisonOptions,
+								cancellationToken: token
+							);
+							sheetResults.Add((sheetName, sheetResult));
+						}
+
+						if (format == "json")
+						{
+							// Each element uses the same schema as single-sheet JSON output
+							// (summary + columns + rows) with an additional leading "sheetName" field.
+							var nodes = new JsonArray();
+							foreach (var sr in sheetResults)
+							{
+								var sheetNode = JsonNode.Parse(DiffResultJsonSerializer.Serialize(sr.Result))!.AsObject();
+								sheetNode.Insert(0, "sheetName", JsonValue.Create(sr.SheetName));
+								nodes.Add(sheetNode);
+							}
+							var json = nodes.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+							await File.WriteAllTextAsync(outputPath, json, token);
+						}
+						else
+						{
+							var leftSize = new FileInfo(leftFilePath).Length;
+							var rightSize = new FileInfo(rightFilePath).Length;
+							var htmlGen = new HtmlReportGenerator();
+							await htmlGen.WriteMultiSheetToFileAsync(
+								sheetResults,
+								outputPath,
+								leftFilePath,
+								rightFilePath,
+								leftSize,
+								rightSize,
+								theme: null,
+								cancellationToken: token
+							);
+						}
+
+						Console.WriteLine(
+							$"Report saved to: {outputPath} ({matchedSheets.Count} sheets compared)"
+						);
+						if (openInBrowser)
+						{
+							try
+							{
+								Process.Start(
+									new ProcessStartInfo
+									{
+										FileName = outputPath,
+										UseShellExecute = true,
+									}
+								);
+							}
+							catch (Exception ex)
+								when (ex
+										is System.ComponentModel.Win32Exception
+											or InvalidOperationException
+								)
+							{
+								Console.WriteLine(
+									"Warning: could not open browser — no default handler registered."
+								);
+							}
+						}
+						return sheetResults.Any(sr =>
+							ThresholdExceeded(sr.Result.Summary, failOnDiff, maxAdded, maxRemoved, maxModified))
+							? 1
+							: 0;
+					}
+
+					// Single-sheet comparison (optionally with custom sheet selection)
+					DiffCheckService service;
+					if (leftSheet != null || rightSheet != null)
+					{
+						service = new DiffCheckService(
+							CreateXlsxReader(leftSheet),
+							CreateXlsxReader(rightSheet)
+						);
+					}
+					else
+					{
+						service = new DiffCheckService();
 					}
 
 					if (summary)
