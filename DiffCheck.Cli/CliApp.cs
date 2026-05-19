@@ -1,8 +1,10 @@
 using System.CommandLine;
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using DiffCheck;
 using DiffCheck.Html;
+using DiffCheck.Json;
 using DiffCheck.Models;
 using DiffCheck.Profiles;
 using DiffCheck.Readers;
@@ -345,6 +347,11 @@ internal static class CliApp
 					// --all-sheets: compare all matching sheets and write a multi-section report
 					if (allSheets)
 					{
+						if (summary)
+							Console.Error.WriteLine(
+								"Warning: --summary is ignored with --all-sheets."
+							);
+
 						var leftSheetNames = XlsxReader.GetSheetNames(leftFilePath);
 						var rightSheetNames = XlsxReader.GetSheetNames(rightFilePath);
 						var rightSet = new HashSet<string>(
@@ -356,11 +363,11 @@ internal static class CliApp
 						var leftOnly = leftSheetNames
 							.Where(n => !rightSet.Contains(n))
 							.ToList();
-						var leftSet2 = new HashSet<string>(
+						var leftSet = new HashSet<string>(
 							leftSheetNames,
 							StringComparer.OrdinalIgnoreCase
 						);
-						var rightOnly = rightSheetNames.Where(n => !leftSet2.Contains(n)).ToList();
+						var rightOnly = rightSheetNames.Where(n => !leftSet.Contains(n)).ToList();
 
 						if (leftOnly.Count > 0)
 							Console.WriteLine(
@@ -387,6 +394,8 @@ internal static class CliApp
 
 						var sheetResults =
 							new List<(string SheetName, DiffResult Result)>(matchedSheets.Count);
+						// NOTE: each CompareAsync call re-opens both workbooks via XlsxReader.ReadAsync;
+						// for files with many matching sheets this is O(n) opens per file.
 						foreach (var sheetName in matchedSheets)
 						{
 							var sheetService = new DiffCheckService(
@@ -406,24 +415,16 @@ internal static class CliApp
 
 						if (format == "json")
 						{
-							var jsonArray = sheetResults
-								.Select(sr => new
-								{
-									sheetName = sr.SheetName,
-									summary = new
-									{
-										addedRows = sr.Result.Summary.AddedRows,
-										removedRows = sr.Result.Summary.RemovedRows,
-										modifiedRows = sr.Result.Summary.ModifiedRows,
-										unchangedRows = sr.Result.Summary.UnchangedRows,
-										reorderedRows = sr.Result.Summary.ReorderedRows,
-									},
-								})
-								.ToList();
-							var json = JsonSerializer.Serialize(
-								jsonArray,
-								new JsonSerializerOptions { WriteIndented = true }
-							);
+							// Each element uses the same schema as single-sheet JSON output
+							// (summary + columns + rows) with an additional leading "sheetName" field.
+							var nodes = new JsonArray();
+							foreach (var sr in sheetResults)
+							{
+								var sheetNode = JsonNode.Parse(DiffResultJsonSerializer.Serialize(sr.Result))!.AsObject();
+								sheetNode.Insert(0, "sheetName", JsonValue.Create(sr.SheetName));
+								nodes.Add(sheetNode);
+							}
+							var json = nodes.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
 							await File.WriteAllTextAsync(outputPath, json, token);
 						}
 						else
@@ -438,6 +439,7 @@ internal static class CliApp
 								rightFilePath,
 								leftSize,
 								rightSize,
+								theme: null,
 								cancellationToken: token
 							);
 						}
@@ -468,7 +470,10 @@ internal static class CliApp
 								);
 							}
 						}
-						return 0;
+						return sheetResults.Any(sr =>
+							ThresholdExceeded(sr.Result.Summary, failOnDiff, maxAdded, maxRemoved, maxModified))
+							? 1
+							: 0;
 					}
 
 					// Single-sheet comparison (optionally with custom sheet selection)

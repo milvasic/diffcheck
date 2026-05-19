@@ -1164,7 +1164,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		.agg-table tfoot { background: #f9f9f9; font-weight: 600; }
 		.agg-table tbody tr { cursor: pointer; }
 		.agg-table tbody tr:hover { background: #f5f5f5; }
-		.agg-table tbody tr.has-diff { }
+		.agg-table tbody tr.has-diff { font-weight: 600; }
 		.agg-table tbody tr.active-sheet-row { background: #e8f0fe; }
 		[data-theme="dark"] .agg-table th, [data-theme="dark"] .agg-table td { border-color: #495057; }
 		[data-theme="dark"] .agg-table thead { background: #3d3d3d; }

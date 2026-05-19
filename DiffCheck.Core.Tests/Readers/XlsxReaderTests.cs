@@ -105,7 +105,7 @@ public class XlsxReaderTests
 	}
 
 	[TestMethod]
-	public async Task ReadAsync_BySheetIndex_OneBasedConventionDocumented()
+	public async Task ReadAsync_BySheetIndex_ZeroBasedInternally_ReadsSecondSheet()
 	{
 		var path = CreateMultiSheetXlsx("multisheet_idx_test.xlsx");
 		try
