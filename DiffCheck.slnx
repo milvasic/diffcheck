@@ -34,4 +34,5 @@
 	<Project Path="DiffCheck.Core.Benchmarks/DiffCheck.Core.Benchmarks.csproj" />
 	<Project Path="DiffCheck.Core.Tests/DiffCheck.Core.Tests.csproj" />
 	<Project Path="DiffCheck.Web/DiffCheck.Web.csproj" />
+	<Project Path="DiffCheck.Web.Tests/DiffCheck.Web.Tests.csproj" />
 </Solution>
