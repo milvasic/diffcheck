@@ -34,7 +34,8 @@ public sealed class DiffOperationProgressStore
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		if (_cancellations.TryGetValue(operationId, out var cts))
 		{
-			cts.Cancel();
+			try { cts.Cancel(); }
+			catch (ObjectDisposedException) { return false; }
 			return true;
 		}
 		return false;
@@ -56,6 +57,8 @@ public sealed class DiffOperationProgressStore
 			warningMessage,
 			DateTime.UtcNow
 		);
+		if (_cancellations.TryRemove(operationId, out var cts))
+			cts.Dispose();
 	}
 
 	public void Report(string operationId, DiffOperationProgress progress)
@@ -75,6 +78,9 @@ public sealed class DiffOperationProgressStore
 			warningMessage,
 			DateTime.UtcNow
 		);
+		if (progress.Stage == DiffOperationStage.Completed &&
+			_cancellations.TryRemove(operationId, out var cts))
+			cts.Dispose();
 	}
 
 	public void Fail(string operationId, string error)
@@ -94,6 +100,8 @@ public sealed class DiffOperationProgressStore
 			warningMessage,
 			DateTime.UtcNow
 		);
+		if (_cancellations.TryRemove(operationId, out var cts))
+			cts.Dispose();
 	}
 
 	public bool TryGet(string operationId, out DiffOperationStatus status)

@@ -203,8 +203,8 @@ public class IndexModel(
 		if (string.IsNullOrWhiteSpace(operationId))
 			return new JsonResult(new { error = "operationId is required." });
 
-		progressStore.RequestCancel(operationId);
-		return new JsonResult(new { cancelled = true });
+		var found = progressStore.RequestCancel(operationId);
+		return new JsonResult(new { cancelled = found });
 	}
 
 	public async Task<IActionResult> OnPostAsync(

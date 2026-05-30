@@ -499,12 +499,13 @@
 			})
 			.then(function (data) {
 				stopProgressPolling();
-				hideOverlay();
 				if (data.cancelled) {
+					hideOverlay();
 					refreshRerunButton(true, false);
 					return;
 				}
 				if (data.error) {
+					hideOverlay();
 					errorEl.textContent = data.error;
 					errorEl.classList.remove("d-none");
 					updateValidationInlineHints(data.error);
@@ -513,6 +514,7 @@
 					return;
 				}
 				setOverlayProgress(100, "Comparison complete", "Completed");
+				hideOverlay();
 				updateValidationInlineHints(null);
 				refreshRerunButton(true, false);
 				if (warningEl) {
