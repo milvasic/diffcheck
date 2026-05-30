@@ -51,7 +51,7 @@
 		<div class="row g-3 mb-2">
 			<div class="col-md-6">
 				<div class="drop-zone border rounded p-4 text-center" data-target="leftFile">
-					<input type="file" name="leftFile" id="leftFile" class="d-none"
+					<input type="file" name="leftFile" id="leftFile" class="d-none" multiple
 					       accept=".csv,.txt,.xlsx,.xlsm"/>
 					<div class="drop-content d-flex flex-column align-items-center">
 						<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
@@ -62,15 +62,15 @@
 								d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
 						</svg>
 						<div>
-							<p class="mb-1 fw-medium">Left file</p>
-							<p class="small text-muted mb-0" id="leftFileName">Drop file here or click to browse</p>
+							<p class="mb-1 fw-medium">Left file(s)</p>
+							<p class="small text-muted mb-0 drop-zone-filename" id="leftFileName">Drop files here or click to browse</p>
 						</div>
 					</div>
 				</div>
 			</div>
 			<div class="col-md-6">
 				<div class="drop-zone border rounded p-4 text-center" data-target="rightFile">
-					<input type="file" name="rightFile" id="rightFile" class="d-none"
+					<input type="file" name="rightFile" id="rightFile" class="d-none" multiple
 					       accept=".csv,.txt,.xlsx,.xlsm"/>
 					<div class="drop-content d-flex flex-column align-items-center">
 						<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
@@ -81,9 +81,9 @@
 								d="M9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm0 1v2A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
 						</svg>
 						<div>
-							<p class="mb-1 fw-medium">Right file</p>
-							<p class="small text-muted mb-0" id="rightFileName">
-								Drop file here or click to browse
+							<p class="mb-1 fw-medium">Right file(s)</p>
+							<p class="small text-muted mb-0 drop-zone-filename" id="rightFileName">
+								Drop files here or click to browse
 							</p>
 						</div>
 					</div>

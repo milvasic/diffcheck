@@ -390,9 +390,68 @@
 	});
 
 	function updateFileName(input, displayEl) {
-		displayEl.textContent = input.files?.length
-			? input.files[0].name
-			: "Drop file here or click to browse";
+		if (!input.files || !input.files.length) {
+			displayEl.textContent = "Drop files here or click to browse";
+			return;
+		}
+		if (input.files.length === 1) {
+			displayEl.textContent = input.files[0].name;
+			return;
+		}
+		var names = Array.from(input.files)
+			.map(function (f) {
+				return f.name;
+			})
+			.join(", ");
+		displayEl.textContent =
+			input.files.length +
+			" files: " +
+			(names.length > 80 ? names.slice(0, 79) + "…" : names);
+	}
+
+	// Determine pairs from left and right FileLists.
+	// N:N → pair by position; 1:N or N:1 → broadcast the single file.
+	// Returns null when counts are incompatible.
+	function getPairs(leftFileList, rightFileList) {
+		var left = Array.from(leftFileList);
+		var right = Array.from(rightFileList);
+		if (left.length === right.length) {
+			return left.map(function (l, i) {
+				return { left: l, right: right[i] };
+			});
+		}
+		if (left.length === 1) {
+			return right.map(function (r) {
+				return { left: left[0], right: r };
+			});
+		}
+		if (right.length === 1) {
+			return left.map(function (l) {
+				return { left: l, right: right[0] };
+			});
+		}
+		return null;
+	}
+
+	function buildPairFormData(leftFile, rightFile) {
+		var fd = new FormData();
+		fd.append("leftFile", leftFile, leftFile.name);
+		fd.append("rightFile", rightFile, rightFile.name);
+		var keyEl = document.getElementById("keyColumnsRaw");
+		var mapEl = document.getElementById("columnMappingsRaw");
+		var ntEl = document.getElementById("numericToleranceRaw");
+		var mtEl = document.getElementById("matchThresholdRaw");
+		var ciEl = document.getElementById("caseInsensitive");
+		var twEl = document.getElementById("trimWhitespace");
+		if (keyEl && keyEl.value) fd.append("keyColumnsRaw", keyEl.value);
+		if (mapEl && mapEl.value) fd.append("columnMappingsRaw", mapEl.value);
+		if (ntEl && ntEl.value) fd.append("numericToleranceRaw", ntEl.value);
+		if (mtEl && mtEl.value) fd.append("matchThresholdRaw", mtEl.value);
+		if (ciEl && ciEl.checked) fd.append("caseInsensitive", "true");
+		if (twEl && twEl.checked) fd.append("trimWhitespace", "true");
+		var aft = form.querySelector('input[name="__RequestVerificationToken"]');
+		if (aft) fd.append("__RequestVerificationToken", aft.value);
+		return fd;
 	}
 
 	function showJobResult(job) {
@@ -453,21 +512,46 @@
 
 		var errorEl = document.getElementById("compareError");
 		var warningEl = document.getElementById("compareWarning");
-		var leftSize = leftInput.files[0].size;
-		var rightSize = rightInput.files[0].size;
 
-		if (leftSize === 0 || rightSize === 0) {
-			errorEl.textContent = "One or both files are empty.";
-			errorEl.classList.remove("d-none");
-			updateValidationInlineHints(errorEl.textContent);
-			if (warningEl) warningEl.classList.add("d-none");
-			refreshRerunButton(true, false);
-			return;
+		var allFiles = Array.from(leftInput.files || []).concat(
+			Array.from(rightInput.files || []),
+		);
+		for (var fi = 0; fi < allFiles.length; fi++) {
+			var f = allFiles[fi];
+			if (f.size === 0) {
+				errorEl.textContent = 'File "' + f.name + '" is empty.';
+				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(errorEl.textContent);
+				if (warningEl) warningEl.classList.add("d-none");
+				refreshRerunButton(true, false);
+				return;
+			}
+			if (f.size > MAX_FILE_SIZE) {
+				errorEl.textContent = "Each file must be under " + MAX_FILE_SIZE_MB + " MB.";
+				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(errorEl.textContent);
+				if (warningEl) warningEl.classList.add("d-none");
+				refreshRerunButton(true, false);
+				return;
+			}
 		}
-		if (leftSize > MAX_FILE_SIZE || rightSize > MAX_FILE_SIZE) {
-			errorEl.textContent = "Each file must be under " + MAX_FILE_SIZE_MB + " MB.";
+
+		var pairs = getPairs(leftInput.files, rightInput.files);
+		if (!pairs) {
+			var lc = leftInput.files.length;
+			var rc = rightInput.files.length;
+			errorEl.textContent =
+				"Cannot match " +
+				lc +
+				" left file" +
+				(lc !== 1 ? "s" : "") +
+				" with " +
+				rc +
+				" right file" +
+				(rc !== 1 ? "s" : "") +
+				". Upload equal counts, or a single file on one side to compare against all.";
 			errorEl.classList.remove("d-none");
-			updateValidationInlineHints(errorEl.textContent);
+			updateValidationInlineHints(null);
 			if (warningEl) warningEl.classList.add("d-none");
 			refreshRerunButton(true, false);
 			return;
@@ -479,7 +563,6 @@
 		if (warningEl) warningEl.classList.add("d-none");
 		refreshRerunButton(true, true);
 
-		var formData = new FormData(form);
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
 		try {
@@ -488,33 +571,48 @@
 			viewPref = "table";
 		}
 
-		fetch("?handler=StartJob", {
-			method: "POST",
-			body: formData,
-			headers: { "X-Theme": theme, "X-View": viewPref },
-		})
-			.then(function (r) {
-				return r.json();
+		var pending = pairs.length;
+		var hadError = false;
+
+		pairs.forEach(function (pair) {
+			var fd = buildPairFormData(pair.left, pair.right);
+			fetch("?handler=StartJob", {
+				method: "POST",
+				body: fd,
+				headers: { "X-Theme": theme, "X-View": viewPref },
 			})
-			.then(function (data) {
-				refreshRerunButton(hasBothFilesSelected(), false);
-				if (data.error) {
-					errorEl.textContent = data.error;
-					errorEl.classList.remove("d-none");
-					updateValidationInlineHints(data.error);
-					return;
-				}
-				// Notify jobs drawer
-				if (window.DiffCheckJobs) {
-					window.DiffCheckJobs.addJob(data.jobId, data.label);
-				}
-			})
-			.catch(function (err) {
-				refreshRerunButton(hasBothFilesSelected(), false);
-				errorEl.textContent = "Error: " + (err.message || "Could not start comparison");
-				errorEl.classList.remove("d-none");
-				updateValidationInlineHints(errorEl.textContent);
-			});
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					pending--;
+					if (data.error && !hadError) {
+						hadError = true;
+						errorEl.textContent = data.error;
+						errorEl.classList.remove("d-none");
+						updateValidationInlineHints(data.error);
+					}
+					if (!data.error && window.DiffCheckJobs) {
+						window.DiffCheckJobs.addJob(data.jobId, data.label);
+					}
+					if (pending === 0) {
+						refreshRerunButton(hasBothFilesSelected(), false);
+					}
+				})
+				.catch(function (err) {
+					pending--;
+					if (!hadError) {
+						hadError = true;
+						errorEl.textContent =
+							"Error: " + (err.message || "Could not start comparison");
+						errorEl.classList.remove("d-none");
+						updateValidationInlineHints(errorEl.textContent);
+					}
+					if (pending === 0) {
+						refreshRerunButton(hasBothFilesSelected(), false);
+					}
+				});
+		});
 	}
 
 	document.querySelectorAll(".drop-zone").forEach((zone) => {

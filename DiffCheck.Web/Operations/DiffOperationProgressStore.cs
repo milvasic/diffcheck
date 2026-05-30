@@ -34,8 +34,14 @@ public sealed class DiffOperationProgressStore
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		if (_cancellations.TryGetValue(operationId, out var cts))
 		{
-			try { cts.Cancel(); }
-			catch (ObjectDisposedException) { return false; }
+			try
+			{
+				cts.Cancel();
+			}
+			catch (ObjectDisposedException)
+			{
+				return false;
+			}
 			return true;
 		}
 		return false;
@@ -78,8 +84,10 @@ public sealed class DiffOperationProgressStore
 			warningMessage,
 			DateTime.UtcNow
 		);
-		if (progress.Stage == DiffOperationStage.Completed &&
-			_cancellations.TryRemove(operationId, out var cts))
+		if (
+			progress.Stage == DiffOperationStage.Completed
+			&& _cancellations.TryRemove(operationId, out var cts)
+		)
 			cts.Dispose();
 	}
 

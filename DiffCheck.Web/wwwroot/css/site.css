@@ -99,6 +99,13 @@ body.d-flex.flex-column main {
 	height: 24px;
 }
 
+.drop-zone-filename {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	max-width: 100%;
+}
+
 .loading-stage-list {
 	list-style: none;
 	display: flex;
