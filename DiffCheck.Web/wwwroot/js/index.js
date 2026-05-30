@@ -333,6 +333,10 @@
 			overlayWarning.classList.add("d-none");
 			overlayWarning.textContent = "";
 		}
+		if (cancelCompareBtn) {
+			cancelCompareBtn.disabled = false;
+			cancelCompareBtn.textContent = "Cancel";
+		}
 	}
 
 	function setOverlayProgress(percent, messageText, stageName) {
@@ -599,7 +603,11 @@
 
 	if (cancelCompareBtn) {
 		cancelCompareBtn.addEventListener("click", function () {
-			if (activeOperationId) sendCancelRequest(activeOperationId);
+			if (activeOperationId) {
+				cancelCompareBtn.disabled = true;
+				cancelCompareBtn.textContent = "Cancelling…";
+				sendCancelRequest(activeOperationId);
+			}
 		});
 	}
 
