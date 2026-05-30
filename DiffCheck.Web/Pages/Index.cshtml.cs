@@ -11,6 +11,7 @@ public class IndexModel(
 	UploadLimits uploadLimits,
 	ProfileStore profileStore,
 	DiffOperationProgressStore progressStore,
+	DiffJobStore jobStore,
 	LongRunningDiffWarningSettings longRunningDiffWarningSettings
 ) : PageModel
 {
@@ -394,6 +395,154 @@ public class IndexModel(
 		{
 			return new JsonResult(new { error = ex.Message });
 		}
+	}
+
+	public async Task<IActionResult> OnPostStartJobAsync(
+		IFormFile? leftFile,
+		IFormFile? rightFile,
+		string? columnMappingsRaw,
+		string? keyColumnsRaw,
+		bool caseInsensitive = false,
+		bool trimWhitespace = false,
+		string? numericToleranceRaw = null,
+		string? matchThresholdRaw = null
+	)
+	{
+		if (leftFile == null || rightFile == null)
+			return new JsonResult(new { error = "Please provide both files." });
+
+		if (leftFile.Length == 0 || rightFile.Length == 0)
+			return new JsonResult(new { error = "One or both files are empty." });
+
+		var maxBytes = uploadLimits.MaxFileSizeBytes;
+		if (leftFile.Length > maxBytes || rightFile.Length > maxBytes)
+			return new JsonResult(new { error = $"Each file must be under {MaxFileSizeMb} MB." });
+
+		var leftExt = Path.GetExtension(leftFile.FileName).ToLowerInvariant();
+		var rightExt = Path.GetExtension(rightFile.FileName).ToLowerInvariant();
+		var supported = new[] { ".csv", ".txt", ".xlsx", ".xlsm" };
+		if (!supported.Contains(leftExt) || !supported.Contains(rightExt))
+			return new JsonResult(
+				new
+				{
+					error = $"Unsupported file format. Supported: {string.Join(", ", supported)}",
+				}
+			);
+
+		var label = $"{leftFile.FileName} vs {rightFile.FileName}";
+		if (!jobStore.TryCreate(label, out var jobId))
+			return new JsonResult(
+				new { error = "Too many concurrent jobs. Please wait for a job to finish." }
+			);
+
+		var leftPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + leftExt);
+		var rightPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + rightExt);
+
+		await using (var ls = System.IO.File.Create(leftPath))
+		await using (var rs = System.IO.File.Create(rightPath))
+		{
+			await leftFile.CopyToAsync(ls);
+			await rightFile.CopyToAsync(rs);
+		}
+
+		var leftName = leftFile.FileName;
+		var rightName = rightFile.FileName;
+		var leftSize = leftFile.Length;
+		var rightSize = rightFile.Length;
+		var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
+		var viewPref = Request.Headers["X-View"].FirstOrDefault() ?? "table";
+		var columnMappings = ParseColumnMappings(columnMappingsRaw);
+		var keyColumns = ParseKeyColumns(keyColumnsRaw);
+		var comparisonOptions = BuildComparisonOptions(
+			caseInsensitive,
+			trimWhitespace,
+			numericToleranceRaw,
+			matchThresholdRaw
+		);
+		var warningOptions = BuildLongRunningWarningOptions();
+		var requestStartedAt = DateTimeOffset.UtcNow;
+
+		_ = Task.Run(async () =>
+		{
+			jobStore.Start(jobId);
+			try
+			{
+				void ReportProgress(DiffOperationProgress p)
+				{
+					if (p.Stage != DiffOperationStage.Completed)
+						jobStore.UpdateProgress(jobId, p.Percent, p.Message);
+				}
+
+				var (result, warningAssessment) =
+					await diffCheckService.CompareWithWarningAssessmentAsync(
+						leftPath,
+						rightPath,
+						columnMappings,
+						keyColumns,
+						comparisonOptions,
+						ReportProgress,
+						warningOptions
+					);
+				var html = diffCheckService.GenerateHtml(
+					result,
+					leftName,
+					rightName,
+					leftSize,
+					rightSize,
+					theme,
+					viewPref,
+					requestStartedAtUtc: requestStartedAt
+				);
+				var warningMessage = warningAssessment.ShouldWarn
+					? "Large dataset without key columns detected. This comparison may take longer. "
+						+ "Add one or more key columns to improve row matching performance."
+					: null;
+				jobStore.Complete(jobId, html, warningMessage);
+			}
+			catch (Exception ex)
+			{
+				jobStore.Fail(jobId, ex.Message);
+			}
+			finally
+			{
+				if (System.IO.File.Exists(leftPath))
+					System.IO.File.Delete(leftPath);
+				if (System.IO.File.Exists(rightPath))
+					System.IO.File.Delete(rightPath);
+			}
+		});
+
+		return new JsonResult(new { jobId, label });
+	}
+
+	public IActionResult OnGetJobStatus(string? jobId)
+	{
+		if (string.IsNullOrWhiteSpace(jobId))
+			return new JsonResult(new { error = "jobId is required." });
+
+		if (!jobStore.TryGetStatus(jobId, out var result))
+			return new JsonResult(new { found = false });
+
+		return new JsonResult(
+			new
+			{
+				found = true,
+				id = result!.Id,
+				label = result.Label,
+				status = result.Status,
+				percent = result.Percent,
+				message = result.Message,
+				error = result.Error,
+				warningMessage = result.WarningMessage,
+				html = result.Html,
+			}
+		);
+	}
+
+	public IActionResult OnGetJobs()
+	{
+		var jobs = jobStore.GetAll();
+		return new JsonResult(jobs);
 	}
 
 	private static IReadOnlyList<string>? ParseKeyColumns(string? raw)

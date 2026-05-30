@@ -925,7 +925,9 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 		sb.AppendLine("        <table class=\"agg-table\">");
 		sb.AppendLine("          <thead><tr>");
 		sb.AppendLine("            <th>Sheet</th>");
-		sb.AppendLine("            <th>Added</th><th>Removed</th><th>Modified</th><th>Reordered</th><th>Unchanged</th>");
+		sb.AppendLine(
+			"            <th>Added</th><th>Removed</th><th>Modified</th><th>Reordered</th><th>Unchanged</th>"
+		);
 		sb.AppendLine("          </tr></thead>");
 		sb.AppendLine("          <tbody>");
 		for (var i = 0; i < sheets.Count; i++)
@@ -963,10 +965,7 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 				+ s.Result.Summary.RemovedRows
 				+ s.Result.Summary.ModifiedRows
 				+ s.Result.Summary.ReorderedRows;
-			var badge =
-				changes > 0
-					? $" <span class=\"sheet-tab-badge\">{changes}</span>"
-					: "";
+			var badge = changes > 0 ? $" <span class=\"sheet-tab-badge\">{changes}</span>" : "";
 			sb.AppendLine(
 				$"          <button class=\"sheet-tab{active}\" data-sheet-idx=\"{i}\">{EscapeHtml(s.SheetName)}{badge}</button>"
 			);
@@ -1158,301 +1157,301 @@ public sealed class HtmlReportGenerator(HtmlReportOptions? options = null)
 
 	private static string GetMultiSheetExtraStyles() =>
 		"""
-		.agg-table { border-collapse: collapse; width: 100%; margin-bottom: 16px; font-size: 14px; }
-		.agg-table th, .agg-table td { padding: 6px 12px; border: 1px solid #ddd; text-align: left; }
-		.agg-table thead { background: #f0f0f0; }
-		.agg-table tfoot { background: #f9f9f9; font-weight: 600; }
-		.agg-table tbody tr { cursor: pointer; }
-		.agg-table tbody tr:hover { background: #f5f5f5; }
-		.agg-table tbody tr.has-diff { font-weight: 600; }
-		.agg-table tbody tr.active-sheet-row { background: #e8f0fe; }
-		[data-theme="dark"] .agg-table th, [data-theme="dark"] .agg-table td { border-color: #495057; }
-		[data-theme="dark"] .agg-table thead { background: #3d3d3d; }
-		[data-theme="dark"] .agg-table tfoot { background: #2d2d2d; }
-		[data-theme="dark"] .agg-table tbody tr:hover { background: #3d3d3d; }
-		[data-theme="dark"] .agg-table tbody tr.active-sheet-row { background: #1a3a5c; }
-		.sheets-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0; border-bottom: 2px solid #ddd; padding-bottom: 0; }
-		.sheet-tab { padding: 8px 16px; border: 1px solid #ddd; border-bottom: none; background: #f5f5f5; cursor: pointer; font-size: 13px; border-radius: 4px 4px 0 0; transition: background 0.15s; }
-		.sheet-tab:hover:not(.active) { background: #e9ecef; }
-		.sheet-tab.active { background: white; border-bottom: 2px solid white; margin-bottom: -2px; font-weight: 600; }
-		.sheet-tab-badge { display: inline-block; background: #ef4444; color: white; border-radius: 10px; font-size: 11px; padding: 1px 6px; margin-left: 6px; }
-		[data-theme="dark"] .sheets-nav { border-bottom-color: #495057; }
-		[data-theme="dark"] .sheet-tab { background: #3d3d3d; border-color: #495057; color: #e9ecef; }
-		[data-theme="dark"] .sheet-tab:hover:not(.active) { background: #4d4d4d; }
-		[data-theme="dark"] .sheet-tab.active { background: #2d2d2d; border-bottom-color: #2d2d2d; }
-		.sheet-panels { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid #ddd; border-top: none; }
-		[data-theme="dark"] .sheet-panels { border-color: #495057; }
-		.sheet-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-		.sheet-panel[hidden] { display: none !important; }
-		.sheet-panel-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #eee; flex-shrink: 0; }
-		[data-theme="dark"] .sheet-panel-header { border-bottom-color: #495057; }
-		.sheet-view-controls { display: flex; gap: 4px; }
-		.container.multi-sheet { overflow: auto; }
-		.container.multi-sheet .sheet-panels { overflow: hidden; min-height: 400px; }
-		""";
+			.agg-table { border-collapse: collapse; width: 100%; margin-bottom: 16px; font-size: 14px; }
+			.agg-table th, .agg-table td { padding: 6px 12px; border: 1px solid #ddd; text-align: left; }
+			.agg-table thead { background: #f0f0f0; }
+			.agg-table tfoot { background: #f9f9f9; font-weight: 600; }
+			.agg-table tbody tr { cursor: pointer; }
+			.agg-table tbody tr:hover { background: #f5f5f5; }
+			.agg-table tbody tr.has-diff { font-weight: 600; }
+			.agg-table tbody tr.active-sheet-row { background: #e8f0fe; }
+			[data-theme="dark"] .agg-table th, [data-theme="dark"] .agg-table td { border-color: #495057; }
+			[data-theme="dark"] .agg-table thead { background: #3d3d3d; }
+			[data-theme="dark"] .agg-table tfoot { background: #2d2d2d; }
+			[data-theme="dark"] .agg-table tbody tr:hover { background: #3d3d3d; }
+			[data-theme="dark"] .agg-table tbody tr.active-sheet-row { background: #1a3a5c; }
+			.sheets-nav { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 0; border-bottom: 2px solid #ddd; padding-bottom: 0; }
+			.sheet-tab { padding: 8px 16px; border: 1px solid #ddd; border-bottom: none; background: #f5f5f5; cursor: pointer; font-size: 13px; border-radius: 4px 4px 0 0; transition: background 0.15s; }
+			.sheet-tab:hover:not(.active) { background: #e9ecef; }
+			.sheet-tab.active { background: white; border-bottom: 2px solid white; margin-bottom: -2px; font-weight: 600; }
+			.sheet-tab-badge { display: inline-block; background: #ef4444; color: white; border-radius: 10px; font-size: 11px; padding: 1px 6px; margin-left: 6px; }
+			[data-theme="dark"] .sheets-nav { border-bottom-color: #495057; }
+			[data-theme="dark"] .sheet-tab { background: #3d3d3d; border-color: #495057; color: #e9ecef; }
+			[data-theme="dark"] .sheet-tab:hover:not(.active) { background: #4d4d4d; }
+			[data-theme="dark"] .sheet-tab.active { background: #2d2d2d; border-bottom-color: #2d2d2d; }
+			.sheet-panels { flex: 1; min-height: 0; display: flex; flex-direction: column; border: 1px solid #ddd; border-top: none; }
+			[data-theme="dark"] .sheet-panels { border-color: #495057; }
+			.sheet-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+			.sheet-panel[hidden] { display: none !important; }
+			.sheet-panel-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 12px; border-bottom: 1px solid #eee; flex-shrink: 0; }
+			[data-theme="dark"] .sheet-panel-header { border-bottom-color: #495057; }
+			.sheet-view-controls { display: flex; gap: 4px; }
+			.container.multi-sheet { overflow: auto; }
+			.container.multi-sheet .sheet-panels { overflow: hidden; min-height: 400px; }
+			""";
 
 	private static string GetMultiSheetScript() =>
 		"""
-		<script>
-		(function() {
-			"use strict";
-			function escapeHtml(s) {
-				if (s == null) return '';
-				return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-			}
-
-			var STORAGE_TOOLS_EXPANDED = 'diffcheck-tools-expanded';
-			var STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols';
-			var STORAGE_HIGHLIGHT_ROWS = 'diffcheck-highlight-rows';
-			var STORAGE_HIGHLIGHT_CELLS = 'diffcheck-highlight-cells';
-			var STORAGE_WHOLE_DIFF = 'diffcheck-whole-diff';
-
-			var curtain = document.getElementById('tools-curtain');
-			var toggleBtn = document.getElementById('tools-toggle');
-			var layout = document.getElementById('report-layout');
-			function expand() { curtain.classList.add('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '1'); } catch(e) {} }
-			function collapse() { curtain.classList.remove('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '0'); } catch(e) {} }
-			function isExpanded() { return curtain.classList.contains('expanded'); }
-			if (toggleBtn) toggleBtn.addEventListener('click', function() { isExpanded() ? collapse() : expand(); });
-			try { var savedExp = localStorage.getItem(STORAGE_TOOLS_EXPANDED); if (savedExp === '0') collapse(); else expand(); } catch(e) { expand(); }
-
-			var activeSheet = 0;
-			var gridApis = [];
-			var useWholeValueDiff = false;
-			var sheetsData = window.diffDataSheets || [];
-
-			var ROW_STATUS_CLASS = ['row-unchanged', 'row-added', 'row-removed', 'row-modified', 'row-unchanged'];
-			var ROW_STATUS_TEXT = ['unchanged', 'added', 'removed', 'modified', 'reordered'];
-			var CELL_STATUS_CLASS = ['cell-unchanged', 'cell-added', 'cell-removed', 'cell-modified', 'cell-unchanged'];
-
-			function buildRowData(data) {
-				if (!data || !data.r) return [];
-				var rowsPacked = data.r;
-				var result = new Array(rowsPacked.length);
-				for (var i = 0; i < rowsPacked.length; i++) {
-					var rp = rowsPacked[i] || [];
-					var rowStatusCode = rp[3] || 0;
-					var cellsPacked = rp[4] || [];
-					var hasLeft = rp[1] !== null && rp[1] !== undefined;
-					var hasRight = rp[2] !== null && rp[2] !== undefined;
-					var ind;
-					if (hasLeft && hasRight) ind = rp[1] + ' → ' + rp[2];
-					else if (hasLeft) ind = rp[1] + ' → —';
-					else if (hasRight) ind = '— → ' + rp[2];
-					else ind = '—';
-					var rowObj = { rowIndex: rp[0], indicesDisplay: ind, status: ROW_STATUS_TEXT[rowStatusCode] || 'unchanged', rowStatus: ROW_STATUS_CLASS[rowStatusCode] || 'row-unchanged' };
-					for (var c = 0; c < cellsPacked.length; c++) {
-						var cp = cellsPacked[c] || [];
-						rowObj['col' + c] = cp[0];
-						var cls = CELL_STATUS_CLASS[cp[1] || 0] || 'cell-unchanged';
-						if (!!cp[3]) cls += ' cell-format-only';
-						rowObj['_col' + c + '_class'] = cls;
-						rowObj['_col' + c + '_status'] = cp[1] || 0;
-						if (cp[2]) rowObj['_col' + c + '_html'] = cp[2];
-						if (cp[4] != null || cp[5] != null) { rowObj['_col' + c + '_left'] = cp[4] != null ? cp[4] : null; rowObj['_col' + c + '_right'] = cp[5] != null ? cp[5] : null; }
-					}
-					result[i] = rowObj;
+			<script>
+			(function() {
+				"use strict";
+				function escapeHtml(s) {
+					if (s == null) return '';
+					return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 				}
-				return result;
-			}
 
-			var ALL_STATUSES = ['added', 'removed', 'modified', 'reordered', 'unchanged'];
-			function StatusFilter() {}
-			StatusFilter.prototype.init = function(params) {
-				this._params = params; this._selected = new Set(ALL_STATUSES);
-				this._gui = document.createElement('div'); this._gui.style.cssText = 'padding:10px 12px;width:100%;';
-				var self = this;
-				var CB_STYLE = 'accent-color:#0d6efd;cursor:pointer;flex-shrink:0;';
-				var allLabel = document.createElement('label'); allLabel.className = 'sf-row sf-row-all';
-				var allCb = document.createElement('input'); allCb.type = 'checkbox'; allCb.checked = true; allCb.style.cssText = CB_STYLE;
-				this._allCb = allCb;
-				allCb.addEventListener('change', function() { var checked = allCb.checked; allCb.indeterminate = false; if (checked) self._selected = new Set(ALL_STATUSES); else self._selected.clear(); self._gui.querySelectorAll('.sf-item-cb').forEach(function(c) { c.checked = checked; }); params.filterChangedCallback(); });
-				var allText = document.createElement('span'); allText.textContent = '(Select All)'; allText.style.cssText = 'font-size:13px;';
-				allLabel.appendChild(allCb); allLabel.appendChild(allText); this._gui.appendChild(allLabel);
-				this._itemCbs = {};
-				ALL_STATUSES.forEach(function(status) {
-					var label = document.createElement('label'); label.className = 'sf-row';
-					var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.className = 'sf-item-cb'; cb.style.cssText = CB_STYLE;
-					self._itemCbs[status] = cb;
-					cb.addEventListener('change', function() { if (cb.checked) self._selected.add(status); else self._selected.delete(status); self._syncAllCb(); params.filterChangedCallback(); });
-					var badge = document.createElement('span'); badge.className = 'status-badge ' + status; badge.textContent = status;
-					label.appendChild(cb); label.appendChild(badge); self._gui.appendChild(label);
-				});
-			};
-			StatusFilter.prototype._syncAllCb = function() {
-				var n = this._selected.size;
-				if (n === ALL_STATUSES.length) { this._allCb.checked = true; this._allCb.indeterminate = false; }
-				else if (n === 0) { this._allCb.checked = false; this._allCb.indeterminate = false; }
-				else { this._allCb.checked = false; this._allCb.indeterminate = true; }
-			};
-			StatusFilter.prototype.getGui = function() { return this._gui; };
-			StatusFilter.prototype.isFilterActive = function() { return this._selected.size < ALL_STATUSES.length; };
-			StatusFilter.prototype.doesFilterPass = function(params) { var val = params.data && params.data.status ? params.data.status : 'unchanged'; return this._selected.has(val); };
-			StatusFilter.prototype.getModel = function() { return this.isFilterActive() ? { values: Array.from(this._selected) } : null; };
-			StatusFilter.prototype.setModel = function(model) {
-				var self = this;
-				if (model && model.values) { this._selected = new Set(model.values); } else { this._selected = new Set(ALL_STATUSES); }
-				ALL_STATUSES.forEach(function(status) { if (self._itemCbs[status]) self._itemCbs[status].checked = self._selected.has(status); });
-				self._syncAllCb();
-			};
+				var STORAGE_TOOLS_EXPANDED = 'diffcheck-tools-expanded';
+				var STORAGE_HIDE_COLS = 'diffcheck-hide-unchanged-cols';
+				var STORAGE_HIGHLIGHT_ROWS = 'diffcheck-highlight-rows';
+				var STORAGE_HIGHLIGHT_CELLS = 'diffcheck-highlight-cells';
+				var STORAGE_WHOLE_DIFF = 'diffcheck-whole-diff';
 
-			function buildColumnDefs(data) {
-				var headers = data && data.h ? data.h : [];
-				var headerRenames = data && data.hr ? data.hr : [];
-				var colDefs = [
-					{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false, suppressMovable: true },
-					{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false, suppressMovable: true },
-					{ field: 'status', headerName: 'Status', colId: 'status', filter: StatusFilter, floatingFilter: false, suppressMovable: true,
-					  cellRenderer: function(params) { if (!params.value) return null; var s = document.createElement('span'); s.className = 'status-badge ' + params.value; s.textContent = params.value; return s; }
+				var curtain = document.getElementById('tools-curtain');
+				var toggleBtn = document.getElementById('tools-toggle');
+				var layout = document.getElementById('report-layout');
+				function expand() { curtain.classList.add('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '1'); } catch(e) {} }
+				function collapse() { curtain.classList.remove('expanded'); try { localStorage.setItem(STORAGE_TOOLS_EXPANDED, '0'); } catch(e) {} }
+				function isExpanded() { return curtain.classList.contains('expanded'); }
+				if (toggleBtn) toggleBtn.addEventListener('click', function() { isExpanded() ? collapse() : expand(); });
+				try { var savedExp = localStorage.getItem(STORAGE_TOOLS_EXPANDED); if (savedExp === '0') collapse(); else expand(); } catch(e) { expand(); }
+
+				var activeSheet = 0;
+				var gridApis = [];
+				var useWholeValueDiff = false;
+				var sheetsData = window.diffDataSheets || [];
+
+				var ROW_STATUS_CLASS = ['row-unchanged', 'row-added', 'row-removed', 'row-modified', 'row-unchanged'];
+				var ROW_STATUS_TEXT = ['unchanged', 'added', 'removed', 'modified', 'reordered'];
+				var CELL_STATUS_CLASS = ['cell-unchanged', 'cell-added', 'cell-removed', 'cell-modified', 'cell-unchanged'];
+
+				function buildRowData(data) {
+					if (!data || !data.r) return [];
+					var rowsPacked = data.r;
+					var result = new Array(rowsPacked.length);
+					for (var i = 0; i < rowsPacked.length; i++) {
+						var rp = rowsPacked[i] || [];
+						var rowStatusCode = rp[3] || 0;
+						var cellsPacked = rp[4] || [];
+						var hasLeft = rp[1] !== null && rp[1] !== undefined;
+						var hasRight = rp[2] !== null && rp[2] !== undefined;
+						var ind;
+						if (hasLeft && hasRight) ind = rp[1] + ' → ' + rp[2];
+						else if (hasLeft) ind = rp[1] + ' → —';
+						else if (hasRight) ind = '— → ' + rp[2];
+						else ind = '—';
+						var rowObj = { rowIndex: rp[0], indicesDisplay: ind, status: ROW_STATUS_TEXT[rowStatusCode] || 'unchanged', rowStatus: ROW_STATUS_CLASS[rowStatusCode] || 'row-unchanged' };
+						for (var c = 0; c < cellsPacked.length; c++) {
+							var cp = cellsPacked[c] || [];
+							rowObj['col' + c] = cp[0];
+							var cls = CELL_STATUS_CLASS[cp[1] || 0] || 'cell-unchanged';
+							if (!!cp[3]) cls += ' cell-format-only';
+							rowObj['_col' + c + '_class'] = cls;
+							rowObj['_col' + c + '_status'] = cp[1] || 0;
+							if (cp[2]) rowObj['_col' + c + '_html'] = cp[2];
+							if (cp[4] != null || cp[5] != null) { rowObj['_col' + c + '_left'] = cp[4] != null ? cp[4] : null; rowObj['_col' + c + '_right'] = cp[5] != null ? cp[5] : null; }
+						}
+						result[i] = rowObj;
 					}
-				];
-				for (var i = 0; i < headers.length; i++) {
-					(function(idx) {
-						var rightName = headerRenames[idx];
-						var isRenamed = (rightName != null && rightName !== '');
-						colDefs.push({
-							field: 'col' + idx,
-							headerName: isRenamed ? (headers[idx] + ' → ' + rightName) : headers[idx],
-							headerClass: isRenamed ? 'column-header-modified' : '',
-							colId: 'col' + idx,
-							filter: 'agTextColumnFilter',
-							cellClass: function(params) { return (params.data && params.data['_col' + idx + '_class']) || ''; },
-							cellRenderer: function(params) {
-								var span = document.createElement('span');
-								var data = params.data || {};
-								var statusCode = data['_col' + idx + '_status'];
-								var left = data['_col' + idx + '_left'];
-								var right = data['_col' + idx + '_right'];
-								var htmlKey = '_col' + idx + '_html';
-								if (useWholeValueDiff && statusCode === 3 && (left != null || right != null)) {
-									if (left != null && right != null) { span.innerHTML = '<span class="diff-old">' + escapeHtml(left) + '</span> → <span class="diff-new">' + escapeHtml(right) + '</span>'; }
-									else if (left != null) { span.innerHTML = '<span class="diff-old">' + escapeHtml(left) + '</span>'; }
-									else { span.innerHTML = '<span class="diff-new">' + escapeHtml(right) + '</span>'; }
-								} else if (data[htmlKey]) { span.innerHTML = data[htmlKey]; }
-								else { span.textContent = params.value != null ? params.value : ''; }
-								return span;
+					return result;
+				}
+
+				var ALL_STATUSES = ['added', 'removed', 'modified', 'reordered', 'unchanged'];
+				function StatusFilter() {}
+				StatusFilter.prototype.init = function(params) {
+					this._params = params; this._selected = new Set(ALL_STATUSES);
+					this._gui = document.createElement('div'); this._gui.style.cssText = 'padding:10px 12px;width:100%;';
+					var self = this;
+					var CB_STYLE = 'accent-color:#0d6efd;cursor:pointer;flex-shrink:0;';
+					var allLabel = document.createElement('label'); allLabel.className = 'sf-row sf-row-all';
+					var allCb = document.createElement('input'); allCb.type = 'checkbox'; allCb.checked = true; allCb.style.cssText = CB_STYLE;
+					this._allCb = allCb;
+					allCb.addEventListener('change', function() { var checked = allCb.checked; allCb.indeterminate = false; if (checked) self._selected = new Set(ALL_STATUSES); else self._selected.clear(); self._gui.querySelectorAll('.sf-item-cb').forEach(function(c) { c.checked = checked; }); params.filterChangedCallback(); });
+					var allText = document.createElement('span'); allText.textContent = '(Select All)'; allText.style.cssText = 'font-size:13px;';
+					allLabel.appendChild(allCb); allLabel.appendChild(allText); this._gui.appendChild(allLabel);
+					this._itemCbs = {};
+					ALL_STATUSES.forEach(function(status) {
+						var label = document.createElement('label'); label.className = 'sf-row';
+						var cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = true; cb.className = 'sf-item-cb'; cb.style.cssText = CB_STYLE;
+						self._itemCbs[status] = cb;
+						cb.addEventListener('change', function() { if (cb.checked) self._selected.add(status); else self._selected.delete(status); self._syncAllCb(); params.filterChangedCallback(); });
+						var badge = document.createElement('span'); badge.className = 'status-badge ' + status; badge.textContent = status;
+						label.appendChild(cb); label.appendChild(badge); self._gui.appendChild(label);
+					});
+				};
+				StatusFilter.prototype._syncAllCb = function() {
+					var n = this._selected.size;
+					if (n === ALL_STATUSES.length) { this._allCb.checked = true; this._allCb.indeterminate = false; }
+					else if (n === 0) { this._allCb.checked = false; this._allCb.indeterminate = false; }
+					else { this._allCb.checked = false; this._allCb.indeterminate = true; }
+				};
+				StatusFilter.prototype.getGui = function() { return this._gui; };
+				StatusFilter.prototype.isFilterActive = function() { return this._selected.size < ALL_STATUSES.length; };
+				StatusFilter.prototype.doesFilterPass = function(params) { var val = params.data && params.data.status ? params.data.status : 'unchanged'; return this._selected.has(val); };
+				StatusFilter.prototype.getModel = function() { return this.isFilterActive() ? { values: Array.from(this._selected) } : null; };
+				StatusFilter.prototype.setModel = function(model) {
+					var self = this;
+					if (model && model.values) { this._selected = new Set(model.values); } else { this._selected = new Set(ALL_STATUSES); }
+					ALL_STATUSES.forEach(function(status) { if (self._itemCbs[status]) self._itemCbs[status].checked = self._selected.has(status); });
+					self._syncAllCb();
+				};
+
+				function buildColumnDefs(data) {
+					var headers = data && data.h ? data.h : [];
+					var headerRenames = data && data.hr ? data.hr : [];
+					var colDefs = [
+						{ field: 'rowIndex', headerName: '#', colId: 'rowIndex', type: 'numericColumn', filter: false, suppressMovable: true },
+						{ field: 'indicesDisplay', headerName: 'Left → Right', colId: 'indicesDisplay', filter: false, suppressMovable: true },
+						{ field: 'status', headerName: 'Status', colId: 'status', filter: StatusFilter, floatingFilter: false, suppressMovable: true,
+						  cellRenderer: function(params) { if (!params.value) return null; var s = document.createElement('span'); s.className = 'status-badge ' + params.value; s.textContent = params.value; return s; }
+						}
+					];
+					for (var i = 0; i < headers.length; i++) {
+						(function(idx) {
+							var rightName = headerRenames[idx];
+							var isRenamed = (rightName != null && rightName !== '');
+							colDefs.push({
+								field: 'col' + idx,
+								headerName: isRenamed ? (headers[idx] + ' → ' + rightName) : headers[idx],
+								headerClass: isRenamed ? 'column-header-modified' : '',
+								colId: 'col' + idx,
+								filter: 'agTextColumnFilter',
+								cellClass: function(params) { return (params.data && params.data['_col' + idx + '_class']) || ''; },
+								cellRenderer: function(params) {
+									var span = document.createElement('span');
+									var data = params.data || {};
+									var statusCode = data['_col' + idx + '_status'];
+									var left = data['_col' + idx + '_left'];
+									var right = data['_col' + idx + '_right'];
+									var htmlKey = '_col' + idx + '_html';
+									if (useWholeValueDiff && statusCode === 3 && (left != null || right != null)) {
+										if (left != null && right != null) { span.innerHTML = '<span class="diff-old">' + escapeHtml(left) + '</span> → <span class="diff-new">' + escapeHtml(right) + '</span>'; }
+										else if (left != null) { span.innerHTML = '<span class="diff-old">' + escapeHtml(left) + '</span>'; }
+										else { span.innerHTML = '<span class="diff-new">' + escapeHtml(right) + '</span>'; }
+									} else if (data[htmlKey]) { span.innerHTML = data[htmlKey]; }
+									else { span.textContent = params.value != null ? params.value : ''; }
+									return span;
+								}
+							});
+						})(i);
+					}
+					return colDefs;
+				}
+
+				function showSheet(idx) {
+					document.querySelectorAll('.sheet-panel').forEach(function(p) { p.hidden = (parseInt(p.getAttribute('data-sheet-idx'), 10) !== idx); });
+					document.querySelectorAll('.sheet-tab').forEach(function(t) { t.classList.toggle('active', parseInt(t.getAttribute('data-sheet-idx'), 10) === idx); });
+					document.querySelectorAll('.agg-table tbody tr[data-sheet-idx]').forEach(function(r) { r.classList.toggle('active-sheet-row', parseInt(r.getAttribute('data-sheet-idx'), 10) === idx); });
+					activeSheet = idx;
+				}
+
+				document.querySelectorAll('.sheet-tab').forEach(function(tab) {
+					tab.addEventListener('click', function() { showSheet(parseInt(tab.getAttribute('data-sheet-idx'), 10)); });
+				});
+				document.querySelectorAll('.agg-table tbody tr[data-sheet-idx]').forEach(function(row) {
+					row.addEventListener('click', function() { showSheet(parseInt(row.getAttribute('data-sheet-idx'), 10)); });
+				});
+
+				document.querySelectorAll('.view-btn[data-view][data-sheet]').forEach(function(btn) {
+					btn.addEventListener('click', function() {
+						var sheetIdx = parseInt(btn.getAttribute('data-sheet'), 10);
+						var view = btn.getAttribute('data-view');
+						var tableEl = document.getElementById('view-table-' + sheetIdx);
+						var textEl = document.getElementById('view-text-' + sheetIdx);
+						if (view === 'text') { if (tableEl) tableEl.hidden = true; if (textEl) textEl.hidden = false; }
+						else { if (tableEl) tableEl.hidden = false; if (textEl) textEl.hidden = true; }
+						var panel = document.getElementById('sheet-panel-' + sheetIdx);
+						if (panel) panel.querySelectorAll('.view-btn[data-view]').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-view') === view); });
+					});
+				});
+
+				document.querySelectorAll('.autosize-btn').forEach(function(btn) {
+					btn.addEventListener('click', function() {
+						var sheetIdx = parseInt(btn.getAttribute('data-sheet'), 10);
+						var api = gridApis[sheetIdx];
+						if (api) api.autoSizeAllColumns();
+					});
+				});
+
+				var hideColsCb = document.getElementById('hide-unchanged-cols');
+				var highlightRowsCb = document.getElementById('highlight-rows');
+				var highlightCellsCb = document.getElementById('highlight-cells');
+				var wholeDiffCb = document.getElementById('whole-value-diff');
+
+				function updateHideCols() {
+					var hide = hideColsCb && !!hideColsCb.checked;
+					try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch(e) {}
+					gridApis.forEach(function(api, idx) {
+						if (!api) return;
+						var data = sheetsData[idx];
+						var columnHasChanges = data && data.c ? data.c : [];
+						var allCols = api.getAllColumns ? api.getAllColumns() : [];
+						allCols.forEach(function(col) {
+							var colId = col.getColId();
+							if (colId && colId.indexOf('col') === 0) {
+								var colIdx = parseInt(colId.replace('col', ''), 10);
+								api.setColumnVisible(colId, !hide || !!columnHasChanges[colIdx]);
 							}
 						});
-					})(i);
+					});
 				}
-				return colDefs;
-			}
+				function updateHighlightRows() {
+					var on = !highlightRowsCb || !!highlightRowsCb.checked;
+					try { localStorage.setItem(STORAGE_HIGHLIGHT_ROWS, on ? '1' : '0'); } catch(e) {}
+					if (layout) { if (on) layout.classList.add('highlight-rows'); else layout.classList.remove('highlight-rows'); }
+				}
+				function updateHighlightCells() {
+					var on = !highlightCellsCb || !!highlightCellsCb.checked;
+					try { localStorage.setItem(STORAGE_HIGHLIGHT_CELLS, on ? '1' : '0'); } catch(e) {}
+					if (layout) { if (on) layout.classList.add('highlight-cells'); else layout.classList.remove('highlight-cells'); }
+					gridApis.forEach(function(api) { if (api) api.refreshCells({ force: true }); });
+				}
+				function updateWholeDiff() {
+					useWholeValueDiff = !!(wholeDiffCb && wholeDiffCb.checked);
+					try { localStorage.setItem(STORAGE_WHOLE_DIFF, useWholeValueDiff ? '1' : '0'); } catch(e) {}
+					gridApis.forEach(function(api) { if (api) api.refreshCells({ force: true }); });
+				}
 
-			function showSheet(idx) {
-				document.querySelectorAll('.sheet-panel').forEach(function(p) { p.hidden = (parseInt(p.getAttribute('data-sheet-idx'), 10) !== idx); });
-				document.querySelectorAll('.sheet-tab').forEach(function(t) { t.classList.toggle('active', parseInt(t.getAttribute('data-sheet-idx'), 10) === idx); });
-				document.querySelectorAll('.agg-table tbody tr[data-sheet-idx]').forEach(function(r) { r.classList.toggle('active-sheet-row', parseInt(r.getAttribute('data-sheet-idx'), 10) === idx); });
-				activeSheet = idx;
-			}
+				if (hideColsCb) hideColsCb.addEventListener('change', updateHideCols);
+				if (highlightRowsCb) highlightRowsCb.addEventListener('change', updateHighlightRows);
+				if (highlightCellsCb) highlightCellsCb.addEventListener('change', updateHighlightCells);
+				if (wholeDiffCb) wholeDiffCb.addEventListener('change', updateWholeDiff);
 
-			document.querySelectorAll('.sheet-tab').forEach(function(tab) {
-				tab.addEventListener('click', function() { showSheet(parseInt(tab.getAttribute('data-sheet-idx'), 10)); });
-			});
-			document.querySelectorAll('.agg-table tbody tr[data-sheet-idx]').forEach(function(row) {
-				row.addEventListener('click', function() { showSheet(parseInt(row.getAttribute('data-sheet-idx'), 10)); });
-			});
+				for (var si = 0; si < sheetsData.length; si++) {
+					(function(idx) {
+						var data = sheetsData[idx];
+						if (!data) return;
+						var gridEl = document.getElementById('diff-grid-' + idx);
+						if (!gridEl || typeof agGrid === 'undefined') return;
+						var rowData = buildRowData(data);
+						var colDefs = buildColumnDefs(data);
+						agGrid.createGrid(gridEl, {
+							rowData: rowData,
+							columnDefs: colDefs,
+							defaultColDef: { filter: true },
+							autoSizeStrategy: { type: 'fitCellContents' },
+							getRowClass: function(params) { return params.data ? (params.data.rowStatus || '') : ''; },
+							domLayout: 'normal',
+							suppressCellFocus: true,
+							suppressColumnVirtualisation: true,
+							onGridReady: function(params) {
+								gridApis[idx] = params.api;
+								updateHideCols();
+								params.api.onFilterChanged();
+							}
+						});
+					})(si);
+				}
 
-			document.querySelectorAll('.view-btn[data-view][data-sheet]').forEach(function(btn) {
-				btn.addEventListener('click', function() {
-					var sheetIdx = parseInt(btn.getAttribute('data-sheet'), 10);
-					var view = btn.getAttribute('data-view');
-					var tableEl = document.getElementById('view-table-' + sheetIdx);
-					var textEl = document.getElementById('view-text-' + sheetIdx);
-					if (view === 'text') { if (tableEl) tableEl.hidden = true; if (textEl) textEl.hidden = false; }
-					else { if (tableEl) tableEl.hidden = false; if (textEl) textEl.hidden = true; }
-					var panel = document.getElementById('sheet-panel-' + sheetIdx);
-					if (panel) panel.querySelectorAll('.view-btn[data-view]').forEach(function(b) { b.classList.toggle('active', b.getAttribute('data-view') === view); });
-				});
-			});
-
-			document.querySelectorAll('.autosize-btn').forEach(function(btn) {
-				btn.addEventListener('click', function() {
-					var sheetIdx = parseInt(btn.getAttribute('data-sheet'), 10);
-					var api = gridApis[sheetIdx];
-					if (api) api.autoSizeAllColumns();
-				});
-			});
-
-			var hideColsCb = document.getElementById('hide-unchanged-cols');
-			var highlightRowsCb = document.getElementById('highlight-rows');
-			var highlightCellsCb = document.getElementById('highlight-cells');
-			var wholeDiffCb = document.getElementById('whole-value-diff');
-
-			function updateHideCols() {
-				var hide = hideColsCb && !!hideColsCb.checked;
-				try { localStorage.setItem(STORAGE_HIDE_COLS, hide ? '1' : '0'); } catch(e) {}
-				gridApis.forEach(function(api, idx) {
-					if (!api) return;
-					var data = sheetsData[idx];
-					var columnHasChanges = data && data.c ? data.c : [];
-					var allCols = api.getAllColumns ? api.getAllColumns() : [];
-					allCols.forEach(function(col) {
-						var colId = col.getColId();
-						if (colId && colId.indexOf('col') === 0) {
-							var colIdx = parseInt(colId.replace('col', ''), 10);
-							api.setColumnVisible(colId, !hide || !!columnHasChanges[colIdx]);
-						}
-					});
-				});
-			}
-			function updateHighlightRows() {
-				var on = !highlightRowsCb || !!highlightRowsCb.checked;
-				try { localStorage.setItem(STORAGE_HIGHLIGHT_ROWS, on ? '1' : '0'); } catch(e) {}
-				if (layout) { if (on) layout.classList.add('highlight-rows'); else layout.classList.remove('highlight-rows'); }
-			}
-			function updateHighlightCells() {
-				var on = !highlightCellsCb || !!highlightCellsCb.checked;
-				try { localStorage.setItem(STORAGE_HIGHLIGHT_CELLS, on ? '1' : '0'); } catch(e) {}
-				if (layout) { if (on) layout.classList.add('highlight-cells'); else layout.classList.remove('highlight-cells'); }
-				gridApis.forEach(function(api) { if (api) api.refreshCells({ force: true }); });
-			}
-			function updateWholeDiff() {
-				useWholeValueDiff = !!(wholeDiffCb && wholeDiffCb.checked);
-				try { localStorage.setItem(STORAGE_WHOLE_DIFF, useWholeValueDiff ? '1' : '0'); } catch(e) {}
-				gridApis.forEach(function(api) { if (api) api.refreshCells({ force: true }); });
-			}
-
-			if (hideColsCb) hideColsCb.addEventListener('change', updateHideCols);
-			if (highlightRowsCb) highlightRowsCb.addEventListener('change', updateHighlightRows);
-			if (highlightCellsCb) highlightCellsCb.addEventListener('change', updateHighlightCells);
-			if (wholeDiffCb) wholeDiffCb.addEventListener('change', updateWholeDiff);
-
-			for (var si = 0; si < sheetsData.length; si++) {
-				(function(idx) {
-					var data = sheetsData[idx];
-					if (!data) return;
-					var gridEl = document.getElementById('diff-grid-' + idx);
-					if (!gridEl || typeof agGrid === 'undefined') return;
-					var rowData = buildRowData(data);
-					var colDefs = buildColumnDefs(data);
-					agGrid.createGrid(gridEl, {
-						rowData: rowData,
-						columnDefs: colDefs,
-						defaultColDef: { filter: true },
-						autoSizeStrategy: { type: 'fitCellContents' },
-						getRowClass: function(params) { return params.data ? (params.data.rowStatus || '') : ''; },
-						domLayout: 'normal',
-						suppressCellFocus: true,
-						suppressColumnVirtualisation: true,
-						onGridReady: function(params) {
-							gridApis[idx] = params.api;
-							updateHideCols();
-							params.api.onFilterChanged();
-						}
-					});
-				})(si);
-			}
-
-			try {
-				if (hideColsCb && localStorage.getItem(STORAGE_HIDE_COLS) === '1') hideColsCb.checked = true;
-				if (highlightRowsCb && localStorage.getItem(STORAGE_HIGHLIGHT_ROWS) === '0') highlightRowsCb.checked = false;
-				if (highlightCellsCb && localStorage.getItem(STORAGE_HIGHLIGHT_CELLS) === '0') highlightCellsCb.checked = false;
-				if (wholeDiffCb && localStorage.getItem(STORAGE_WHOLE_DIFF) === '1') { wholeDiffCb.checked = true; useWholeValueDiff = true; }
-				updateHighlightRows(); updateHighlightCells(); updateWholeDiff();
-			} catch(e) {}
-		})();
-		</script>
-		""";
+				try {
+					if (hideColsCb && localStorage.getItem(STORAGE_HIDE_COLS) === '1') hideColsCb.checked = true;
+					if (highlightRowsCb && localStorage.getItem(STORAGE_HIGHLIGHT_ROWS) === '0') highlightRowsCb.checked = false;
+					if (highlightCellsCb && localStorage.getItem(STORAGE_HIGHLIGHT_CELLS) === '0') highlightCellsCb.checked = false;
+					if (wholeDiffCb && localStorage.getItem(STORAGE_WHOLE_DIFF) === '1') { wholeDiffCb.checked = true; useWholeValueDiff = true; }
+					updateHighlightRows(); updateHighlightCells(); updateWholeDiff();
+				} catch(e) {}
+			})();
+			</script>
+			""";
 
 	private string GetStyles()
 	{
