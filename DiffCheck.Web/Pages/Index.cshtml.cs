@@ -12,7 +12,8 @@ public class IndexModel(
 	ProfileStore profileStore,
 	DiffOperationProgressStore progressStore,
 	DiffJobStore jobStore,
-	LongRunningDiffWarningSettings longRunningDiffWarningSettings
+	LongRunningDiffWarningSettings longRunningDiffWarningSettings,
+	ILogger<IndexModel> logger
 ) : PageModel
 {
 	public long MaxFileSizeMb => uploadLimits.MaxFileSizeBytes / (1024 * 1024);
@@ -438,11 +439,22 @@ public class IndexModel(
 		var leftPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + leftExt);
 		var rightPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + rightExt);
 
-		await using (var ls = System.IO.File.Create(leftPath))
-		await using (var rs = System.IO.File.Create(rightPath))
+		try
 		{
-			await leftFile.CopyToAsync(ls);
-			await rightFile.CopyToAsync(rs);
+			await using (var ls = System.IO.File.Create(leftPath))
+			await using (var rs = System.IO.File.Create(rightPath))
+			{
+				await leftFile.CopyToAsync(ls);
+				await rightFile.CopyToAsync(rs);
+			}
+		}
+		catch
+		{
+			if (System.IO.File.Exists(leftPath))
+				System.IO.File.Delete(leftPath);
+			if (System.IO.File.Exists(rightPath))
+				System.IO.File.Delete(rightPath);
+			throw;
 		}
 
 		var leftName = leftFile.FileName;
@@ -501,7 +513,9 @@ public class IndexModel(
 			}
 			catch (Exception ex)
 			{
-				jobStore.Fail(jobId, ex.Message);
+				var correlationId = Guid.NewGuid().ToString("N");
+				logger.LogError(ex, "Job {JobId} failed ({CorrelationId})", jobId, correlationId);
+				jobStore.Fail(jobId, $"Comparison failed. Reference: {correlationId}");
 			}
 			finally
 			{

@@ -16,33 +16,37 @@ public sealed class DiffJobStore
 	private const int MaxConcurrentJobs = 5;
 
 	private readonly ConcurrentDictionary<string, JobEntry> _jobs = new();
+	private readonly object _createLock = new();
 
 	public bool TryCreate(string label, out string jobId)
 	{
 		PruneExpired();
-		var activeCount = _jobs.Values.Count(j =>
-			j.Status is DiffJobStatus.Pending or DiffJobStatus.Running
-		);
-		if (activeCount >= MaxConcurrentJobs)
+		lock (_createLock)
 		{
-			jobId = string.Empty;
-			return false;
-		}
+			var activeCount = _jobs.Values.Count(j =>
+				j.Status is DiffJobStatus.Pending or DiffJobStatus.Running
+			);
+			if (activeCount >= MaxConcurrentJobs)
+			{
+				jobId = string.Empty;
+				return false;
+			}
 
-		jobId = Guid.NewGuid().ToString("N");
-		_jobs[jobId] = new JobEntry(
-			jobId,
-			label,
-			DiffJobStatus.Pending,
-			null,
-			null,
-			null,
-			0,
-			"Queued",
-			DateTime.UtcNow,
-			DateTime.UtcNow
-		);
-		return true;
+			jobId = Guid.NewGuid().ToString("N");
+			_jobs[jobId] = new JobEntry(
+				jobId,
+				label,
+				DiffJobStatus.Pending,
+				null,
+				null,
+				null,
+				0,
+				"Queued",
+				DateTime.UtcNow,
+				DateTime.UtcNow
+			);
+			return true;
+		}
 	}
 
 	public void Start(string jobId)

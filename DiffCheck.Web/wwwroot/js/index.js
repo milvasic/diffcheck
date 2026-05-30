@@ -433,7 +433,7 @@
 		return null;
 	}
 
-	function buildPairFormData(leftFile, rightFile) {
+	function buildPairFormData(leftFile, rightFile, formEl) {
 		var fd = new FormData();
 		fd.append("leftFile", leftFile, leftFile.name);
 		fd.append("rightFile", rightFile, rightFile.name);
@@ -449,7 +449,7 @@
 		if (mtEl && mtEl.value) fd.append("matchThresholdRaw", mtEl.value);
 		if (ciEl && ciEl.checked) fd.append("caseInsensitive", "true");
 		if (twEl && twEl.checked) fd.append("trimWhitespace", "true");
-		var aft = form.querySelector('input[name="__RequestVerificationToken"]');
+		var aft = formEl.querySelector('input[name="__RequestVerificationToken"]');
 		if (aft) fd.append("__RequestVerificationToken", aft.value);
 		return fd;
 	}
@@ -557,6 +557,17 @@
 			return;
 		}
 
+		var MAX_BULK_PAIRS = 10;
+		if (pairs.length > MAX_BULK_PAIRS) {
+			errorEl.textContent =
+				"Bulk upload is limited to " + MAX_BULK_PAIRS + " pairs at a time. " +
+				"You selected " + pairs.length + ".";
+			errorEl.classList.remove("d-none");
+			updateValidationInlineHints(errorEl.textContent);
+			refreshRerunButton(true, false);
+			return;
+		}
+
 		saveOptionsToStorage();
 		errorEl.classList.add("d-none");
 		updateValidationInlineHints(null);
@@ -575,7 +586,7 @@
 		var hadError = false;
 
 		pairs.forEach(function (pair) {
-			var fd = buildPairFormData(pair.left, pair.right);
+			var fd = buildPairFormData(pair.left, pair.right, form);
 			fetch("?handler=StartJob", {
 				method: "POST",
 				body: fd,

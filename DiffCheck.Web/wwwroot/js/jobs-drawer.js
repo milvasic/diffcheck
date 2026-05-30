@@ -188,9 +188,7 @@
 	// ── Rendering ──────────────────────────────────────────────────────────
 
 	function renderList() {
-		var jobs = Object.values(trackedJobs).sort(function (a, b) {
-			return 0; // already in insertion order for modern engines; server list for re-init
-		});
+		var jobs = Object.values(trackedJobs);
 
 		// Count active for badge
 		var activeCount = jobs.filter(function (j) {
