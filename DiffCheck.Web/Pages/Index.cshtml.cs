@@ -448,13 +448,16 @@ public class IndexModel(
 				await rightFile.CopyToAsync(rs);
 			}
 		}
-		catch
+		catch (Exception ex)
 		{
 			if (System.IO.File.Exists(leftPath))
 				System.IO.File.Delete(leftPath);
 			if (System.IO.File.Exists(rightPath))
 				System.IO.File.Delete(rightPath);
-			throw;
+			var correlationId = Guid.NewGuid().ToString("N");
+			logger.LogError(ex, "File upload for job {JobId} failed ({CorrelationId})", jobId, correlationId);
+			jobStore.Fail(jobId, $"Upload failed. Reference: {correlationId}");
+			return new JsonResult(new { error = "Failed to read uploaded files. Please try again." });
 		}
 
 		var leftName = leftFile.FileName;
