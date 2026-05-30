@@ -7,17 +7,53 @@ public sealed class DiffOperationProgressStore
 {
 	private static readonly TimeSpan Retention = TimeSpan.FromMinutes(10);
 	private readonly ConcurrentDictionary<string, ProgressState> _states = new();
+	private readonly ConcurrentDictionary<string, CancellationTokenSource> _cancellations = new();
 
-	public void Start(string operationId)
+	public CancellationToken Start(string operationId)
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		PruneExpired();
+		var cts = new CancellationTokenSource();
+		if (_cancellations.TryRemove(operationId, out var old))
+			old.Dispose();
+		_cancellations[operationId] = cts;
 		_states[operationId] = new ProgressState(
 			new DiffOperationProgress(DiffOperationStage.Starting, 0, "Preparing comparison"),
 			false,
 			false,
+			false,
 			null,
 			null,
+			DateTime.UtcNow
+		);
+		return cts.Token;
+	}
+
+	public bool RequestCancel(string operationId)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+		if (_cancellations.TryGetValue(operationId, out var cts))
+		{
+			cts.Cancel();
+			return true;
+		}
+		return false;
+	}
+
+	public void Cancel(string operationId)
+	{
+		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
+		PruneExpired();
+		var warningMessage = _states.TryGetValue(operationId, out var existing)
+			? existing.WarningMessage
+			: null;
+		_states[operationId] = new ProgressState(
+			new DiffOperationProgress(DiffOperationStage.Completed, 0, "Cancelled"),
+			true,
+			false,
+			true,
+			null,
+			warningMessage,
 			DateTime.UtcNow
 		);
 	}
@@ -33,6 +69,7 @@ public sealed class DiffOperationProgressStore
 		_states[operationId] = new ProgressState(
 			progress,
 			progress.Stage == DiffOperationStage.Completed,
+			false,
 			false,
 			null,
 			warningMessage,
@@ -52,6 +89,7 @@ public sealed class DiffOperationProgressStore
 			new DiffOperationProgress(DiffOperationStage.Completed, 100, "Comparison failed"),
 			true,
 			true,
+			false,
 			error,
 			warningMessage,
 			DateTime.UtcNow
@@ -71,6 +109,7 @@ public sealed class DiffOperationProgressStore
 				state.Progress.Message,
 				state.IsCompleted,
 				state.IsFailed,
+				state.IsCancelled,
 				state.Error,
 				state.WarningMessage
 			);
@@ -87,7 +126,11 @@ public sealed class DiffOperationProgressStore
 		foreach (var pair in _states)
 		{
 			if (pair.Value.UpdatedAtUtc < cutoff)
+			{
 				_states.TryRemove(pair.Key, out _);
+				if (_cancellations.TryRemove(pair.Key, out var cts))
+					cts.Dispose();
+			}
 		}
 	}
 
@@ -95,6 +138,7 @@ public sealed class DiffOperationProgressStore
 		DiffOperationProgress Progress,
 		bool IsCompleted,
 		bool IsFailed,
+		bool IsCancelled,
 		string? Error,
 		string? WarningMessage,
 		DateTime UpdatedAtUtc
@@ -107,6 +151,7 @@ public readonly record struct DiffOperationStatus(
 	string Message,
 	bool IsCompleted,
 	bool IsFailed,
+	bool IsCancelled,
 	string? Error,
 	string? WarningMessage
 );
