@@ -204,6 +204,185 @@ public class IndexPageTests
 		Assert.IsTrue(json.RootElement.TryGetProperty("error", out _));
 	}
 
+	[TestMethod]
+	public async Task OnGetJobStatus_MissingJobId_ReturnsError()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+
+		var response = await client.GetAsync("/?handler=JobStatus");
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.IsTrue(json.RootElement.TryGetProperty("error", out _));
+	}
+
+	[TestMethod]
+	public async Task OnGetJobStatus_UnknownJobId_ReturnsFoundFalse()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+
+		var response = await client.GetAsync("/?handler=JobStatus&jobId=unknown-id");
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.IsFalse(json.RootElement.GetProperty("found").GetBoolean());
+	}
+
+	[TestMethod]
+	public async Task OnGetJobStatus_AfterStartJob_ReturnsFoundTrue()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+		var token = await GetAntiforgeryTokenAsync(client);
+
+		using var leftContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("a,b\n1,2\n")
+		);
+		using var rightContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("a,b\n1,2\n")
+		);
+		leftContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+		rightContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+
+		var form = new MultipartFormDataContent();
+		form.Add(leftContent, "leftFile", "left.csv");
+		form.Add(rightContent, "rightFile", "right.csv");
+		form.Add(new StringContent(token), "__RequestVerificationToken");
+
+		var startJson = JsonDocument.Parse(
+			await (await client.PostAsync("/?handler=StartJob", form)).Content.ReadAsStringAsync()
+		);
+		var jobId = startJson.RootElement.GetProperty("jobId").GetString();
+
+		var statusJson = JsonDocument.Parse(
+			await (await client.GetAsync($"/?handler=JobStatus&jobId={jobId}")).Content.ReadAsStringAsync()
+		);
+
+		Assert.IsTrue(statusJson.RootElement.GetProperty("found").GetBoolean());
+		var status = statusJson.RootElement.GetProperty("status").GetString();
+		Assert.IsTrue(
+			status is "pending" or "running" or "done",
+			$"Unexpected status: {status}"
+		);
+	}
+
+	[TestMethod]
+	public async Task OnGetJobs_WhenNoJobs_ReturnsEmptyArray()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+
+		var response = await client.GetAsync("/?handler=Jobs");
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.AreEqual(JsonValueKind.Array, json.RootElement.ValueKind);
+	}
+
+	[TestMethod]
+	public async Task OnGetJobs_AfterStartJob_ReturnsJobInList()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+		var token = await GetAntiforgeryTokenAsync(client);
+
+		using var leftContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("a,b\n1,2\n")
+		);
+		using var rightContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("a,b\n1,2\n")
+		);
+		leftContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+		rightContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+
+		var form = new MultipartFormDataContent();
+		form.Add(leftContent, "leftFile", "left.csv");
+		form.Add(rightContent, "rightFile", "right.csv");
+		form.Add(new StringContent(token), "__RequestVerificationToken");
+
+		var startJson = JsonDocument.Parse(
+			await (await client.PostAsync("/?handler=StartJob", form)).Content.ReadAsStringAsync()
+		);
+		var jobId = startJson.RootElement.GetProperty("jobId").GetString();
+
+		var jobs = JsonDocument.Parse(
+			await (await client.GetAsync("/?handler=Jobs")).Content.ReadAsStringAsync()
+		);
+
+		Assert.AreEqual(JsonValueKind.Array, jobs.RootElement.ValueKind);
+		var found = jobs.RootElement.EnumerateArray().Any(j =>
+			j.GetProperty("id").GetString() == jobId
+		);
+		Assert.IsTrue(found, "Started job should appear in the jobs list");
+	}
+
+	[TestMethod]
+	public async Task OnPostStartJob_NullFiles_ReturnsError()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+		var token = await GetAntiforgeryTokenAsync(client);
+
+		var form = new MultipartFormDataContent();
+		form.Add(new StringContent(token), "__RequestVerificationToken");
+
+		var response = await client.PostAsync("/?handler=StartJob", form);
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.IsTrue(json.RootElement.TryGetProperty("error", out _));
+	}
+
+	[TestMethod]
+	public async Task OnPostStartJob_EmptyFile_ReturnsError()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+		var token = await GetAntiforgeryTokenAsync(client);
+
+		using var leftContent = new ByteArrayContent(Array.Empty<byte>());
+		using var rightContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("a,b\n1,2\n")
+		);
+		leftContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+		rightContent.Headers.ContentType = MediaTypeHeaderValue.Parse("text/csv");
+
+		var form = new MultipartFormDataContent();
+		form.Add(leftContent, "leftFile", "left.csv");
+		form.Add(rightContent, "rightFile", "right.csv");
+		form.Add(new StringContent(token), "__RequestVerificationToken");
+
+		var response = await client.PostAsync("/?handler=StartJob", form);
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.IsTrue(json.RootElement.TryGetProperty("error", out _));
+	}
+
+	[TestMethod]
+	public async Task OnPostStartJob_UnsupportedFileFormat_ReturnsError()
+	{
+		await using var factory = new WebApplicationFactory<Program>();
+		var client = factory.CreateClient();
+		var token = await GetAntiforgeryTokenAsync(client);
+
+		using var leftContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("some,data")
+		);
+		using var rightContent = new ByteArrayContent(
+			System.Text.Encoding.UTF8.GetBytes("some,data")
+		);
+		leftContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+		rightContent.Headers.ContentType = MediaTypeHeaderValue.Parse("application/octet-stream");
+
+		var form = new MultipartFormDataContent();
+		form.Add(leftContent, "leftFile", "left.pdf");
+		form.Add(rightContent, "rightFile", "right.pdf");
+		form.Add(new StringContent(token), "__RequestVerificationToken");
+
+		var response = await client.PostAsync("/?handler=StartJob", form);
+		var json = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+
+		Assert.IsTrue(json.RootElement.TryGetProperty("error", out _));
+	}
+
 	private sealed class CancellingFileReader : IFileReader
 	{
 		public IEnumerable<string> SupportedExtensions => [".csv", ".txt", ".xlsx", ".xlsm"];
