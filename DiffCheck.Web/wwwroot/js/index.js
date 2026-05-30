@@ -231,8 +231,10 @@
 	restoreOptionsFromStorage();
 
 	var progressPollTimer = null;
+	var activeOperationId = null;
 	var stageOrder = ["ReadingLeftFile", "ReadingRightFile", "Comparing", "GeneratingReport"];
 	var rerunBtn = document.getElementById("rerunBtn");
+	var cancelCompareBtn = document.getElementById("cancelCompareBtn");
 	var keyColumnsInlineHint = document.getElementById("keyColumnsInlineHint");
 	var columnMappingsInlineHint = document.getElementById("columnMappingsInlineHint");
 
@@ -354,7 +356,7 @@
 		}
 	}
 
-	function startProgressPolling(operationId, onFailed) {
+	function startProgressPolling(operationId, onFailed, onCancelled) {
 		stopProgressPolling();
 		progressPollTimer = setInterval(function () {
 			fetch("?handler=Progress&operationId=" + encodeURIComponent(operationId), {
@@ -371,6 +373,11 @@
 						overlayWarningEl.classList.remove("d-none");
 					}
 					setOverlayProgress(data.percent, data.message, data.stage);
+					if (data.isCancelled) {
+						stopProgressPolling();
+						if (typeof onCancelled === "function") onCancelled();
+						return;
+					}
 					if (data.isFailed) {
 						stopProgressPolling();
 						if (typeof onFailed === "function") {
@@ -381,6 +388,14 @@
 				})
 				.catch(function () {});
 		}, 250);
+	}
+
+	function sendCancelRequest(operationId) {
+		var fd = new FormData();
+		fd.append("operationId", operationId);
+		var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
+		if (tokenEl) fd.append("__RequestVerificationToken", tokenEl.value);
+		fetch("?handler=Cancel", { method: "POST", body: fd }).catch(function () {});
 	}
 
 	// ── Form submit / file drop ─────────────────────────────────────────
@@ -443,15 +458,29 @@
 			typeof crypto !== "undefined" && crypto.randomUUID
 				? crypto.randomUUID()
 				: "op-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+		activeOperationId = operationId;
 		formData.append("operationId", operationId);
-		startProgressPolling(operationId, function (message) {
+
+		function hideOverlay() {
 			overlay.classList.add("d-none");
 			overlay.classList.remove("d-flex");
-			errorEl.textContent = message;
-			errorEl.classList.remove("d-none");
-			updateValidationInlineHints(message);
-			refreshRerunButton(true, false);
-		});
+			activeOperationId = null;
+		}
+
+		startProgressPolling(
+			operationId,
+			function (message) {
+				hideOverlay();
+				errorEl.textContent = message;
+				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(message);
+				refreshRerunButton(true, false);
+			},
+			function () {
+				hideOverlay();
+				refreshRerunButton(true, false);
+			},
+		);
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
 		try {
@@ -470,9 +499,11 @@
 			})
 			.then(function (data) {
 				stopProgressPolling();
-				setOverlayProgress(100, "Comparison complete", "Completed");
-				overlay.classList.add("d-none");
-				overlay.classList.remove("d-flex");
+				hideOverlay();
+				if (data.cancelled) {
+					refreshRerunButton(true, false);
+					return;
+				}
 				if (data.error) {
 					errorEl.textContent = data.error;
 					errorEl.classList.remove("d-none");
@@ -481,6 +512,7 @@
 					refreshRerunButton(true, false);
 					return;
 				}
+				setOverlayProgress(100, "Comparison complete", "Completed");
 				updateValidationInlineHints(null);
 				refreshRerunButton(true, false);
 				if (warningEl) {
@@ -513,8 +545,7 @@
 			})
 			.catch(function (err) {
 				stopProgressPolling();
-				overlay.classList.add("d-none");
-				overlay.classList.remove("d-flex");
+				hideOverlay();
 				errorEl.textContent = "Error: " + (err.message || "Comparison failed");
 				errorEl.classList.remove("d-none");
 				updateValidationInlineHints(errorEl.textContent);
@@ -563,6 +594,12 @@
 	}
 
 	refreshRerunButton(hasBothFilesSelected(), false);
+
+	if (cancelCompareBtn) {
+		cancelCompareBtn.addEventListener("click", function () {
+			if (activeOperationId) sendCancelRequest(activeOperationId);
+		});
+	}
 
 	// Report is generated with theme from X-Theme header, so it renders correctly from the start.
 	// When user toggles theme, theme.js applies it to the iframe.

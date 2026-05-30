@@ -59,6 +59,7 @@ public class IndexModel(
 				message = status.Message,
 				isCompleted = status.IsCompleted,
 				isFailed = status.IsFailed,
+				isCancelled = status.IsCancelled,
 				error = status.Error,
 				warningMessage = status.WarningMessage,
 			}
@@ -105,7 +106,7 @@ public class IndexModel(
 		var currentOperationId = string.IsNullOrWhiteSpace(operationId)
 			? Guid.NewGuid().ToString("N")
 			: operationId;
-		progressStore.Start(currentOperationId);
+		var cancellationToken = progressStore.Start(currentOperationId);
 
 		try
 		{
@@ -139,7 +140,8 @@ public class IndexModel(
 					keyColumns,
 					comparisonOptions,
 					ReportFromCompare,
-					warningOptions
+					warningOptions,
+					cancellationToken
 				);
 			var html = diffCheckService.GenerateHtml(
 				result,
@@ -177,6 +179,11 @@ public class IndexModel(
 					progressStore.Report(currentOperationId, progress);
 			}
 		}
+		catch (OperationCanceledException)
+		{
+			progressStore.Cancel(currentOperationId);
+			return new JsonResult(new { cancelled = true });
+		}
 		catch (Exception ex)
 		{
 			progressStore.Fail(currentOperationId, ex.Message);
@@ -189,6 +196,15 @@ public class IndexModel(
 			if (rightPath != null && System.IO.File.Exists(rightPath))
 				System.IO.File.Delete(rightPath);
 		}
+	}
+
+	public IActionResult OnPostCancel(string? operationId)
+	{
+		if (string.IsNullOrWhiteSpace(operationId))
+			return new JsonResult(new { error = "operationId is required." });
+
+		progressStore.RequestCancel(operationId);
+		return new JsonResult(new { cancelled = true });
 	}
 
 	public async Task<IActionResult> OnPostAsync(
