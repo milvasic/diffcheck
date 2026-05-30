@@ -45,11 +45,11 @@ public sealed class DiffOperationProgressStore
 	{
 		ArgumentException.ThrowIfNullOrWhiteSpace(operationId);
 		PruneExpired();
-		var warningMessage = _states.TryGetValue(operationId, out var existing)
-			? existing.WarningMessage
-			: null;
+		var (warningMessage, currentPercent) = _states.TryGetValue(operationId, out var existing)
+			? (existing.WarningMessage, existing.Progress.Percent)
+			: (null, 0);
 		_states[operationId] = new ProgressState(
-			new DiffOperationProgress(DiffOperationStage.Completed, 0, "Cancelled"),
+			new DiffOperationProgress(DiffOperationStage.Completed, currentPercent, "Cancelled"),
 			true,
 			false,
 			true,

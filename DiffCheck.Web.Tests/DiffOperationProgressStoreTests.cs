@@ -54,6 +54,20 @@ public class DiffOperationProgressStoreTests
 	}
 
 	[TestMethod]
+	public void Cancel_PreservesPercentFromPriorReport()
+	{
+		var store = new DiffOperationProgressStore();
+		store.Start("op1");
+		store.Report("op1", new DiffOperationProgress(DiffOperationStage.Comparing, 75, "Working"));
+
+		store.Cancel("op1");
+
+		Assert.IsTrue(store.TryGet("op1", out var status));
+		Assert.IsTrue(status.IsCancelled);
+		Assert.AreEqual(75, status.Percent);
+	}
+
+	[TestMethod]
 	public void Cancel_PreservesWarningMessageFromPriorReport()
 	{
 		var store = new DiffOperationProgressStore();
