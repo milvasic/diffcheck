@@ -243,6 +243,18 @@
 					handleViewJob(job.id);
 				});
 			}
+			var dismissBtn = el.querySelector(".jobs-dismiss-btn");
+			if (dismissBtn) {
+				dismissBtn.addEventListener("click", function () {
+					handleDismissJob(job.id);
+				});
+			}
+			var cancelBtn = el.querySelector(".jobs-cancel-btn");
+			if (cancelBtn) {
+				cancelBtn.addEventListener("click", function () {
+					handleDismissJob(job.id);
+				});
+			}
 		});
 	}
 
@@ -257,12 +269,24 @@
 					'%"></div>' +
 					"</div>"
 				: "";
-		var actionsHtml =
-			job.status === "done"
-				? '<div class="jobs-drawer-item-actions">' +
-					'<button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 jobs-view-btn" style="font-size:0.7rem">View</button>' +
-					"</div>"
-				: "";
+		var actionsHtml;
+		if (job.status === "done") {
+			actionsHtml =
+				'<div class="jobs-drawer-item-actions">' +
+				'<button type="button" class="btn btn-sm btn-outline-primary py-0 px-1 jobs-view-btn" style="font-size:0.7rem">View</button>' +
+				'<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 jobs-dismiss-btn" style="font-size:0.7rem">Dismiss</button>' +
+				"</div>";
+		} else if (job.status === "failed") {
+			actionsHtml =
+				'<div class="jobs-drawer-item-actions">' +
+				'<button type="button" class="btn btn-sm btn-outline-secondary py-0 px-1 jobs-dismiss-btn" style="font-size:0.7rem">Dismiss</button>' +
+				"</div>";
+		} else {
+			actionsHtml =
+				'<div class="jobs-drawer-item-actions">' +
+				'<button type="button" class="btn btn-sm btn-outline-danger py-0 px-1 jobs-cancel-btn" style="font-size:0.7rem">Cancel</button>' +
+				"</div>";
+		}
 
 		return (
 			'<div class="jobs-drawer-item-icon">' +
@@ -339,6 +363,22 @@
 				}
 			})
 			.catch(function () {});
+	}
+
+	function handleDismissJob(jobId) {
+		var job = trackedJobs[jobId];
+		if (!job) return;
+		var isActive = job.status === "pending" || job.status === "running";
+		delete trackedJobs[jobId];
+		renderList();
+		if (!hasActiveJobs()) stopPolling();
+		if (isActive) {
+			var token = document.querySelector('input[name="__RequestVerificationToken"]');
+			var fd = new FormData();
+			fd.append("jobId", jobId);
+			if (token) fd.append("__RequestVerificationToken", token.value);
+			fetch("?handler=DismissJob", { method: "POST", body: fd }).catch(function () {});
+		}
 	}
 
 	function dispatchViewJob(job) {

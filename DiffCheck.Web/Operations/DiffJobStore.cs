@@ -86,6 +86,8 @@ public sealed class DiffJobStore
 			};
 	}
 
+	public void Remove(string jobId) => _jobs.TryRemove(jobId, out _);
+
 	public void Fail(string jobId, string error)
 	{
 		if (_jobs.TryGetValue(jobId, out var entry))

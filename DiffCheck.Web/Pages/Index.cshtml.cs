@@ -532,6 +532,13 @@ public class IndexModel(
 		return new JsonResult(new { jobId, label });
 	}
 
+	public IActionResult OnPostDismissJob(string? jobId)
+	{
+		if (!string.IsNullOrWhiteSpace(jobId))
+			jobStore.Remove(jobId);
+		return new JsonResult(new { ok = true });
+	}
+
 	public IActionResult OnGetJobStatus(string? jobId)
 	{
 		if (string.IsNullOrWhiteSpace(jobId))
