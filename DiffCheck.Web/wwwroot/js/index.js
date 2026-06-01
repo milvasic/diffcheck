@@ -231,10 +231,8 @@
 	restoreOptionsFromStorage();
 
 	var progressPollTimer = null;
-	var activeOperationId = null;
 	var stageOrder = ["ReadingLeftFile", "ReadingRightFile", "Comparing", "GeneratingReport"];
 	var rerunBtn = document.getElementById("rerunBtn");
-	var cancelCompareBtn = document.getElementById("cancelCompareBtn");
 	var keyColumnsInlineHint = document.getElementById("keyColumnsInlineHint");
 	var columnMappingsInlineHint = document.getElementById("columnMappingsInlineHint");
 
@@ -333,10 +331,6 @@
 			overlayWarning.classList.add("d-none");
 			overlayWarning.textContent = "";
 		}
-		if (cancelCompareBtn) {
-			cancelCompareBtn.disabled = false;
-			cancelCompareBtn.textContent = "Cancel";
-		}
 	}
 
 	function setOverlayProgress(percent, messageText, stageName) {
@@ -360,7 +354,7 @@
 		}
 	}
 
-	function startProgressPolling(operationId, onFailed, onCancelled) {
+	function startProgressPolling(operationId, onFailed) {
 		stopProgressPolling();
 		progressPollTimer = setInterval(function () {
 			fetch("?handler=Progress&operationId=" + encodeURIComponent(operationId), {
@@ -377,11 +371,6 @@
 						overlayWarningEl.classList.remove("d-none");
 					}
 					setOverlayProgress(data.percent, data.message, data.stage);
-					if (data.isCancelled) {
-						stopProgressPolling();
-						if (typeof onCancelled === "function") onCancelled();
-						return;
-					}
 					if (data.isFailed) {
 						stopProgressPolling();
 						if (typeof onFailed === "function") {
@@ -394,14 +383,6 @@
 		}, 250);
 	}
 
-	function sendCancelRequest(operationId) {
-		var fd = new FormData();
-		fd.append("operationId", operationId);
-		var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
-		if (tokenEl) fd.append("__RequestVerificationToken", tokenEl.value);
-		fetch("?handler=Cancel", { method: "POST", body: fd }).catch(function () {});
-	}
-
 	// ── Form submit / file drop ─────────────────────────────────────────
 
 	form.addEventListener("submit", function (e) {
@@ -409,9 +390,115 @@
 	});
 
 	function updateFileName(input, displayEl) {
-		displayEl.textContent = input.files?.length
-			? input.files[0].name
-			: "Drop file here or click to browse";
+		if (!input.files || !input.files.length) {
+			displayEl.textContent = "Drop files here or click to browse";
+			return;
+		}
+		if (input.files.length === 1) {
+			displayEl.textContent = input.files[0].name;
+			return;
+		}
+		var names = Array.from(input.files)
+			.map(function (f) {
+				return f.name;
+			})
+			.join(", ");
+		displayEl.textContent =
+			input.files.length +
+			" files: " +
+			(names.length > 80 ? names.slice(0, 79) + "…" : names);
+	}
+
+	// Determine pairs from left and right FileLists.
+	// N:N → pair by position; 1:N or N:1 → broadcast the single file.
+	// Returns null when counts are incompatible.
+	function getPairs(leftFileList, rightFileList) {
+		var left = Array.from(leftFileList);
+		var right = Array.from(rightFileList);
+		if (left.length === right.length) {
+			return left.map(function (l, i) {
+				return { left: l, right: right[i] };
+			});
+		}
+		if (left.length === 1) {
+			return right.map(function (r) {
+				return { left: left[0], right: r };
+			});
+		}
+		if (right.length === 1) {
+			return left.map(function (l) {
+				return { left: l, right: right[0] };
+			});
+		}
+		return null;
+	}
+
+	function buildPairFormData(leftFile, rightFile, formEl) {
+		var fd = new FormData();
+		fd.append("leftFile", leftFile, leftFile.name);
+		fd.append("rightFile", rightFile, rightFile.name);
+		var keyEl = document.getElementById("keyColumnsRaw");
+		var mapEl = document.getElementById("columnMappingsRaw");
+		var ntEl = document.getElementById("numericToleranceRaw");
+		var mtEl = document.getElementById("matchThresholdRaw");
+		var ciEl = document.getElementById("caseInsensitive");
+		var twEl = document.getElementById("trimWhitespace");
+		if (keyEl && keyEl.value) fd.append("keyColumnsRaw", keyEl.value);
+		if (mapEl && mapEl.value) fd.append("columnMappingsRaw", mapEl.value);
+		if (ntEl && ntEl.value) fd.append("numericToleranceRaw", ntEl.value);
+		if (mtEl && mtEl.value) fd.append("matchThresholdRaw", mtEl.value);
+		if (ciEl && ciEl.checked) fd.append("caseInsensitive", "true");
+		if (twEl && twEl.checked) fd.append("trimWhitespace", "true");
+		var aft = formEl.querySelector('input[name="__RequestVerificationToken"]');
+		if (aft) fd.append("__RequestVerificationToken", aft.value);
+		return fd;
+	}
+
+	function showJobResult(job) {
+		if (!job || !job.html) return;
+		var warningEl = document.getElementById("compareWarning");
+		if (warningEl) {
+			if (job.warningMessage) {
+				warningEl.textContent = job.warningMessage;
+				warningEl.classList.remove("d-none");
+			} else {
+				warningEl.classList.add("d-none");
+			}
+		}
+
+		// Derive left/right names from label "left vs right"
+		var parts = (job.label || "").split(" vs ");
+		var leftName = parts[0] || "";
+		var rightName = parts[1] || "";
+
+		var container = document.getElementById("diffResultContainer");
+		container.setAttribute("data-left-name", leftName);
+		container.setAttribute("data-right-name", rightName);
+		document.getElementById("diffReportFrame").srcdoc = job.html;
+		container.classList.remove("d-none");
+		document.getElementById("compareHeader").classList.add("d-none");
+		document.querySelectorAll(".drop-zone").forEach(function (z) {
+			z.classList.add("drop-zone-compact");
+			z.querySelector(".drop-icon").setAttribute("width", "24");
+			z.querySelector(".drop-icon").setAttribute("height", "24");
+			z.querySelector(".drop-icon").classList.remove("mb-2");
+		});
+		var settingsBar = document.getElementById("settingsBar");
+		if (settingsBar) settingsBar.classList.add("settings-bar-compact");
+		var btn = document.getElementById("diffAddToHistoryBtn");
+		if (btn) {
+			btn.disabled = false;
+			if (btn._origHtml) btn.innerHTML = btn._origHtml;
+		}
+	}
+
+	// Register handler so jobs-drawer.js can push results into the page
+	if (window.DiffCheckJobs) {
+		window.DiffCheckJobs.setOnViewJob(showJobResult);
+	} else {
+		document.addEventListener("diffcheck:viewjob", function (e) {
+			showJobResult(e.detail);
+		});
 	}
 
 	function checkAndSubmit() {
@@ -423,68 +510,70 @@
 			return;
 		}
 
-		refreshRerunButton(true, true);
-
 		var errorEl = document.getElementById("compareError");
 		var warningEl = document.getElementById("compareWarning");
-		var leftSize = leftInput.files[0].size;
-		var rightSize = rightInput.files[0].size;
-		if (leftSize === 0 || rightSize === 0) {
-			errorEl.textContent = "One or both files are empty.";
+
+		var allFiles = Array.from(leftInput.files || []).concat(
+			Array.from(rightInput.files || []),
+		);
+		for (var fi = 0; fi < allFiles.length; fi++) {
+			var f = allFiles[fi];
+			if (f.size === 0) {
+				errorEl.textContent = 'File "' + f.name + '" is empty.';
+				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(errorEl.textContent);
+				if (warningEl) warningEl.classList.add("d-none");
+				refreshRerunButton(true, false);
+				return;
+			}
+			if (f.size > MAX_FILE_SIZE) {
+				errorEl.textContent = "Each file must be under " + MAX_FILE_SIZE_MB + " MB.";
+				errorEl.classList.remove("d-none");
+				updateValidationInlineHints(errorEl.textContent);
+				if (warningEl) warningEl.classList.add("d-none");
+				refreshRerunButton(true, false);
+				return;
+			}
+		}
+
+		var pairs = getPairs(leftInput.files, rightInput.files);
+		if (!pairs) {
+			var lc = leftInput.files.length;
+			var rc = rightInput.files.length;
+			errorEl.textContent =
+				"Cannot match " +
+				lc +
+				" left file" +
+				(lc !== 1 ? "s" : "") +
+				" with " +
+				rc +
+				" right file" +
+				(rc !== 1 ? "s" : "") +
+				". Upload equal counts, or a single file on one side to compare against all.";
 			errorEl.classList.remove("d-none");
-			updateValidationInlineHints(errorEl.textContent);
+			updateValidationInlineHints(null);
 			if (warningEl) warningEl.classList.add("d-none");
 			refreshRerunButton(true, false);
 			return;
 		}
-		if (leftSize > MAX_FILE_SIZE || rightSize > MAX_FILE_SIZE) {
-			errorEl.textContent = "Each file must be under " + MAX_FILE_SIZE_MB + " MB.";
+
+		var MAX_BULK_PAIRS = 10;
+		if (pairs.length > MAX_BULK_PAIRS) {
+			errorEl.textContent =
+				"Bulk upload is limited to " + MAX_BULK_PAIRS + " pairs at a time. " +
+				"You selected " + pairs.length + ".";
 			errorEl.classList.remove("d-none");
 			updateValidationInlineHints(errorEl.textContent);
-			if (warningEl) warningEl.classList.add("d-none");
 			refreshRerunButton(true, false);
 			return;
 		}
 
 		saveOptionsToStorage();
-		var overlay = document.getElementById("loadingOverlay");
-		var errorEl = document.getElementById("compareError");
-		var warningEl = document.getElementById("compareWarning");
-		resetOverlayProgress();
-		overlay.classList.remove("d-none");
-		overlay.classList.add("d-flex");
 		errorEl.classList.add("d-none");
 		updateValidationInlineHints(null);
 		if (warningEl) warningEl.classList.add("d-none");
+		refreshRerunButton(true, true);
 
-		var formData = new FormData(form);
-		var operationId =
-			typeof crypto !== "undefined" && crypto.randomUUID
-				? crypto.randomUUID()
-				: "op-" + Date.now() + "-" + Math.random().toString(36).slice(2);
-		activeOperationId = operationId;
-		formData.append("operationId", operationId);
-
-		function hideOverlay() {
-			overlay.classList.add("d-none");
-			overlay.classList.remove("d-flex");
-			activeOperationId = null;
-		}
-
-		startProgressPolling(
-			operationId,
-			function (message) {
-				hideOverlay();
-				errorEl.textContent = message;
-				errorEl.classList.remove("d-none");
-				updateValidationInlineHints(message);
-				refreshRerunButton(true, false);
-			},
-			function () {
-				hideOverlay();
-				refreshRerunButton(true, false);
-			},
-		);
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
 		try {
@@ -493,70 +582,48 @@
 			viewPref = "table";
 		}
 
-		fetch("?handler=Compare", {
-			method: "POST",
-			body: formData,
-			headers: { "X-Theme": theme, "X-View": viewPref },
-		})
-			.then(function (r) {
-				return r.json();
+		var pending = pairs.length;
+		var hadError = false;
+
+		pairs.forEach(function (pair) {
+			var fd = buildPairFormData(pair.left, pair.right, form);
+			fetch("?handler=StartJob", {
+				method: "POST",
+				body: fd,
+				headers: { "X-Theme": theme, "X-View": viewPref },
 			})
-			.then(function (data) {
-				stopProgressPolling();
-				if (data.cancelled) {
-					hideOverlay();
-					refreshRerunButton(true, false);
-					return;
-				}
-				if (data.error) {
-					hideOverlay();
-					errorEl.textContent = data.error;
-					errorEl.classList.remove("d-none");
-					updateValidationInlineHints(data.error);
-					if (warningEl) warningEl.classList.add("d-none");
-					refreshRerunButton(true, false);
-					return;
-				}
-				setOverlayProgress(100, "Comparison complete", "Completed");
-				hideOverlay();
-				updateValidationInlineHints(null);
-				refreshRerunButton(true, false);
-				if (warningEl) {
-					if (data.warningMessage) {
-						warningEl.textContent = data.warningMessage;
-						warningEl.classList.remove("d-none");
-					} else {
-						warningEl.classList.add("d-none");
+				.then(function (r) {
+					return r.json();
+				})
+				.then(function (data) {
+					pending--;
+					if (data.error && !hadError) {
+						hadError = true;
+						errorEl.textContent = data.error;
+						errorEl.classList.remove("d-none");
+						updateValidationInlineHints(data.error);
 					}
-				}
-				var container = document.getElementById("diffResultContainer");
-				container.setAttribute("data-left-name", data.leftFileName || "");
-				container.setAttribute("data-right-name", data.rightFileName || "");
-				document.getElementById("diffReportFrame").srcdoc = data.html;
-				container.classList.remove("d-none");
-				document.getElementById("compareHeader").classList.add("d-none");
-				document.querySelectorAll(".drop-zone").forEach(function (z) {
-					z.classList.add("drop-zone-compact");
-					z.querySelector(".drop-icon").setAttribute("width", "24");
-					z.querySelector(".drop-icon").setAttribute("height", "24");
-					z.querySelector(".drop-icon").classList.remove("mb-2");
+					if (!data.error && window.DiffCheckJobs) {
+						window.DiffCheckJobs.addJob(data.jobId, data.label, data.ownerToken);
+					}
+					if (pending === 0) {
+						refreshRerunButton(hasBothFilesSelected(), false);
+					}
+				})
+				.catch(function (err) {
+					pending--;
+					if (!hadError) {
+						hadError = true;
+						errorEl.textContent =
+							"Error: " + (err.message || "Could not start comparison");
+						errorEl.classList.remove("d-none");
+						updateValidationInlineHints(errorEl.textContent);
+					}
+					if (pending === 0) {
+						refreshRerunButton(hasBothFilesSelected(), false);
+					}
 				});
-				var settingsBar = document.getElementById("settingsBar");
-				if (settingsBar) settingsBar.classList.add("settings-bar-compact");
-				var btn = document.getElementById("diffAddToHistoryBtn");
-				if (btn && btn._origHtml) {
-					btn.disabled = false;
-					btn.innerHTML = btn._origHtml;
-				}
-			})
-			.catch(function (err) {
-				stopProgressPolling();
-				hideOverlay();
-				errorEl.textContent = "Error: " + (err.message || "Comparison failed");
-				errorEl.classList.remove("d-none");
-				updateValidationInlineHints(errorEl.textContent);
-				refreshRerunButton(true, false);
-			});
+		});
 	}
 
 	document.querySelectorAll(".drop-zone").forEach((zone) => {
@@ -600,16 +667,6 @@
 	}
 
 	refreshRerunButton(hasBothFilesSelected(), false);
-
-	if (cancelCompareBtn) {
-		cancelCompareBtn.addEventListener("click", function () {
-			if (activeOperationId) {
-				cancelCompareBtn.disabled = true;
-				cancelCompareBtn.textContent = "Cancelling…";
-				sendCancelRequest(activeOperationId);
-			}
-		});
-	}
 
 	// Report is generated with theme from X-Theme header, so it renders correctly from the start.
 	// When user toggles theme, theme.js applies it to the iframe.
