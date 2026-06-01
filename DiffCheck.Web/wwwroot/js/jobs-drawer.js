@@ -111,10 +111,11 @@
 
 	// ── Job tracking ───────────────────────────────────────────────────────
 
-	function addJob(jobId, label) {
+	function addJob(jobId, label, ownerToken) {
 		trackedJobs[jobId] = {
 			id: jobId,
 			label: label,
+			ownerToken: ownerToken || null,
 			status: "pending",
 			percent: 0,
 			message: "Queued",
@@ -369,6 +370,7 @@
 		var job = trackedJobs[jobId];
 		if (!job) return;
 		var isActive = job.status === "pending" || job.status === "running";
+		var ownerToken = job.ownerToken;
 		delete trackedJobs[jobId];
 		renderList();
 		if (!hasActiveJobs()) stopPolling();
@@ -376,6 +378,7 @@
 			var token = document.querySelector('input[name="__RequestVerificationToken"]');
 			var fd = new FormData();
 			fd.append("jobId", jobId);
+			if (ownerToken) fd.append("ownerToken", ownerToken);
 			if (token) fd.append("__RequestVerificationToken", token.value);
 			fetch("?handler=DismissJob", { method: "POST", body: fd }).catch(function () {});
 		}
@@ -433,8 +436,8 @@
 	// ── Public API ─────────────────────────────────────────────────────────
 
 	window.DiffCheckJobs = {
-		addJob: function (jobId, label) {
-			addJob(jobId, label);
+		addJob: function (jobId, label, ownerToken) {
+			addJob(jobId, label, ownerToken);
 		},
 		setOnViewJob: function (cb) {
 			onViewJob = cb;

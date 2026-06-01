@@ -207,4 +207,75 @@ public class DiffJobStoreTests
 
 		Assert.AreEqual(0, store.GetAll().Count);
 	}
+
+	[TestMethod]
+	public void GetOwnerToken_ReturnsNonEmptyTokenForNewJob()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+
+		var token = store.GetOwnerToken(jobId);
+
+		Assert.IsFalse(string.IsNullOrWhiteSpace(token));
+	}
+
+	[TestMethod]
+	public void TryRemoveOwned_WithCorrectToken_RemovesJob()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+		var ownerToken = store.GetOwnerToken(jobId);
+
+		var removed = store.TryRemoveOwned(jobId, ownerToken);
+
+		Assert.IsTrue(removed);
+		Assert.IsFalse(store.TryGetStatus(jobId, out _));
+	}
+
+	[TestMethod]
+	public void TryRemoveOwned_WithWrongToken_DoesNotRemoveJob()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+
+		var removed = store.TryRemoveOwned(jobId, "wrong-token");
+
+		Assert.IsFalse(removed);
+		Assert.IsTrue(store.TryGetStatus(jobId, out _));
+	}
+
+	[TestMethod]
+	public void TryRemoveOwned_WithNullToken_DoesNotRemoveJob()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+
+		var removed = store.TryRemoveOwned(jobId, null);
+
+		Assert.IsFalse(removed);
+		Assert.IsTrue(store.TryGetStatus(jobId, out _));
+	}
+
+	[TestMethod]
+	public void GetCancellationToken_CanceledByRemove_TokenIsCanceled()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+		var ct = store.GetCancellationToken(jobId);
+
+		store.Remove(jobId);
+
+		Assert.IsTrue(ct.IsCancellationRequested);
+	}
+
+	[TestMethod]
+	public void GetCancellationToken_NotCanceledBeforeRemove_TokenIsNotCanceled()
+	{
+		var store = new DiffJobStore();
+		store.TryCreate("label", out var jobId);
+
+		var ct = store.GetCancellationToken(jobId);
+
+		Assert.IsFalse(ct.IsCancellationRequested);
+	}
 }

@@ -16,6 +16,7 @@ public sealed class DiffJobStore
 	private const int MaxConcurrentJobs = 5;
 
 	private readonly ConcurrentDictionary<string, JobEntry> _jobs = new();
+	private readonly ConcurrentDictionary<string, CancellationTokenSource> _cts = new();
 	private readonly object _createLock = new();
 
 	public bool TryCreate(string label, out string jobId)
@@ -33,6 +34,9 @@ public sealed class DiffJobStore
 			}
 
 			jobId = Guid.NewGuid().ToString("N");
+			var ownerToken = Guid.NewGuid().ToString("N");
+			var cts = new CancellationTokenSource();
+			_cts[jobId] = cts;
 			_jobs[jobId] = new JobEntry(
 				jobId,
 				label,
@@ -43,10 +47,26 @@ public sealed class DiffJobStore
 				0,
 				"Queued",
 				DateTime.UtcNow,
-				DateTime.UtcNow
+				DateTime.UtcNow,
+				ownerToken
 			);
 			return true;
 		}
+	}
+
+	public CancellationToken GetCancellationToken(string jobId) =>
+		_cts.TryGetValue(jobId, out var cts) ? cts.Token : CancellationToken.None;
+
+	public string? GetOwnerToken(string jobId) =>
+		_jobs.TryGetValue(jobId, out var entry) ? entry.OwnerToken : null;
+
+	public bool TryRemoveOwned(string jobId, string? ownerToken)
+	{
+		if (string.IsNullOrWhiteSpace(ownerToken)) return false;
+		if (!_jobs.TryGetValue(jobId, out var entry)) return false;
+		if (entry.OwnerToken != ownerToken) return false;
+		Remove(jobId);
+		return true;
 	}
 
 	public void Start(string jobId)
@@ -74,6 +94,8 @@ public sealed class DiffJobStore
 
 	public void Complete(string jobId, string html, string? warningMessage)
 	{
+		if (_cts.TryRemove(jobId, out var cts))
+			cts.Dispose();
 		if (_jobs.TryGetValue(jobId, out var entry))
 			_jobs[jobId] = entry with
 			{
@@ -86,10 +108,20 @@ public sealed class DiffJobStore
 			};
 	}
 
-	public void Remove(string jobId) => _jobs.TryRemove(jobId, out _);
+	public void Remove(string jobId)
+	{
+		if (_cts.TryRemove(jobId, out var cts))
+		{
+			cts.Cancel();
+			cts.Dispose();
+		}
+		_jobs.TryRemove(jobId, out _);
+	}
 
 	public void Fail(string jobId, string error)
 	{
+		if (_cts.TryRemove(jobId, out var cts))
+			cts.Dispose();
 		if (_jobs.TryGetValue(jobId, out var entry))
 			_jobs[jobId] = entry with
 			{
@@ -147,7 +179,13 @@ public sealed class DiffJobStore
 		foreach (var pair in _jobs)
 		{
 			if (pair.Value.UpdatedAt < cutoff)
-				_jobs.TryRemove(pair.Key, out _);
+			{
+				if (_jobs.TryRemove(pair.Key, out _) && _cts.TryRemove(pair.Key, out var cts))
+				{
+					cts.Cancel();
+					cts.Dispose();
+				}
+			}
 		}
 	}
 
@@ -161,7 +199,8 @@ public sealed class DiffJobStore
 		int Percent,
 		string Message,
 		DateTime CreatedAt,
-		DateTime UpdatedAt
+		DateTime UpdatedAt,
+		string OwnerToken
 	);
 }
 

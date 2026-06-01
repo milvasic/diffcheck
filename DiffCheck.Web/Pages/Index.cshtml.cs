@@ -436,6 +436,9 @@ public class IndexModel(
 				new { error = "Too many concurrent jobs. Please wait for a job to finish." }
 			);
 
+		var ownerToken = jobStore.GetOwnerToken(jobId);
+		var ct = jobStore.GetCancellationToken(jobId);
+
 		var leftPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + leftExt);
 		var rightPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + rightExt);
 
@@ -496,7 +499,8 @@ public class IndexModel(
 						keyColumns,
 						comparisonOptions,
 						ReportProgress,
-						warningOptions
+						warningOptions,
+						ct
 					);
 				var html = diffCheckService.GenerateHtml(
 					result,
@@ -514,6 +518,10 @@ public class IndexModel(
 					: null;
 				jobStore.Complete(jobId, html, warningMessage);
 			}
+			catch (OperationCanceledException)
+			{
+				// job was dismissed — temp files cleaned up in finally
+			}
 			catch (Exception ex)
 			{
 				var correlationId = Guid.NewGuid().ToString("N");
@@ -527,15 +535,15 @@ public class IndexModel(
 				if (System.IO.File.Exists(rightPath))
 					System.IO.File.Delete(rightPath);
 			}
-		});
+		}, ct);
 
-		return new JsonResult(new { jobId, label });
+		return new JsonResult(new { jobId, label, ownerToken });
 	}
 
-	public IActionResult OnPostDismissJob(string? jobId)
+	public IActionResult OnPostDismissJob(string? jobId, string? ownerToken)
 	{
 		if (!string.IsNullOrWhiteSpace(jobId))
-			jobStore.Remove(jobId);
+			jobStore.TryRemoveOwned(jobId, ownerToken);
 		return new JsonResult(new { ok = true });
 	}
 

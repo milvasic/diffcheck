@@ -604,7 +604,7 @@
 						updateValidationInlineHints(data.error);
 					}
 					if (!data.error && window.DiffCheckJobs) {
-						window.DiffCheckJobs.addJob(data.jobId, data.label);
+						window.DiffCheckJobs.addJob(data.jobId, data.label, data.ownerToken);
 					}
 					if (pending === 0) {
 						refreshRerunButton(hasBothFilesSelected(), false);
