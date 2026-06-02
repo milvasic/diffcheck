@@ -2,7 +2,8 @@
 // Exposes window.DiffCheckJobs.addJob(jobId, label) for index.js to call after submit.
 (function () {
 	var POLL_INTERVAL_MS = 500;
-	var trackedJobs = {}; // jobId → { id, label, status, percent, message, error, warningMessage, html }
+	var MAX_CONSECUTIVE_MISSES = 6; // ~3s of 500ms polls before declaring the job lost
+	var trackedJobs = {}; // jobId → { id, label, leftFileName, rightFileName, status, percent, message, error, warningMessage, html, missCount }
 	var pollTimer = null;
 	var drawer = null;
 	var trigger = null;
@@ -111,16 +112,19 @@
 
 	// ── Job tracking ───────────────────────────────────────────────────────
 
-	function addJob(jobId, label) {
+	function addJob(jobId, label, leftFileName, rightFileName) {
 		trackedJobs[jobId] = {
 			id: jobId,
 			label: label,
+			leftFileName: leftFileName || "",
+			rightFileName: rightFileName || "",
 			status: "pending",
 			percent: 0,
 			message: "Queued",
 			error: null,
 			warningMessage: null,
 			html: null,
+			missCount: 0,
 		};
 		renderList();
 		openDrawer();
@@ -161,22 +165,40 @@
 					return r.json();
 				})
 				.then(function (data) {
-					if (!data || !data.found) return;
-					var prev = trackedJobs[data.id];
+					var prev = trackedJobs[job.id];
+					if (!prev) return;
+					if (!data || !data.found) {
+						prev.missCount = (prev.missCount || 0) + 1;
+						if (prev.missCount >= MAX_CONSECUTIVE_MISSES) {
+							trackedJobs[job.id] = Object.assign({}, prev, {
+								status: "failed",
+								error: "Server restarted — result lost",
+								message: "Failed",
+								missCount: 0,
+							});
+							renderList();
+							showToast("✗ Diff failed: " + truncate(prev.label, 40));
+							if (!hasActiveJobs()) stopPolling();
+						}
+						return;
+					}
 					trackedJobs[data.id] = {
 						id: data.id,
-						label: data.label || (prev && prev.label) || data.id,
+						label: data.label || prev.label || data.id,
+						leftFileName: data.leftFileName || prev.leftFileName || "",
+						rightFileName: data.rightFileName || prev.rightFileName || "",
 						status: data.status,
 						percent: data.percent,
 						message: data.message,
 						error: data.error || null,
 						warningMessage: data.warningMessage || null,
-						html: data.html || (prev && prev.html) || null,
+						html: data.html || prev.html || null,
+						missCount: 0,
 					};
 					renderList();
-					if (data.status === "done" && prev && prev.status !== "done") {
+					if (data.status === "done" && prev.status !== "done") {
 						showToast("✓ Diff complete: " + truncate(trackedJobs[data.id].label, 40));
-					} else if (data.status === "failed" && prev && prev.status !== "failed") {
+					} else if (data.status === "failed" && prev.status !== "failed") {
 						showToast("✗ Diff failed: " + truncate(trackedJobs[data.id].label, 40));
 					}
 					if (!hasActiveJobs()) stopPolling();

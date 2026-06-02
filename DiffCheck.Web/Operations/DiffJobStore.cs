@@ -16,15 +16,16 @@ public sealed class DiffJobStore
 	private const int MaxConcurrentJobs = 5;
 
 	private readonly ConcurrentDictionary<string, JobEntry> _jobs = new();
+	private int _activeCount;
 
-	public bool TryCreate(string label, out string jobId)
+	public bool TryCreate(string label, string leftFileName, string rightFileName, out string jobId)
 	{
 		PruneExpired();
-		var activeCount = _jobs.Values.Count(j =>
-			j.Status is DiffJobStatus.Pending or DiffJobStatus.Running
-		);
-		if (activeCount >= MaxConcurrentJobs)
+
+		var next = Interlocked.Increment(ref _activeCount);
+		if (next > MaxConcurrentJobs)
 		{
+			Interlocked.Decrement(ref _activeCount);
 			jobId = string.Empty;
 			return false;
 		}
@@ -33,8 +34,11 @@ public sealed class DiffJobStore
 		_jobs[jobId] = new JobEntry(
 			jobId,
 			label,
+			leftFileName,
+			rightFileName,
 			DiffJobStatus.Pending,
 			null,
+			false,
 			null,
 			null,
 			0,
@@ -71,20 +75,25 @@ public sealed class DiffJobStore
 	public void Complete(string jobId, string html, string? warningMessage)
 	{
 		if (_jobs.TryGetValue(jobId, out var entry))
+		{
 			_jobs[jobId] = entry with
 			{
 				Status = DiffJobStatus.Done,
 				Result = html,
+				ResultRetrieved = false,
 				WarningMessage = warningMessage,
 				Percent = 100,
 				Message = "Complete",
 				UpdatedAt = DateTime.UtcNow,
 			};
+			Interlocked.Decrement(ref _activeCount);
+		}
 	}
 
 	public void Fail(string jobId, string error)
 	{
 		if (_jobs.TryGetValue(jobId, out var entry))
+		{
 			_jobs[jobId] = entry with
 			{
 				Status = DiffJobStatus.Failed,
@@ -93,6 +102,8 @@ public sealed class DiffJobStore
 				Message = "Failed",
 				UpdatedAt = DateTime.UtcNow,
 			};
+			Interlocked.Decrement(ref _activeCount);
+		}
 	}
 
 	public bool TryGetStatus(string jobId, out JobStatusResult? result)
@@ -103,15 +114,30 @@ public sealed class DiffJobStore
 			result = null;
 			return false;
 		}
+
+		string? html = null;
+		if (entry.Status == DiffJobStatus.Done && !entry.ResultRetrieved)
+		{
+			html = entry.Result;
+			_jobs[jobId] = entry with
+			{
+				Result = null,
+				ResultRetrieved = true,
+				UpdatedAt = DateTime.UtcNow,
+			};
+		}
+
 		result = new JobStatusResult(
 			entry.Id,
 			entry.Label,
+			entry.LeftFileName,
+			entry.RightFileName,
 			entry.Status.ToString().ToLowerInvariant(),
 			entry.Error,
 			entry.WarningMessage,
 			entry.Percent,
 			entry.Message,
-			entry.Status == DiffJobStatus.Done ? entry.Result : null
+			html
 		);
 		return true;
 	}
@@ -126,6 +152,8 @@ public sealed class DiffJobStore
 				.Select(e => new JobListItem(
 					e.Id,
 					e.Label,
+					e.LeftFileName,
+					e.RightFileName,
 					e.Status.ToString().ToLowerInvariant(),
 					e.Error,
 					e.Percent,
@@ -140,16 +168,23 @@ public sealed class DiffJobStore
 		var cutoff = DateTime.UtcNow - Retention;
 		foreach (var pair in _jobs)
 		{
-			if (pair.Value.UpdatedAt < cutoff)
-				_jobs.TryRemove(pair.Key, out _);
+			if (pair.Value.UpdatedAt >= cutoff)
+				continue;
+			if (!_jobs.TryRemove(pair.Key, out var removed))
+				continue;
+			if (removed.Status is DiffJobStatus.Pending or DiffJobStatus.Running)
+				Interlocked.Decrement(ref _activeCount);
 		}
 	}
 
 	private sealed record JobEntry(
 		string Id,
 		string Label,
+		string LeftFileName,
+		string RightFileName,
 		DiffJobStatus Status,
 		string? Result,
+		bool ResultRetrieved,
 		string? Error,
 		string? WarningMessage,
 		int Percent,
@@ -162,6 +197,8 @@ public sealed class DiffJobStore
 public sealed record JobStatusResult(
 	string Id,
 	string Label,
+	string LeftFileName,
+	string RightFileName,
 	string Status,
 	string? Error,
 	string? WarningMessage,
@@ -173,6 +210,8 @@ public sealed record JobStatusResult(
 public sealed record JobListItem(
 	string Id,
 	string Label,
+	string LeftFileName,
+	string RightFileName,
 	string Status,
 	string? Error,
 	int Percent,

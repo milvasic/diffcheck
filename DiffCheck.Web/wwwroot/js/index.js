@@ -407,10 +407,14 @@
 			}
 		}
 
-		// Derive left/right names from label "left vs right"
-		var parts = (job.label || "").split(" vs ");
-		var leftName = parts[0] || "";
-		var rightName = parts[1] || "";
+		// Prefer explicit filenames from the server; fall back to splitting label.
+		var leftName = job.leftFileName || "";
+		var rightName = job.rightFileName || "";
+		if (!leftName || !rightName) {
+			var parts = (job.label || "").split(" vs ");
+			leftName = leftName || parts[0] || "";
+			rightName = rightName || parts[1] || "";
+		}
 
 		var container = document.getElementById("diffResultContainer");
 		container.setAttribute("data-left-name", leftName);
@@ -506,7 +510,12 @@
 				}
 				// Notify jobs drawer
 				if (window.DiffCheckJobs) {
-					window.DiffCheckJobs.addJob(data.jobId, data.label);
+					window.DiffCheckJobs.addJob(
+						data.jobId,
+						data.label,
+						data.leftFileName,
+						data.rightFileName
+					);
 				}
 			})
 			.catch(function (err) {

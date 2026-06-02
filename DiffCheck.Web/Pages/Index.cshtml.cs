@@ -12,7 +12,8 @@ public class IndexModel(
 	ProfileStore profileStore,
 	DiffOperationProgressStore progressStore,
 	DiffJobStore jobStore,
-	LongRunningDiffWarningSettings longRunningDiffWarningSettings
+	LongRunningDiffWarningSettings longRunningDiffWarningSettings,
+	ILogger<IndexModel> logger
 ) : PageModel
 {
 	public long MaxFileSizeMb => uploadLimits.MaxFileSizeBytes / (1024 * 1024);
@@ -429,8 +430,10 @@ public class IndexModel(
 				}
 			);
 
-		var label = $"{leftFile.FileName} vs {rightFile.FileName}";
-		if (!jobStore.TryCreate(label, out var jobId))
+		var leftName = leftFile.FileName;
+		var rightName = rightFile.FileName;
+		var label = $"{leftName} vs {rightName}";
+		if (!jobStore.TryCreate(label, leftName, rightName, out var jobId))
 			return new JsonResult(
 				new { error = "Too many concurrent jobs. Please wait for a job to finish." }
 			);
@@ -438,15 +441,26 @@ public class IndexModel(
 		var leftPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + leftExt);
 		var rightPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid() + rightExt);
 
-		await using (var ls = System.IO.File.Create(leftPath))
-		await using (var rs = System.IO.File.Create(rightPath))
+		try
 		{
-			await leftFile.CopyToAsync(ls);
-			await rightFile.CopyToAsync(rs);
+			await using (var ls = System.IO.File.Create(leftPath))
+			await using (var rs = System.IO.File.Create(rightPath))
+			{
+				await leftFile.CopyToAsync(ls);
+				await rightFile.CopyToAsync(rs);
+			}
+		}
+		catch (Exception ex)
+		{
+			TryDelete(leftPath);
+			TryDelete(rightPath);
+			logger.LogError(ex, "Failed to stage uploads for background job {JobId}", jobId);
+			jobStore.Fail(jobId, "Failed to stage uploaded files. Check server logs for details.");
+			return new JsonResult(
+				new { error = "Failed to stage uploaded files. Check server logs for details." }
+			);
 		}
 
-		var leftName = leftFile.FileName;
-		var rightName = rightFile.FileName;
 		var leftSize = leftFile.Length;
 		var rightSize = rightFile.Length;
 		var theme = Request.Headers["X-Theme"].FirstOrDefault() ?? "light";
@@ -499,20 +513,44 @@ public class IndexModel(
 					: null;
 				jobStore.Complete(jobId, html, warningMessage);
 			}
+			catch (OperationCanceledException)
+			{
+				jobStore.Fail(jobId, "Job was cancelled.");
+			}
 			catch (Exception ex)
 			{
-				jobStore.Fail(jobId, ex.Message);
+				logger.LogError(ex, "Background diff job {JobId} failed", jobId);
+				jobStore.Fail(jobId, "Comparison failed. Check server logs for details.");
 			}
 			finally
 			{
-				if (System.IO.File.Exists(leftPath))
-					System.IO.File.Delete(leftPath);
-				if (System.IO.File.Exists(rightPath))
-					System.IO.File.Delete(rightPath);
+				TryDelete(leftPath);
+				TryDelete(rightPath);
 			}
 		});
 
-		return new JsonResult(new { jobId, label });
+		return new JsonResult(
+			new
+			{
+				jobId,
+				label,
+				leftFileName = leftName,
+				rightFileName = rightName,
+			}
+		);
+	}
+
+	private static void TryDelete(string path)
+	{
+		try
+		{
+			if (System.IO.File.Exists(path))
+				System.IO.File.Delete(path);
+		}
+		catch
+		{
+			// best-effort cleanup; ignore
+		}
 	}
 
 	public IActionResult OnGetJobStatus(string? jobId)
@@ -529,6 +567,8 @@ public class IndexModel(
 				found = true,
 				id = result!.Id,
 				label = result.Label,
+				leftFileName = result.LeftFileName,
+				rightFileName = result.RightFileName,
 				status = result.Status,
 				percent = result.Percent,
 				message = result.Message,
