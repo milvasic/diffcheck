@@ -231,10 +231,8 @@
 	restoreOptionsFromStorage();
 
 	var progressPollTimer = null;
-	var activeOperationId = null;
 	var stageOrder = ["ReadingLeftFile", "ReadingRightFile", "Comparing", "GeneratingReport"];
 	var rerunBtn = document.getElementById("rerunBtn");
-	var cancelCompareBtn = document.getElementById("cancelCompareBtn");
 	var keyColumnsInlineHint = document.getElementById("keyColumnsInlineHint");
 	var columnMappingsInlineHint = document.getElementById("columnMappingsInlineHint");
 
@@ -333,10 +331,6 @@
 			overlayWarning.classList.add("d-none");
 			overlayWarning.textContent = "";
 		}
-		if (cancelCompareBtn) {
-			cancelCompareBtn.disabled = false;
-			cancelCompareBtn.textContent = "Cancel";
-		}
 	}
 
 	function setOverlayProgress(percent, messageText, stageName) {
@@ -360,7 +354,7 @@
 		}
 	}
 
-	function startProgressPolling(operationId, onFailed, onCancelled) {
+	function startProgressPolling(operationId, onFailed) {
 		stopProgressPolling();
 		progressPollTimer = setInterval(function () {
 			fetch("?handler=Progress&operationId=" + encodeURIComponent(operationId), {
@@ -377,11 +371,6 @@
 						overlayWarningEl.classList.remove("d-none");
 					}
 					setOverlayProgress(data.percent, data.message, data.stage);
-					if (data.isCancelled) {
-						stopProgressPolling();
-						if (typeof onCancelled === "function") onCancelled();
-						return;
-					}
 					if (data.isFailed) {
 						stopProgressPolling();
 						if (typeof onFailed === "function") {
@@ -392,14 +381,6 @@
 				})
 				.catch(function () {});
 		}, 250);
-	}
-
-	function sendCancelRequest(operationId) {
-		var fd = new FormData();
-		fd.append("operationId", operationId);
-		var tokenEl = document.querySelector('input[name="__RequestVerificationToken"]');
-		if (tokenEl) fd.append("__RequestVerificationToken", tokenEl.value);
-		fetch("?handler=Cancel", { method: "POST", body: fd }).catch(function () {});
 	}
 
 	// ── Form submit / file drop ─────────────────────────────────────────
@@ -414,6 +395,57 @@
 			: "Drop file here or click to browse";
 	}
 
+	function showJobResult(job) {
+		if (!job || !job.html) return;
+		var warningEl = document.getElementById("compareWarning");
+		if (warningEl) {
+			if (job.warningMessage) {
+				warningEl.textContent = job.warningMessage;
+				warningEl.classList.remove("d-none");
+			} else {
+				warningEl.classList.add("d-none");
+			}
+		}
+
+		// Prefer explicit filenames from the server; fall back to splitting label.
+		var leftName = job.leftFileName || "";
+		var rightName = job.rightFileName || "";
+		if (!leftName || !rightName) {
+			var parts = (job.label || "").split(" vs ");
+			leftName = leftName || parts[0] || "";
+			rightName = rightName || parts[1] || "";
+		}
+
+		var container = document.getElementById("diffResultContainer");
+		container.setAttribute("data-left-name", leftName);
+		container.setAttribute("data-right-name", rightName);
+		document.getElementById("diffReportFrame").srcdoc = job.html;
+		container.classList.remove("d-none");
+		document.getElementById("compareHeader").classList.add("d-none");
+		document.querySelectorAll(".drop-zone").forEach(function (z) {
+			z.classList.add("drop-zone-compact");
+			z.querySelector(".drop-icon").setAttribute("width", "24");
+			z.querySelector(".drop-icon").setAttribute("height", "24");
+			z.querySelector(".drop-icon").classList.remove("mb-2");
+		});
+		var settingsBar = document.getElementById("settingsBar");
+		if (settingsBar) settingsBar.classList.add("settings-bar-compact");
+		var btn = document.getElementById("diffAddToHistoryBtn");
+		if (btn) {
+			btn.disabled = false;
+			if (btn._origHtml) btn.innerHTML = btn._origHtml;
+		}
+	}
+
+	// Register handler so jobs-drawer.js can push results into the page
+	if (window.DiffCheckJobs) {
+		window.DiffCheckJobs.setOnViewJob(showJobResult);
+	} else {
+		document.addEventListener("diffcheck:viewjob", function (e) {
+			showJobResult(e.detail);
+		});
+	}
+
 	function checkAndSubmit() {
 		keyColumnsChip.commitPendingInput();
 		columnMappingsChip.commitPendingInput();
@@ -423,12 +455,11 @@
 			return;
 		}
 
-		refreshRerunButton(true, true);
-
 		var errorEl = document.getElementById("compareError");
 		var warningEl = document.getElementById("compareWarning");
 		var leftSize = leftInput.files[0].size;
 		var rightSize = rightInput.files[0].size;
+
 		if (leftSize === 0 || rightSize === 0) {
 			errorEl.textContent = "One or both files are empty.";
 			errorEl.classList.remove("d-none");
@@ -447,44 +478,12 @@
 		}
 
 		saveOptionsToStorage();
-		var overlay = document.getElementById("loadingOverlay");
-		var errorEl = document.getElementById("compareError");
-		var warningEl = document.getElementById("compareWarning");
-		resetOverlayProgress();
-		overlay.classList.remove("d-none");
-		overlay.classList.add("d-flex");
 		errorEl.classList.add("d-none");
 		updateValidationInlineHints(null);
 		if (warningEl) warningEl.classList.add("d-none");
+		refreshRerunButton(true, true);
 
 		var formData = new FormData(form);
-		var operationId =
-			typeof crypto !== "undefined" && crypto.randomUUID
-				? crypto.randomUUID()
-				: "op-" + Date.now() + "-" + Math.random().toString(36).slice(2);
-		activeOperationId = operationId;
-		formData.append("operationId", operationId);
-
-		function hideOverlay() {
-			overlay.classList.add("d-none");
-			overlay.classList.remove("d-flex");
-			activeOperationId = null;
-		}
-
-		startProgressPolling(
-			operationId,
-			function (message) {
-				hideOverlay();
-				errorEl.textContent = message;
-				errorEl.classList.remove("d-none");
-				updateValidationInlineHints(message);
-				refreshRerunButton(true, false);
-			},
-			function () {
-				hideOverlay();
-				refreshRerunButton(true, false);
-			},
-		);
 		var theme = document.documentElement.getAttribute("data-theme") || "light";
 		var viewPref;
 		try {
@@ -493,7 +492,7 @@
 			viewPref = "table";
 		}
 
-		fetch("?handler=Compare", {
+		fetch("?handler=StartJob", {
 			method: "POST",
 			body: formData,
 			headers: { "X-Theme": theme, "X-View": viewPref },
@@ -502,60 +501,28 @@
 				return r.json();
 			})
 			.then(function (data) {
-				stopProgressPolling();
-				if (data.cancelled) {
-					hideOverlay();
-					refreshRerunButton(true, false);
-					return;
-				}
+				refreshRerunButton(hasBothFilesSelected(), false);
 				if (data.error) {
-					hideOverlay();
 					errorEl.textContent = data.error;
 					errorEl.classList.remove("d-none");
 					updateValidationInlineHints(data.error);
-					if (warningEl) warningEl.classList.add("d-none");
-					refreshRerunButton(true, false);
 					return;
 				}
-				setOverlayProgress(100, "Comparison complete", "Completed");
-				hideOverlay();
-				updateValidationInlineHints(null);
-				refreshRerunButton(true, false);
-				if (warningEl) {
-					if (data.warningMessage) {
-						warningEl.textContent = data.warningMessage;
-						warningEl.classList.remove("d-none");
-					} else {
-						warningEl.classList.add("d-none");
-					}
-				}
-				var container = document.getElementById("diffResultContainer");
-				container.setAttribute("data-left-name", data.leftFileName || "");
-				container.setAttribute("data-right-name", data.rightFileName || "");
-				document.getElementById("diffReportFrame").srcdoc = data.html;
-				container.classList.remove("d-none");
-				document.getElementById("compareHeader").classList.add("d-none");
-				document.querySelectorAll(".drop-zone").forEach(function (z) {
-					z.classList.add("drop-zone-compact");
-					z.querySelector(".drop-icon").setAttribute("width", "24");
-					z.querySelector(".drop-icon").setAttribute("height", "24");
-					z.querySelector(".drop-icon").classList.remove("mb-2");
-				});
-				var settingsBar = document.getElementById("settingsBar");
-				if (settingsBar) settingsBar.classList.add("settings-bar-compact");
-				var btn = document.getElementById("diffAddToHistoryBtn");
-				if (btn && btn._origHtml) {
-					btn.disabled = false;
-					btn.innerHTML = btn._origHtml;
+				// Notify jobs drawer
+				if (window.DiffCheckJobs) {
+					window.DiffCheckJobs.addJob(
+						data.jobId,
+						data.label,
+						data.leftFileName,
+						data.rightFileName
+					);
 				}
 			})
 			.catch(function (err) {
-				stopProgressPolling();
-				hideOverlay();
-				errorEl.textContent = "Error: " + (err.message || "Comparison failed");
+				refreshRerunButton(hasBothFilesSelected(), false);
+				errorEl.textContent = "Error: " + (err.message || "Could not start comparison");
 				errorEl.classList.remove("d-none");
 				updateValidationInlineHints(errorEl.textContent);
-				refreshRerunButton(true, false);
 			});
 	}
 
@@ -600,16 +567,6 @@
 	}
 
 	refreshRerunButton(hasBothFilesSelected(), false);
-
-	if (cancelCompareBtn) {
-		cancelCompareBtn.addEventListener("click", function () {
-			if (activeOperationId) {
-				cancelCompareBtn.disabled = true;
-				cancelCompareBtn.textContent = "Cancelling…";
-				sendCancelRequest(activeOperationId);
-			}
-		});
-	}
 
 	// Report is generated with theme from X-Theme header, so it renders correctly from the start.
 	// When user toggles theme, theme.js applies it to the iframe.

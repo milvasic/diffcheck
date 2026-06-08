@@ -190,24 +190,28 @@ internal static class CliApp
 		{
 			shellArg,
 		};
-		completionsCommand.SetAction((parseResult) =>
-		{
-			var shell = parseResult.GetValue(shellArg)!.ToLowerInvariant();
-			var script = shell switch
+		completionsCommand.SetAction(
+			(parseResult) =>
 			{
-				"bash" => CompletionScripts.Bash,
-				"zsh" => CompletionScripts.Zsh,
-				"fish" => CompletionScripts.Fish,
-				_ => null,
-			};
-			if (script is null)
-			{
-				Console.Error.WriteLine($"Unknown shell \"{shell}\". Supported: bash, zsh, fish.");
-				return 1;
+				var shell = parseResult.GetValue(shellArg)!.ToLowerInvariant();
+				var script = shell switch
+				{
+					"bash" => CompletionScripts.Bash,
+					"zsh" => CompletionScripts.Zsh,
+					"fish" => CompletionScripts.Fish,
+					_ => null,
+				};
+				if (script is null)
+				{
+					Console.Error.WriteLine(
+						$"Unknown shell \"{shell}\". Supported: bash, zsh, fish."
+					);
+					return 1;
+				}
+				Console.WriteLine(script);
+				return 0;
 			}
-			Console.WriteLine(script);
-			return 0;
-		});
+		);
 		rootCommand.Add(completionsCommand);
 
 		rootCommand.SetAction(
@@ -281,7 +285,10 @@ internal static class CliApp
 					var isLeftXlsx = IsXlsx(leftFilePath);
 					var isRightXlsx = IsXlsx(rightFilePath);
 
-					if ((leftSheet != null || rightSheet != null || allSheets) && (!isLeftXlsx || !isRightXlsx))
+					if (
+						(leftSheet != null || rightSheet != null || allSheets)
+						&& (!isLeftXlsx || !isRightXlsx)
+					)
 					{
 						Console.Error.WriteLine(
 							"Error: --left-sheet, --right-sheet, and --all-sheets are only supported for XLSX files."
@@ -289,7 +296,8 @@ internal static class CliApp
 						return 2;
 					}
 
-					var defaultOutputPath = format == "json" ? "diff-report.json" : "diff-report.html";
+					var defaultOutputPath =
+						format == "json" ? "diff-report.json" : "diff-report.html";
 					var outputPath = outputFile?.FullName ?? defaultOutputPath;
 
 					IReadOnlyList<ColumnMapping>? profileMappings = null;
@@ -390,11 +398,11 @@ internal static class CliApp
 							rightSheetNames,
 							StringComparer.OrdinalIgnoreCase
 						);
-						var matchedSheets = leftSheetNames.Where(n => rightSet.Contains(n)).ToList();
-
-						var leftOnly = leftSheetNames
-							.Where(n => !rightSet.Contains(n))
+						var matchedSheets = leftSheetNames
+							.Where(n => rightSet.Contains(n))
 							.ToList();
+
+						var leftOnly = leftSheetNames.Where(n => !rightSet.Contains(n)).ToList();
 						var leftSet = new HashSet<string>(
 							leftSheetNames,
 							StringComparer.OrdinalIgnoreCase
@@ -424,8 +432,9 @@ internal static class CliApp
 							return 2;
 						}
 
-						var sheetResults =
-							new List<(string SheetName, DiffResult Result)>(matchedSheets.Count);
+						var sheetResults = new List<(string SheetName, DiffResult Result)>(
+							matchedSheets.Count
+						);
 						// NOTE: each CompareAsync call re-opens both workbooks via XlsxReader.ReadAsync;
 						// for files with many matching sheets this is O(n) opens per file.
 						foreach (var sheetName in matchedSheets)
@@ -452,11 +461,15 @@ internal static class CliApp
 							var nodes = new JsonArray();
 							foreach (var sr in sheetResults)
 							{
-								var sheetNode = JsonNode.Parse(DiffResultJsonSerializer.Serialize(sr.Result))!.AsObject();
+								var sheetNode = JsonNode
+									.Parse(DiffResultJsonSerializer.Serialize(sr.Result))!
+									.AsObject();
 								sheetNode.Insert(0, "sheetName", JsonValue.Create(sr.SheetName));
 								nodes.Add(sheetNode);
 							}
-							var json = nodes.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+							var json = nodes.ToJsonString(
+								new JsonSerializerOptions { WriteIndented = true }
+							);
 							await File.WriteAllTextAsync(outputPath, json, token);
 						}
 						else
@@ -503,7 +516,14 @@ internal static class CliApp
 							}
 						}
 						return sheetResults.Any(sr =>
-							ThresholdExceeded(sr.Result.Summary, failOnDiff, maxAdded, maxRemoved, maxModified))
+							ThresholdExceeded(
+								sr.Result.Summary,
+								failOnDiff,
+								maxAdded,
+								maxRemoved,
+								maxModified
+							)
+						)
 							? 1
 							: 0;
 					}
