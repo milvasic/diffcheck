@@ -417,8 +417,8 @@
 	// ── Public API ─────────────────────────────────────────────────────────
 
 	window.DiffCheckJobs = {
-		addJob: function (jobId, label) {
-			addJob(jobId, label);
+		addJob: function (jobId, label, leftFileName, rightFileName) {
+			addJob(jobId, label, leftFileName, rightFileName);
 		},
 		setOnViewJob: function (cb) {
 			onViewJob = cb;
